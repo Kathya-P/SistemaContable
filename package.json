@@ -1,0 +1,26 @@
+{
+  "name": "sistemacontable",
+  "version": "1.0.0",
+  "description": "Configuración base para trabajar con Supabase, React y Node.js.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No hay pruebas configuradas todavía\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://localhost:26831/Kathya-P/SistemaContable"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

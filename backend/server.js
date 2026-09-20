@@ -6,15 +6,39 @@ import { validarPartidaDoble } from "./contabilidad.js";
 
 const app = express();
 const puerto = Number(process.env.PORT || 3001);
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-const usandoClaveServidor = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-if (!supabaseUrl || !supabaseKey) {
-    throw new Error("Faltan SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en el entorno del backend.");
+function getSupabaseUrl() {
+    return process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+function getSupabaseKey() {
+    return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || "";
+}
+
+function tieneClaveServidor() {
+    return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+let _supabase = null;
+function getSupabaseClient() {
+    const url = getSupabaseUrl();
+    const key = getSupabaseKey();
+    if (!url || !key) {
+        const error = new Error("Faltan variables de entorno para Supabase: SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.");
+        error.statusCode = 500;
+        throw error;
+    }
+    if (!_supabase) {
+        _supabase = createClient(url, key);
+    }
+    return _supabase;
+}
+
+const supabase = new Proxy({}, {
+    get(_target, prop) {
+        return getSupabaseClient()[prop];
+    }
+});
 
 app.use(cors());
 app.use(express.json());
@@ -28,8 +52,8 @@ function responderError(res, error) {
 }
 
 function exigirClaveDeEscritura() {
-    if (!usandoClaveServidor) {
-        const error = new Error("El backend no puede escribir todavía: agrega SUPABASE_SERVICE_ROLE_KEY al archivo .env. La clave anon solo tiene permisos de lectura.");
+    if (!tieneClaveServidor()) {
+        const error = new Error("El backend no puede escribir todavía: agrega SUPABASE_SERVICE_ROLE_KEY al entorno. La clave anon solo tiene permisos de lectura.");
         error.statusCode = 503;
         throw error;
     }
@@ -90,11 +114,18 @@ async function cargarCuentas(ids) {
     return data || [];
 }
 
-app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, servicio: "contabilidad", claveServidor: usandoClaveServidor });
+const apiRouter = express.Router();
+
+apiRouter.get("/health", (_req, res) => {
+    res.json({
+        ok: true,
+        servicio: "contabilidad",
+        supabaseConfigurado: Boolean(getSupabaseUrl() && getSupabaseKey()),
+        claveServidor: tieneClaveServidor()
+    });
 });
 
-app.get("/api/cuentas", async (req, res) => {
+apiRouter.get("/cuentas", async (req, res) => {
     try {
         await obtenerUsuarioAutenticado(req);
         const { data, error } = await supabase
@@ -112,7 +143,7 @@ app.get("/api/cuentas", async (req, res) => {
     }
 });
 
-app.get("/api/empresas", async (_req, res) => {
+apiRouter.get("/empresas", async (_req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(_req);
         const { data, error } = await supabase
@@ -132,7 +163,7 @@ app.get("/api/empresas", async (_req, res) => {
     }
 });
 
-app.get("/api/usuario-actual", async (req, res) => {
+apiRouter.get("/usuario-actual", async (req, res) => {
     try {
         return res.json(await obtenerUsuarioAutenticado(req));
     } catch (error) {
@@ -140,7 +171,7 @@ app.get("/api/usuario-actual", async (req, res) => {
     }
 });
 
-app.get("/api/asientos/siguiente-numero", async (req, res) => {
+apiRouter.get("/asientos/siguiente-numero", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
 
@@ -162,43 +193,40 @@ app.get("/api/asientos/siguiente-numero", async (req, res) => {
     }
 });
 
-    app.post("/api/empresas", async (req, res) => {
-        try {
-                exigirClaveDeEscritura();
-                const usuario = await obtenerUsuarioAutenticado(req);
+apiRouter.post("/empresas", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
 
-                if (usuario.rol !== "ADMIN") {
-                    const error = new Error("Solo un usuario ADMIN puede crear empresas.");
-                    error.statusCode = 403;
-                    throw error;
-                }
-
-            const nombre = String(req.body?.nombre_empresa || req.body?.nombre || "").trim();
-
-            if (!nombre) {
-                throw new Error("El nombre de la empresa es obligatorio.");
-            }
-
-            const { data, error } = await supabase
-                .from("empresas")
-                .insert([{ nombre_empresa: nombre }])
-                .select()
-                .single();
-
-            if (error) {
-                throw error;
-            }
-
-            return res.status(201).json(data);
-        } catch (error) {
-            return responderError(res, error);
+        if (usuario.rol !== "ADMIN") {
+            const error = new Error("Solo un usuario ADMIN puede crear empresas.");
+            error.statusCode = 403;
+            throw error;
         }
-    });
 
-// Registro de un usuario nuevo: crea el usuario en Supabase Auth,
-// busca o crea la empresa por nombre y crea la fila en public.usuarios.
-// No modifica ninguna tabla existente, solo inserta datos.
-app.post("/api/registro", async (req, res) => {
+        const nombre = String(req.body?.nombre_empresa || req.body?.nombre || "").trim();
+
+        if (!nombre) {
+            throw new Error("El nombre de la empresa es obligatorio.");
+        }
+
+        const { data, error } = await supabase
+            .from("empresas")
+            .insert([{ nombre_empresa: nombre }])
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        return res.status(201).json(data);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.post("/registro", async (req, res) => {
     try {
         exigirClaveDeEscritura();
 
@@ -231,7 +259,7 @@ app.post("/api/registro", async (req, res) => {
             .maybeSingle();
 
         if (errorBuscarEmpresa) throw errorBuscarEmpresa;
-                if (empresa) {
+        if (empresa) {
             const { count } = await supabase
                 .from("usuarios")
                 .select("id", { count: "exact", head: true })
@@ -283,7 +311,6 @@ app.post("/api/registro", async (req, res) => {
             .single();
 
         if (errorCrearUsuario) {
-            // Revierte el usuario de Authentication si falla la fila contable, para no dejarlo huérfano.
             await supabase.auth.admin.deleteUser(usuarioAuthCreado.user.id);
             throw errorCrearUsuario;
         }
@@ -294,7 +321,7 @@ app.post("/api/registro", async (req, res) => {
     }
 });
 
-app.post("/api/asientos/validar", async (req, res) => {
+apiRouter.post("/asientos/validar", async (req, res) => {
     try {
         await obtenerUsuarioAutenticado(req);
         const detalles = req.body?.detalles || [];
@@ -306,7 +333,7 @@ app.post("/api/asientos/validar", async (req, res) => {
     }
 });
 
-app.post("/api/asientos", async (req, res) => {
+apiRouter.post("/asientos", async (req, res) => {
     try {
         exigirClaveDeEscritura();
         const usuario = await obtenerUsuarioAutenticado(req);
@@ -352,9 +379,9 @@ app.post("/api/asientos", async (req, res) => {
     }
 });
 
-app.get("/api/libro-diario", async (_req, res) => {
+apiRouter.get("/libro-diario", async (_req, res) => {
     try {
-    const usuario = await obtenerUsuarioAutenticado(_req);
+        const usuario = await obtenerUsuarioAutenticado(_req);
         const { data: cuentas, error: errorCuentas } = await supabase
             .from("cuentas")
             .select("id, codigo, nombre, cuenta_padre_id");
@@ -406,7 +433,7 @@ app.get("/api/libro-diario", async (_req, res) => {
     }
 });
 
-app.get("/api/libro-mayor", async (req, res) => {
+apiRouter.get("/libro-mayor", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
         const desde = req.query.desde;
@@ -432,6 +459,17 @@ app.get("/api/libro-mayor", async (req, res) => {
     }
 });
 
-app.listen(puerto, () => {
-    console.log(`API contable escuchando en http://localhost:${puerto}`);
-});
+// Registrar rutas tanto en /api como en la raíz del enrutador
+app.use("/api", apiRouter);
+app.use(apiRouter);
+
+export { app, apiRouter };
+export default app;
+
+// Si se ejecuta directamente (ej. node backend/server.js) y no en Vercel, abrir puerto
+const isDirectRun = process.argv[1] && (process.argv[1].endsWith("server.js") || process.argv[1].endsWith("server.ts"));
+if (isDirectRun && !process.env.VERCEL) {
+    app.listen(puerto, "0.0.0.0", () => {
+        console.log(`API contable escuchando en http://localhost:${puerto}`);
+    });
+}

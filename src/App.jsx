@@ -78,7 +78,6 @@ function App(){
 
     useEffect(() => {
         if(!sesion){
-            setUsuario(null);
             return undefined;
         }
 
@@ -125,10 +124,11 @@ function App(){
         });
     }
 
-    async function cerrarSesion(){
-        await supabase.auth.signOut();
-        setVista("inicio");
-    }
+    async function cerrarSesion() {
+    await supabase.auth.signOut();
+    setUsuario(null);
+    setVista("inicio");
+   }
 
     if(cargandoSesion){
         return <main className="login-page"><p>Cargando sesión...</p></main>;

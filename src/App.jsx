@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import CatalogoCuentas from "./components/CatalogoCuentas";
 import Dashboard from "./components/Dashboard";
-import GestionUsuarios from "./components/GestionUsuarios";
+import GestionUsuarios from "./components/Gestionusuarios";
 import LibroDiario from "./components/LibroDiario";
 import LibroMayor from "./components/LibroMayor";
 import Login from "./components/Login";

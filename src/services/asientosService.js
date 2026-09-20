@@ -1,38 +1,11 @@
-import { supabase } from "../lib/supabase";
+import { solicitarApi } from "./api";
 
 
 // ==========================================
 // Obtener todos los asientos con detalle
 // ==========================================
 export async function obtenerAsientos() {
-
-    const { data, error } = await supabase
-        .from("asientos")
-        .select(`
-            *,
-            usuarios(
-                nombre,
-                correo
-            ),
-            detalle_asientos(
-                *,
-                cuentas(
-                    codigo,
-                    nombre
-                )
-            )
-        `)
-        .order("fecha", {
-            ascending: false
-        });
-
-
-    if(error){
-        throw error;
-    }
-
-
-    return data;
+    return solicitarApi("/libro-diario");
 }
 
 
@@ -41,35 +14,8 @@ export async function obtenerAsientos() {
 // Obtener un asiento específico
 // ==========================================
 export async function obtenerAsientoPorId(id){
-
-
-    const { data, error } = await supabase
-        .from("asientos")
-        .select(`
-            *,
-            usuarios(
-                nombre,
-                correo
-            ),
-            detalle_asientos(
-                *,
-                cuentas(
-                    codigo,
-                    nombre
-                )
-            )
-        `)
-        .eq("id", id)
-        .single();
-
-
-
-    if(error){
-        throw error;
-    }
-
-
-    return data;
+    const asientos = await solicitarApi("/libro-diario");
+    return asientos.find(asiento => String(asiento.id) === String(id));
 
 }
 
@@ -79,53 +25,9 @@ export async function obtenerAsientoPorId(id){
 // Crear asiento contable
 // ==========================================
 export async function crearAsiento(asiento, detalles){
-
-
-    // Crear cabecera
-
-    const { data: asientoCreado, error:errorAsiento } = await supabase
-        .from("asientos")
-        .insert([
-            asiento
-        ])
-        .select()
-        .single();
-
-
-
-    if(errorAsiento){
-        throw errorAsiento;
-    }
-
-
-
-    // Agregar el id del asiento al detalle
-
-    const detallesConAsiento = detalles.map(detalle => ({
-        ...detalle,
-        asiento_id: asientoCreado.id
-    }));
-
-
-
-
-    const { data: detallesCreados, error:errorDetalle } = await supabase
-        .from("detalle_asientos")
-        .insert(detallesConAsiento)
-        .select();
-
-
-
-
-    if(errorDetalle){
-        throw errorDetalle;
-    }
-
-
-
-    return {
-        asiento: asientoCreado,
-        detalle: detallesCreados
-    };
-
+    return solicitarApi("/asientos", {
+        method: "POST",
+        body: JSON.stringify({ asiento, detalles })
+    });
 }
+

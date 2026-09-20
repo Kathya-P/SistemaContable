@@ -43,6 +43,8 @@ const supabase = new Proxy({}, {
 app.use(cors());
 app.use(express.json());
 
+const ROLES_VALIDOS = ["ADMIN", "CONTADOR", "AUXILIAR"];
+
 function responderError(res, error) {
     console.error(error);
     if (error.code === "23505" && error.message?.includes("uq_numero_partida_empresa")) {
@@ -93,6 +95,25 @@ async function obtenerUsuarioAutenticado(req) {
     return usuario;
 }
 
+// Lee la tabla roles_permisos y bloquea la acción si el rol no la tiene.
+async function exigirPermiso(usuario, permiso) {
+    const { data, error } = await supabase
+        .from("roles_permisos")
+        .select(permiso)
+        .eq("rol", usuario.rol)
+        .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    if (data?.[permiso] !== true) {
+        const errorPermiso = new Error("Tu rol no tiene permiso para realizar esta acción.");
+        errorPermiso.statusCode = 403;
+        throw errorPermiso;
+    }
+}
+
 function exigirEmpresaDelUsuario(usuario, empresaId) {
     if (String(usuario.empresa_id) !== String(empresaId)) {
         const error = new Error("No tienes acceso a esa empresa.");
@@ -127,7 +148,9 @@ apiRouter.get("/health", (_req, res) => {
 
 apiRouter.get("/cuentas", async (req, res) => {
     try {
-        await obtenerUsuarioAutenticado(req);
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_catalogo");
+
         const { data, error } = await supabase
             .from("cuentas")
             .select("*")
@@ -143,9 +166,9 @@ apiRouter.get("/cuentas", async (req, res) => {
     }
 });
 
-apiRouter.get("/empresas", async (_req, res) => {
+apiRouter.get("/empresas", async (req, res) => {
     try {
-        const usuario = await obtenerUsuarioAutenticado(_req);
+        const usuario = await obtenerUsuarioAutenticado(req);
         const { data, error } = await supabase
             .from("empresas")
             .select("*")
@@ -166,6 +189,27 @@ apiRouter.get("/empresas", async (_req, res) => {
 apiRouter.get("/usuario-actual", async (req, res) => {
     try {
         return res.json(await obtenerUsuarioAutenticado(req));
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Permisos del rol del usuario logueado (el front los usa para mostrar u ocultar el menú).
+apiRouter.get("/permisos", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+
+        const { data, error } = await supabase
+            .from("roles_permisos")
+            .select("*")
+            .eq("rol", usuario.rol)
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+
+        return res.json(data || {});
     } catch (error) {
         return responderError(res, error);
     }
@@ -259,6 +303,7 @@ apiRouter.post("/registro", async (req, res) => {
             .maybeSingle();
 
         if (errorBuscarEmpresa) throw errorBuscarEmpresa;
+
         if (empresa) {
             const { count } = await supabase
                 .from("usuarios")
@@ -321,9 +366,183 @@ apiRouter.post("/registro", async (req, res) => {
     }
 });
 
+// ==========================================================
+// Gestión de usuarios de la empresa (solo roles con puede_gestionar_usuarios)
+// ==========================================================
+
+// Usuarios de la empresa del usuario logueado.
+apiRouter.get("/usuarios", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_gestionar_usuarios");
+
+        const { data, error } = await supabase
+            .from("usuarios")
+            .select("id, nombre, correo, rol, estado")
+            .eq("empresa_id", usuario.empresa_id)
+            .order("id", { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        return res.json(data || []);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Crea un usuario nuevo con acceso a la empresa del administrador.
+apiRouter.post("/usuarios", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const administrador = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(administrador, "puede_gestionar_usuarios");
+
+        const nombre = String(req.body?.nombre || "").trim();
+        const correo = String(req.body?.correo || "").trim().toLowerCase();
+        const password = String(req.body?.password || "");
+        const rol = String(req.body?.rol || "");
+
+        if (!nombre) throw new Error("El nombre es obligatorio.");
+        if (!correo) throw new Error("El correo es obligatorio.");
+        if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
+        if (!ROLES_VALIDOS.includes(rol)) throw new Error("El rol no es válido.");
+
+        const { data: usuarioExistente } = await supabase
+            .from("usuarios")
+            .select("id")
+            .ilike("correo", correo)
+            .maybeSingle();
+
+        if (usuarioExistente) {
+            const error = new Error("Ya existe un usuario registrado con ese correo.");
+            error.statusCode = 409;
+            throw error;
+        }
+
+        const { data: usuarioAuth, error: errorAuth } = await supabase.auth.admin.createUser({
+            email: correo,
+            password,
+            email_confirm: true
+        });
+
+        if (errorAuth) {
+            const error = new Error(errorAuth.message?.includes("already been registered")
+                ? "Ese correo ya está registrado en Authentication."
+                : errorAuth.message || "No se pudo crear el usuario de autenticación.");
+            error.statusCode = 409;
+            throw error;
+        }
+
+        // el usuario queda en la empresa del administrador, nunca en otra
+        const { data: usuarioCreado, error: errorUsuario } = await supabase
+            .from("usuarios")
+            .insert([{
+                empresa_id: administrador.empresa_id,
+                nombre,
+                correo,
+                rol,
+                estado: true,
+                auth_id: usuarioAuth.user.id
+            }])
+            .select("id, nombre, correo, rol, estado")
+            .single();
+
+        if (errorUsuario) {
+            // no deja un usuario huérfano en Authentication
+            await supabase.auth.admin.deleteUser(usuarioAuth.user.id);
+            throw errorUsuario;
+        }
+
+        return res.status(201).json(usuarioCreado);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Cambia el rol o activa/desactiva a un usuario de la misma empresa.
+apiRouter.patch("/usuarios/:id", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const administrador = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(administrador, "puede_gestionar_usuarios");
+
+        const cambios = {};
+
+        if (req.body?.rol !== undefined) {
+            if (!ROLES_VALIDOS.includes(req.body.rol)) throw new Error("El rol no es válido.");
+            cambios.rol = req.body.rol;
+        }
+
+        if (req.body?.estado !== undefined) {
+            cambios.estado = Boolean(req.body.estado);
+        }
+
+        if (!Object.keys(cambios).length) {
+            throw new Error("No hay cambios que aplicar.");
+        }
+
+        // solo puede tocar usuarios de su propia empresa
+        const { data: objetivo, error: errorObjetivo } = await supabase
+            .from("usuarios")
+            .select("id, rol, estado")
+            .eq("id", req.params.id)
+            .eq("empresa_id", administrador.empresa_id)
+            .maybeSingle();
+
+        if (errorObjetivo) {
+            throw errorObjetivo;
+        }
+
+        if (!objetivo) {
+            const error = new Error("No se encontró ese usuario en tu empresa.");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // la empresa nunca se puede quedar sin un ADMIN activo
+        const seguiraSiendoAdminActivo = (cambios.rol ?? objetivo.rol) === "ADMIN" && (cambios.estado ?? objetivo.estado);
+
+        if (objetivo.rol === "ADMIN" && objetivo.estado && !seguiraSiendoAdminActivo) {
+            const { count } = await supabase
+                .from("usuarios")
+                .select("id", { count: "exact", head: true })
+                .eq("empresa_id", administrador.empresa_id)
+                .eq("rol", "ADMIN")
+                .eq("estado", true);
+
+            if ((count || 0) <= 1) {
+                throw new Error("La empresa debe tener al menos un ADMIN activo.");
+            }
+        }
+
+        const { data, error } = await supabase
+            .from("usuarios")
+            .update(cambios)
+            .eq("id", objetivo.id)
+            .select("id, nombre, correo, rol, estado")
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        return res.json(data);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// ==========================================================
+// Asientos y libros
+// ==========================================================
+
 apiRouter.post("/asientos/validar", async (req, res) => {
     try {
-        await obtenerUsuarioAutenticado(req);
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
         const detalles = req.body?.detalles || [];
         const ids = [...new Set(detalles.map(detalle => detalle.cuenta_id).filter(Boolean))];
         const cuentas = await cargarCuentas(ids);
@@ -337,6 +556,8 @@ apiRouter.post("/asientos", async (req, res) => {
     try {
         exigirClaveDeEscritura();
         const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
         const asiento = req.body?.asiento || {};
         const detalles = req.body?.detalles || [];
 
@@ -379,9 +600,11 @@ apiRouter.post("/asientos", async (req, res) => {
     }
 });
 
-apiRouter.get("/libro-diario", async (_req, res) => {
+apiRouter.get("/libro-diario", async (req, res) => {
     try {
-        const usuario = await obtenerUsuarioAutenticado(_req);
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
         const { data: cuentas, error: errorCuentas } = await supabase
             .from("cuentas")
             .select("id, codigo, nombre, cuenta_padre_id");
@@ -436,6 +659,8 @@ apiRouter.get("/libro-diario", async (_req, res) => {
 apiRouter.get("/libro-mayor", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
         const desde = req.query.desde;
         const hasta = req.query.hasta;
 
@@ -454,6 +679,67 @@ apiRouter.get("/libro-mayor", async (req, res) => {
         }
 
         return res.json(data || []);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Movimientos del Libro Mayor, uno por línea de asiento (para las cuentas T).
+apiRouter.get("/libro-mayor/movimientos", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
+        const { desde, hasta } = req.query;
+
+        if (!desde || !hasta) {
+            return res.status(400).json({ error: "Se requiere fecha desde y fecha hasta." });
+        }
+
+        const { data: catalogo, error: errorCatalogo } = await supabase
+            .from("cuentas")
+            .select("id, codigo, nombre, nivel, cuenta_padre_id");
+
+        if (errorCatalogo) throw errorCatalogo;
+
+        const cuentasPorId = new Map((catalogo || []).map(c => [c.id, c]));
+
+        const { data, error } = await supabase
+            .from("asientos")
+            .select("fecha, numero_partida, detalle_asientos(cuenta_id, debe, haber)")
+            .eq("empresa_id", usuario.empresa_id)
+            .eq("estado", "CONTABILIZADO")
+            .gte("fecha", desde)
+            .lte("fecha", hasta)
+            .order("fecha", { ascending: true })
+            .order("numero_partida", { ascending: true });
+
+        if (error) throw error;
+
+        const movimientos = [];
+
+        for (const asiento of data || []) {
+            for (const d of asiento.detalle_asientos || []) {
+                const cuenta = cuentasPorId.get(d.cuenta_id);
+                if (!cuenta) continue;
+
+                // la cuenta mayor de una subcuenta es su padre
+                const mayor = cuenta.nivel === "SUBCUENTA" && cuenta.cuenta_padre_id
+                    ? cuentasPorId.get(cuenta.cuenta_padre_id) || cuenta
+                    : cuenta;
+
+                movimientos.push({
+                    fecha: asiento.fecha,
+                    partida: asiento.numero_partida,
+                    debe: Number(d.debe),
+                    haber: Number(d.haber),
+                    cuenta: { id: cuenta.id, codigo: cuenta.codigo, nombre: cuenta.nombre },
+                    mayor: { id: mayor.id, codigo: mayor.codigo, nombre: mayor.nombre }
+                });
+            }
+        }
+
+        return res.json(movimientos);
     } catch (error) {
         return responderError(res, error);
     }

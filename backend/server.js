@@ -432,6 +432,8 @@ app.get("/api/libro-mayor", async (req, res) => {
     }
 });
 
-app.listen(puerto, () => {
+export default app;
+
+/*app.listen(puerto, () => {
     console.log(`API contable escuchando en http://localhost:${puerto}`);
-});
+});*/

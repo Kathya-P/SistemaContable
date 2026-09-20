@@ -11,6 +11,7 @@ import { solicitarApi } from "./services/api";
 
 const vistas = {
     inicio: "Inicio",
+    dashboard: "Dashboard",
     cuentas: "Catálogo de cuentas",
     asiento: "Nuevo asiento",
     diario: "Libro Diario",

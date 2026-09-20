@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import CatalogoCuentas from "./components/CatalogoCuentas";
 import LibroDiario from "./components/LibroDiario";
 import LibroMayor from "./components/LibroMayor";
+import CuentasT from "./components/Cuentas";
 import Login from "./components/Login";
 import NuevoAsiento from "./components/NuevoAsiento";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
@@ -11,7 +12,8 @@ const vistas = {
     cuentas: "Catálogo de cuentas",
     asiento: "Nuevo asiento",
     diario: "Libro Diario",
-    mayor: "Libro Mayor"
+    mayor: "Libro Mayor",
+    cuentasT: "Cuentas T"
 };
 
 function Inicio({ cambiarVista }){
@@ -155,6 +157,7 @@ function App(){
         if(vista === "asiento") return <NuevoAsiento usuario={usuario} onCreated={() => setVista("diario")} />;
         if(vista === "diario") return <LibroDiario />;
         if(vista === "mayor") return <LibroMayor />;
+        if(vista === "cuentasT") return <CuentasT />;  
         return <Inicio cambiarVista={setVista} />;
     }
 

@@ -2075,3 +2075,140 @@ select {
     grid-column: 1 / -1;
   }
 }
+.t-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.t-account {
+    background: var(--surface, #ffffff);
+    border: 1px solid var(--border, #d9dce1);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 0.78rem;
+}
+
+.t-title {
+    padding: 9px 11px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border, #d9dce1);
+}
+
+.t-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.t-side {
+    min-width: 0;
+}
+
+.t-side-debe {
+    border-right: 1px solid var(--border, #d9dce1);
+}
+
+.t-head {
+    padding: 7px 8px;
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border, #d9dce1);
+}
+
+.t-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 8px;
+    min-height: 28px;
+    border-bottom: 1px solid var(--border, #d9dce1);
+}
+
+.t-ref {
+    color: #777;
+    font-size: 0.68rem;
+}
+
+.t-row span:last-child {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.t-total {
+    padding: 7px 8px;
+    text-align: right;
+    font-weight: 700;
+    border-top: 2px solid var(--border, #d9dce1);
+}
+
+.t-saldo {
+    padding: 8px 10px;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-top: 1px solid var(--border, #d9dce1);
+}
+
+.t-summary {
+    margin-top: 24px;
+    border: 1px solid var(--border, #d9dce1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.t-summary-title {
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border, #d9dce1);
+}
+
+.t-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.t-summary-grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 11px 14px;
+}
+
+.t-summary-grid > div + div {
+    border-left: 1px solid var(--border, #d9dce1);
+}
+
+.t-summary-grid span {
+    font-size: 0.7rem;
+    color: #777;
+}
+
+.t-summary-grid strong {
+    font-size: 0.9rem;
+}
+
+@media (max-width: 1050px) {
+    .t-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 700px) {
+    .t-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .t-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .t-summary-grid > div + div {
+        border-left: none;
+        border-top: 1px solid var(--border, #d9dce1);
+    }
+}

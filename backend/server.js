@@ -432,6 +432,64 @@ app.get("/api/libro-mayor", async (req, res) => {
     }
 });
 
+app.get("/api/libro-mayor/movimientos", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        const { desde, hasta } = req.query;
+
+        if (!desde || !hasta) {
+            return res.status(400).json({ error: "Se requiere fecha desde y fecha hasta." });
+        }
+
+        const { data: catalogo, error: errorCatalogo } = await supabase
+            .from("cuentas")
+            .select("id, codigo, nombre, nivel, cuenta_padre_id");
+
+        if (errorCatalogo) throw errorCatalogo;
+
+        const cuentasPorId = new Map((catalogo || []).map(c => [c.id, c]));
+
+        const { data, error } = await supabase
+            .from("asientos")
+            .select("fecha, numero_partida, detalle_asientos(cuenta_id, debe, haber)")
+            .eq("empresa_id", usuario.empresa_id)
+            .eq("estado", "CONTABILIZADO")
+            .gte("fecha", desde)
+            .lte("fecha", hasta)
+            .order("fecha", { ascending: true })
+            .order("numero_partida", { ascending: true });
+
+        if (error) throw error;
+
+        const movimientos = [];
+
+        for (const asiento of data || []) {
+            for (const d of asiento.detalle_asientos || []) {
+                const cuenta = cuentasPorId.get(d.cuenta_id);
+                if (!cuenta) continue;
+
+                // la cuenta mayor de una subcuenta es su padre
+                const mayor = cuenta.nivel === "SUBCUENTA" && cuenta.cuenta_padre_id
+                    ? cuentasPorId.get(cuenta.cuenta_padre_id) || cuenta
+                    : cuenta;
+
+                movimientos.push({
+                    fecha: asiento.fecha,
+                    partida: asiento.numero_partida,
+                    debe: Number(d.debe),
+                    haber: Number(d.haber),
+                    cuenta: { id: cuenta.id, codigo: cuenta.codigo, nombre: cuenta.nombre },
+                    mayor: { id: mayor.id, codigo: mayor.codigo, nombre: mayor.nombre }
+                });
+            }
+        }
+
+        return res.json(movimientos);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
 app.listen(puerto, () => {
     console.log(`API contable escuchando en http://localhost:${puerto}`);
 });

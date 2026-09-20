@@ -1,21 +1,9 @@
 import { supabase } from "../lib/supabase";
-
+import { solicitarApi } from "./api";
 
 // Obtener todas las empresas
 export async function obtenerEmpresas() {
-
-    const { data, error } = await supabase
-        .from("empresas")
-        .select("*")
-        .order("nombre_empresa");
-
-
-    if (error) {
-        throw error;
-    }
-
-
-    return data;
+    return solicitarApi("/empresas");
 }
 
 
@@ -40,20 +28,8 @@ export async function obtenerEmpresaPorId(id) {
 
 // Crear empresa
 export async function crearEmpresa(empresa) {
-
-    const { data, error } = await supabase
-        .from("empresas")
-        .insert([
-            empresa
-        ])
-        .select()
-        .single();
-
-
-    if (error) {
-        throw error;
-    }
-
-
-    return data;
+    return solicitarApi("/empresas", {
+        method: "POST",
+        body: JSON.stringify(empresa)
+    });
 }

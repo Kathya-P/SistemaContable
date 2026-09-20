@@ -1,18 +1,5 @@
-import { supabase } from "../lib/supabase";
-
+import { solicitarApi } from "./api";
 
 export async function obtenerCuentas(){
-
-    const {data,error}=await supabase
-        .from("cuentas")
-        .select("*")
-        .order("codigo");
-
-
-    if(error){
-        throw error;
-    }
-
-
-    return data;
+    return solicitarApi("/cuentas");
 }

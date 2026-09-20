@@ -1,0 +1,6 @@
+{
+  "name": "Sistema Contable",
+  "description": "Sistema contable web con gestión de cuentas, asientos de partida doble, libro diario, libro mayor, módulo de Kardex con valuación por promedio ponderado y autenticación con Supabase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

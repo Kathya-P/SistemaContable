@@ -196,14 +196,15 @@ npm install
 
 ## 3. Variables de entorno
 
-Crear un archivo:
+Copiar `.env.example` como `.env` y completar los valores desde Supabase:
 
-.env
+```env
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-clave-anon-publica
+SUPABASE_SERVICE_ROLE_KEY=tu-clave-service-role-privada
+```
 
-Agregar:
-
-VITE_SUPABASE_URL=URL_DEL_PROYECTO_SUPABASE
-VITE_SUPABASE_ANON_KEY=CLAVE_PUBLICA_SUPABASE
+La URL y las claves se encuentran en **Project Settings > API** dentro de tu proyecto Supabase. `SUPABASE_SERVICE_ROLE_KEY` solo la usa Node para crear empresas y asientos; nunca debe tener prefijo `VITE_` ni publicarse en el frontend.
 
 ---
 
@@ -214,6 +215,8 @@ npm run dev
 La aplicación estará disponible en:
 
 http://localhost:5173/
+
+Si ese puerto está ocupado, Vite utilizará automáticamente otro, por ejemplo `http://localhost:5174/`.
 
 ---
 

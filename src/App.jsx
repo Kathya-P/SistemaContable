@@ -9,21 +9,39 @@ import Estadoresultados from "./components/Estadoresultados";
 import { BalanceGeneral } from "./components/BalanceGeneral";
 import Login from "./components/Login";
 import NuevoAsiento from "./components/NuevoAsiento";
+import Sidebar from "./components/Sidebar";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
 import { solicitarApi } from "./services/api";
 
-const vistas = {
-    inicio: "Inicio",
-    dashboard: "Dashboard",
-    cuentas: "Catálogo de cuentas",
-    asiento: "Nuevo asiento",
-    diario: "Libro Diario",
-    mayor: "Libro Mayor",
-    kardex: "Kardex",
-    estadoResultados: "Estado de Resultados",
-    balanceGeneral: "Balance General",
-    usuarios: "Usuarios"
-};
+// estructura del menú lateral (grupos colapsables)
+const menuLateral = [
+    { id: "inicio", clave: "inicio", nombre: "Inicio", icono: "inicio" },
+    { id: "dashboard", clave: "dashboard", nombre: "Dashboard", icono: "dashboard" },
+    {
+        id: "contabilidad", nombre: "Contabilidad", icono: "contabilidad",
+        items: [
+            { clave: "cuentas", nombre: "Catálogo de cuentas" },
+            { clave: "asiento", nombre: "Nuevo asiento" },
+            { clave: "diario", nombre: "Libro Diario" },
+            { clave: "mayor", nombre: "Libro Mayor" }
+        ]
+    },
+    {
+        id: "inventario", nombre: "Inventario", icono: "inventario",
+        items: [{ clave: "kardex", nombre: "Kardex" }]
+    },
+    {
+        id: "reportes", nombre: "Reportes", icono: "reportes",
+        items: [
+            { clave: "estadoResultados", nombre: "Estado de Resultados" },
+            { clave: "balanceGeneral", nombre: "Balance General" }
+        ]
+    },
+    {
+        id: "administracion", nombre: "Administración", icono: "administracion",
+        items: [{ clave: "usuarios", nombre: "Usuarios" }]
+    }
+];
 
 // qué permiso (de la tabla roles_permisos) necesita cada vista
 const permisoDeVista = {
@@ -78,6 +96,7 @@ function Inicio({ cambiarVista }){
 function App(){
     const [vista, setVista] = useState("inicio");
     const [temaOscuro, setTemaOscuro] = useState(() => localStorage.getItem("tema") === "oscuro");
+    const [menuColapsado, setMenuColapsado] = useState(() => localStorage.getItem("menu") === "colapsado");
     const [sesion, setSesion] = useState(null);
     const [cargandoSesion, setCargandoSesion] = useState(supabaseConfigurado);
     const [usuario, setUsuario] = useState(null);
@@ -170,6 +189,14 @@ function App(){
         });
     }
 
+    function alternarColapso(){
+        setMenuColapsado(estado => {
+            const nuevo = !estado;
+            localStorage.setItem("menu", nuevo ? "colapsado" : "expandido");
+            return nuevo;
+        });
+    }
+
     async function cerrarSesion() {
         await supabase.auth.signOut();
         setUsuario(null);
@@ -224,27 +251,37 @@ function App(){
         return <Inicio cambiarVista={setVista} />;
     }
 
+    // filtra grupos e items según los permisos del usuario
+    const menuVisible = menuLateral
+        .map(grupo => {
+            if(!grupo.items){
+                return puede(permisoDeVista[grupo.clave]) ? grupo : null;
+            }
+            const items = grupo.items.filter(item => puede(permisoDeVista[item.clave]));
+            return items.length ? { ...grupo, items } : null;
+        })
+        .filter(Boolean);
+
+    const clasesShell = ["app-shell"];
+    if(temaOscuro) clasesShell.push("tema-oscuro");
+    if(menuColapsado) clasesShell.push("sidebar-collapsed");
+
     return(
-        <div className={temaOscuro ? "app-shell tema-oscuro" : "app-shell"}>
-            <header className="topbar">
-                <button className="brand" onClick={() => setVista("inicio")}>
-                    <span className="brand-mark">SC</span>
-                    <span>ContaCabal</span>
-                </button>
-                <nav aria-label="Navegación principal">
-                    {Object.entries(vistas)
-                        .filter(([clave]) => puede(permisoDeVista[clave]))
-                        .map(([clave, nombre]) => (
-                            <button key={clave} className={vista === clave ? "nav-link is-active" : "nav-link"} onClick={() => setVista(clave)}>{nombre}</button>
-                        ))}
-                    <button className="theme-toggle" onClick={cambiarTema} aria-label={temaOscuro ? "Activar modo claro" : "Activar modo oscuro"}>
-                        <span aria-hidden="true">{temaOscuro ? "☼" : "☾"}</span>
-                        {temaOscuro ? "Claro" : "Oscuro"}
-                    </button>
-                    <button className="logout-button" onClick={cerrarSesion}>Salir</button>
-                </nav>
-            </header>
-            <main className="app-content">{renderVista()}</main>
+        <div className={clasesShell.join(" ")}>
+            <Sidebar
+                vista={vista}
+                cambiarVista={setVista}
+                grupos={menuVisible}
+                colapsado={menuColapsado}
+                alternarColapso={alternarColapso}
+                temaOscuro={temaOscuro}
+                cambiarTema={cambiarTema}
+                usuario={usuario}
+                cerrarSesion={cerrarSesion}
+            />
+            <div className="app-main">
+                <main className="app-content">{renderVista()}</main>
+            </div>
         </div>
     );
 }

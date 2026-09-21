@@ -197,8 +197,8 @@ function App(){
         return <main className="login-page"><p>Cargando usuario contable...</p></main>;
     }
 
-    // una vista sin permiso asociado (como Inicio) es libre para todos
-    const puede = permiso => !permiso || permisos[permiso] === true;
+    // Si es ADMIN tiene permiso a todo; si no, valida por roles_permisos o si la vista es libre
+    const puede = permiso => !permiso || usuario?.rol === "ADMIN" || permisos[permiso] === true;
 
     function renderVista(){
         if(!puede(permisoDeVista[vista])){

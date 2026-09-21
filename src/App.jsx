@@ -4,6 +4,7 @@ import Dashboard from "./components/Dashboard";
 import GestionUsuarios from "./components/GestionUsuarios";
 import LibroDiario from "./components/LibroDiario";
 import LibroMayor from "./components/LibroMayor";
+import KardexPage from "./components/KardexPage";   
 import Login from "./components/Login";
 import NuevoAsiento from "./components/NuevoAsiento";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
@@ -16,6 +17,7 @@ const vistas = {
     asiento: "Nuevo asiento",
     diario: "Libro Diario",
     mayor: "Libro Mayor",
+    kardex: "Kardex",
     usuarios: "Usuarios"
 };
 
@@ -40,6 +42,7 @@ function Inicio({ cambiarVista }){
                     <div className="hero-actions">
                         <button className="button-primary" onClick={() => cambiarVista("asiento")}>Registrar asiento</button>
                         <button className="button-secondary" onClick={() => cambiarVista("diario")}>Ver Libro Diario</button>
+                        <button className="button-secondary" onClick={() => cambiarVista("kardex")}>Ver Kardex</button>
                     </div>
                 </div>
 
@@ -53,7 +56,7 @@ function Inicio({ cambiarVista }){
                         <div className="ledger-line"><span>Asientos contables</span><strong>Registrar</strong></div>
                         <div className="ledger-line"><span>Libro Diario</span><strong>Revisar</strong></div>
                     </div>
-                    <button className="panel-link" onClick={() => cambiarVista("cuentas")}>Abrir catálogo de cuentas</button>
+                    <button className="panel-link" onClick={() => cambiarVista("kardex")}>Abrir Kardex de inventario</button>
                 </aside>
             </div>
 
@@ -201,6 +204,7 @@ function App(){
         if(vista === "asiento") return <NuevoAsiento usuario={usuario} onCreated={() => setVista("diario")} />;
         if(vista === "diario") return <LibroDiario />;
         if(vista === "mayor") return <LibroMayor />;
+        if(vista === "kardex") return <KardexPage />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
         return <Inicio cambiarVista={setVista} />;
     }

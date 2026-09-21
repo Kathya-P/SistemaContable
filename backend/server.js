@@ -3,7 +3,7 @@ import cors from "cors";
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import { validarPartidaDoble } from "./contabilidad.js";
-import { calcularEstadoResultados, inventarioDelMayor } from "./estadoResultados.js";
+import { calcularEstadoResultados, inventarioDelMayor } from "./Estadoresultados.js";
 
 const app = express();
 const puerto = Number(process.env.PORT || 3001);

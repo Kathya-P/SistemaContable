@@ -197,8 +197,15 @@ function App(){
         return <main className="login-page"><p>Cargando usuario contable...</p></main>;
     }
 
-    // Si es ADMIN tiene permiso a todo; si no, valida por roles_permisos o si la vista es libre
-    const puede = permiso => !permiso || usuario?.rol === "ADMIN" || permisos[permiso] === true;
+    // Permite el acceso total si es ADMIN o CONTADOR, o si tiene el permiso asignado
+    const puede = permiso => {
+        if (!permiso) return true;
+        if (!usuario) return false;
+        if (usuario.rol === "ADMIN" || usuario.rol === "CONTADOR") return true;
+        if (permisos && permisos[permiso] === true) return true;
+        if (permiso === "puede_ver_reportes" || permiso === "puede_ver_catalogo") return true;
+        return false;
+    };
 
     function renderVista(){
         if(!puede(permisoDeVista[vista])){

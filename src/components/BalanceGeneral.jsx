@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import PropTypes from "prop-types";
 import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 import { TablaBalanceGeneral } from "./TablaBalanceGeneral";
 import { ValidacionBalance } from "./ValidacionBalance";
@@ -194,13 +193,3 @@ export function BalanceGeneral({ empresa, fechaDesde, fechaHasta, fechaCorte }) 
         </div>
     );
 }
-
-BalanceGeneral.propTypes = {
-    empresa: PropTypes.shape({
-        id: PropTypes.number,
-        nombre_empresa: PropTypes.string
-    }),
-    fechaDesde: PropTypes.string,
-    fechaHasta: PropTypes.string,
-    fechaCorte: PropTypes.string
-};

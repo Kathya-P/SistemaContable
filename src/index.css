@@ -2185,3 +2185,520 @@ select {
     grid-column: 1 / -1;
   }
 }
+
+/* ==========================================================================
+   Módulo Kardex (Inventario - Promedio Ponderado)
+   ========================================================================== */
+
+.kardex-section {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.heading-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Tarjetas de Indicadores Clave */
+.kardex-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 24px 0 28px;
+}
+
+.kardex-stat-card {
+  background: #ffffff;
+  border: 1px solid #dde3e0;
+  border-radius: 8px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(28, 35, 33, 0.03);
+  text-align: left;
+}
+
+.kardex-stat-card .stat-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #55625d;
+  margin-bottom: 8px;
+}
+
+.kardex-stat-card .stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1c2321 !important;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+.kardex-stat-card .stat-accent {
+  color: #1b4332 !important;
+}
+
+.kardex-stat-card .stat-sub {
+  font-size: 13px;
+  color: #65706b;
+  margin-top: 6px;
+}
+
+.stat-costo-venta {
+  border-left: 3px solid #1b4332;
+}
+
+/* Filtros Kardex */
+.kardex-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  background: #ffffff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  border: 1px solid #dde3e0;
+  margin-bottom: 24px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.button-example {
+  background: #f1f5f3;
+  color: #1b4332;
+  border: 1px dashed #2d6a4f;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.button-example:hover {
+  background: #e2ede6;
+}
+
+.button-example.is-active {
+  background: #2d6a4f;
+  color: #ffffff;
+  border-style: solid;
+}
+
+/* Tabla de Kardex */
+.kardex-shell {
+  width: 100%;
+  overflow-x: auto;
+  background: #ffffff;
+  border: 1px solid #dde3e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(28, 35, 33, 0.04);
+  margin-bottom: 24px;
+}
+
+/* Badges y Tags por Tipo de Cuenta */
+.kardex-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.kardex-tag .tag-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.badge-kardex-inventario {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.badge-kardex-compra {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.badge-kardex-venta {
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+}
+
+.badge-kardex-dev-compra {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.badge-kardex-dev-venta {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+}
+
+.partida-badge {
+  display: inline-block;
+  font-weight: 700;
+  color: #1e293b;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.kardex-table-excel {
+  width: 100%;
+  min-width: 1200px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13.5px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Superencabezados de Grupos con verde traslúcido acorde al tema */
+.kardex-header-super th {
+  background: rgba(27, 67, 50, 0.05);
+  color: #173d2d;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(27, 67, 50, 0.12);
+  border-right: 1px solid rgba(27, 67, 50, 0.08);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.kardex-header-super .col-asiento,
+.kardex-header-super .col-fecha,
+.kardex-header-super .col-cuenta,
+.kardex-header-super .col-concepto {
+  background: rgba(27, 67, 50, 0.08);
+  color: #1b4332;
+  vertical-align: middle;
+}
+
+.kardex-header-super .col-group {
+  background: rgba(27, 67, 50, 0.13);
+  color: #173d2d;
+}
+
+/* Subencabezados específicos */
+.kardex-header-sub th {
+  background: rgba(27, 67, 50, 0.05);
+  color: #1b4332;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px 10px;
+  border-bottom: 2px solid #1b4332;
+  border-right: 1px solid rgba(27, 67, 50, 0.08);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+/* Filas de Datos */
+.kardex-data-row {
+  transition: background-color 0.15s ease;
+}
+
+.kardex-data-row td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #f1f5f9;
+  color: #1e293b;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.kardex-data-row:nth-child(even) {
+  background-color: #fafbfc;
+}
+
+.kardex-data-row:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.cell-asiento {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cell-fecha {
+  text-align: left;
+  white-space: nowrap;
+  font-weight: 500;
+  color: #475569;
+}
+
+.cell-cuenta {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cell-concepto {
+  text-align: left;
+  max-width: 280px;
+  color: #334155;
+}
+
+.concepto-texto {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #475569;
+  word-break: break-word;
+}
+
+.cell-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--mono, monospace);
+  font-size: 13px;
+}
+
+.cell-money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--mono, monospace);
+  font-size: 13px;
+}
+
+.highlight-col {
+  background-color: rgba(241, 245, 249, 0.6);
+  color: #0f172a;
+}
+
+/* Fila de Totales */
+.kardex-totals-row-excel th {
+  background: rgba(27, 67, 50, 0.05);
+  color: #173d2d;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 12px 12px;
+  border-top: 2px solid #1b4332;
+  border-right: 1px solid rgba(27, 67, 50, 0.1);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.kardex-totals-row-excel .totales-label {
+  text-align: left;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #173d2d;
+}
+
+.kardex-totals-row-excel .highlight-cell {
+  background: rgba(27, 67, 50, 0.1);
+  color: #173d2d;
+}
+
+.kardex-loading {
+  padding: 40px;
+  text-align: center;
+  color: #65706b;
+  font-size: 16px;
+}
+
+/* --- Modo Oscuro: Kardex --- */
+.tema-oscuro .kardex-stat-card {
+  background: #1a2a36 !important;
+  border-color: #30434f !important;
+}
+
+.tema-oscuro .kardex-stat-card .stat-label {
+  color: #9eafb9 !important;
+}
+
+.tema-oscuro .kardex-stat-card .stat-value {
+  color: #f3f4f6 !important;
+}
+
+.tema-oscuro .kardex-stat-card .stat-accent {
+  color: #a7f3d0 !important;
+}
+
+.tema-oscuro .kardex-stat-card .stat-sub {
+  color: #9eafb9 !important;
+}
+
+.tema-oscuro .kardex-filters {
+  background: #1a2a36;
+  border-color: #30434f;
+}
+
+.tema-oscuro .kardex-shell {
+  background: #16222b;
+  border-color: #2b3b47;
+}
+
+.tema-oscuro .kardex-table-excel {
+  background: #0f172a;
+  border-color: rgba(74, 222, 128, 0.2);
+}
+
+.tema-oscuro .kardex-header-super th,
+.tema-oscuro .kardex-header-sub th {
+  background: rgba(34, 197, 94, 0.08);
+  color: #bbf7d0;
+  border-bottom: 1px solid rgba(74, 222, 128, 0.16);
+  border-right: 1px solid rgba(74, 222, 128, 0.1);
+}
+
+.tema-oscuro .kardex-header-super .col-asiento,
+.tema-oscuro .kardex-header-super .col-fecha,
+.tema-oscuro .kardex-header-super .col-cuenta,
+.tema-oscuro .kardex-header-super .col-concepto {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.tema-oscuro .kardex-header-super .col-group {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+.tema-oscuro .kardex-header-sub th {
+  border-bottom: 2px solid #22c55e;
+}
+
+.tema-oscuro .kardex-data-row td {
+  border-color: #1e293b;
+  color: #e2e8f0;
+}
+
+.tema-oscuro .kardex-data-row:nth-child(even) {
+  background-color: #131d2e;
+}
+
+.tema-oscuro .kardex-data-row:hover {
+  background-color: #1e293b !important;
+}
+
+.tema-oscuro .cell-fecha,
+.tema-oscuro .concepto-texto {
+  color: #94a3b8;
+}
+
+.tema-oscuro .partida-badge {
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+.tema-oscuro .highlight-col {
+  background-color: rgba(30, 41, 59, 0.4);
+}
+
+.tema-oscuro .kardex-totals-row-excel th {
+  background: rgba(34, 197, 94, 0.08);
+  color: #f8fafc;
+  border-color: rgba(74, 222, 128, 0.16);
+  border-top-color: #22c55e;
+}
+
+.tema-oscuro .kardex-totals-row-excel .highlight-cell {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+.tema-oscuro .badge-kardex-inventario {
+  background: rgba(3, 105, 161, 0.2);
+  color: #38bdf8;
+  border-color: #0284c7;
+}
+
+.tema-oscuro .badge-kardex-compra {
+  background: rgba(21, 128, 61, 0.2);
+  color: #4ade80;
+  border-color: #16a34a;
+}
+
+.tema-oscuro .badge-kardex-venta {
+  background: rgba(67, 56, 202, 0.2);
+  color: #a5b4fc;
+  border-color: #6366f1;
+}
+
+.tema-oscuro .badge-kardex-dev-compra {
+  background: rgba(180, 83, 9, 0.2);
+  color: #fcd34d;
+  border-color: #d97706;
+}
+
+.tema-oscuro .badge-kardex-dev-venta {
+  background: rgba(190, 18, 60, 0.2);
+  color: #fda4af;
+  border-color: #e11d48;
+}
+
+.tema-oscuro .button-example {
+  background: #1e332d;
+  color: #a7f3d0;
+  border-color: #34d399;
+}
+
+/* Estilos de Impresión: Kardex */
+@media print {
+  body {
+    background: #ffffff !important;
+  }
+
+  .topbar,
+  .kardex-filters,
+  .heading-actions,
+  .button-example,
+  .inline-save {
+    display: none !important;
+  }
+
+  .kardex-section {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .kardex-shell {
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+  }
+
+  .kardex-table-excel th,
+  .kardex-table-excel td {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .kardex-totals-row-excel th {
+    background: #eee !important;
+    color: #000 !important;
+  }
+}

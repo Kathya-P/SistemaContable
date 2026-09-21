@@ -3,6 +3,8 @@ import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 import { TablaBalanceGeneral } from "./TablaBalanceGeneral";
 import { ValidacionBalance } from "./ValidacionBalance";
 import { LiquidacionIvaModal } from "./LiquidacionIvaModal";
+import { solicitarApi } from "../services/api";
+import { procesarKardex } from "../utils/kardexCalculos";
 
 export function BalanceGeneral({ empresa, fechaDesde, fechaHasta, fechaCorte }) {
     const [balance, setBalance] = useState(null);
@@ -18,9 +20,24 @@ export function BalanceGeneral({ empresa, fechaDesde, fechaHasta, fechaCorte }) 
         setCargando(true);
         setError(null);
         try {
+            // 1. Obtener asientos del Kardex y sacar el último saldo (inventario final)
+            let inventarioFinalKardex = null;
+            try {
+                const asientos = await solicitarApi(`/kardex?hasta=${fechaFin}`);
+                const movimientos = procesarKardex(asientos || []);
+                if (movimientos.length > 0) {
+                    // El inventario final es el último saldo del Kardex a esa fecha
+                    inventarioFinalKardex = movimientos[movimientos.length - 1].saldo;
+                }
+            } catch (errKardex) {
+                console.warn("No se pudo obtener el saldo final del Kardex:", errKardex);
+            }
+
+            // 2. Cargar el Balance General pasando ese inventario final
             const data = await obtenerBalanceGeneral({
                 desde: fechaInicio,
-                hasta: fechaFin
+                hasta: fechaFin,
+                inventarioFinal: inventarioFinalKardex
             });
             setBalance(data);
         } catch (err) {
@@ -151,7 +168,7 @@ export function BalanceGeneral({ empresa, fechaDesde, fechaHasta, fechaCorte }) 
                     <div className="balance-sheet-print-area">
                         <div className="balance-print-header">
                             <h2 className="print-company-name">
-                                {balance.empresa || empresa?.nombre_empresa || "Ferretería El Martillo, S.A. de C.V."}
+                                {balance.empresa || empresa?.nombre_empresa || ""}
                             </h2>
                             <h3 className="print-report-title">BALANCE GENERAL</h3>
                             <p className="print-period-text">
@@ -166,7 +183,7 @@ export function BalanceGeneral({ empresa, fechaDesde, fechaHasta, fechaCorte }) 
                             <div className="firma-box">
                                 <div className="firma-linea"></div>
                                 <p className="firma-cargo">Representante Legal</p>
-                                <p className="firma-nombre">{empresa?.nombre_empresa || "Administración"}</p>
+                                <p className="firma-nombre">{balance.empresa || empresa?.nombre_empresa || "Administración"}</p>
                             </div>
                             <div className="firma-box">
                                 <div className="firma-linea"></div>

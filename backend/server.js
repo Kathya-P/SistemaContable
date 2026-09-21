@@ -855,6 +855,60 @@ apiRouter.get("/estado-resultados", async (req, res) => {
         return responderError(res, error);
     }
 });
+
+// Balance General (Estado de Situación Financiera)
+apiRouter.get("/balance-general", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
+        const { desde = "2026-01-01", hasta = new Date().toISOString().split("T")[0], inventarioFinal } = req.query;
+
+        // 1. Libro mayor acumulado (desde el inicio hasta la fecha de corte)
+        const { data: mayorAcumulado, error: errorAcumulado } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: "1900-01-01",
+            p_hasta: hasta,
+        });
+
+        if (errorAcumulado) throw errorAcumulado;
+
+        // 2. Libro mayor del período fiscal (para el resultado del ejercicio)
+        const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: desde,
+            p_hasta: hasta,
+        });
+
+        if (errorPeriodo) throw errorPeriodo;
+
+        // 3. Datos de la empresa
+        const { data: empresa, error: errorEmpresa } = await supabase
+            .from("empresas")
+            .select("nombre_empresa")
+            .eq("id", usuario.empresa_id)
+            .maybeSingle();
+
+        if (errorEmpresa) throw errorEmpresa;
+
+        const balance = calcularBalanceGeneral(
+            mayorAcumulado || [],
+            mayorPeriodo || [],
+            0,
+            inventarioFinal ? Number(inventarioFinal) : null
+        );
+
+        return res.json({
+            empresa: empresa?.nombre_empresa || "Ferretería El Martillo, S.A. de C.V.",
+            desde,
+            hasta,
+            ...balance,
+        });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
 // Registrar rutas tanto en /api como en la raíz del enrutador
 app.use("/api", apiRouter);
 app.use(apiRouter);

@@ -7,134 +7,74 @@ function dolares(centavosVal) {
     return Number((centavosVal / 100).toFixed(2));
 }
 
-/**
- * Calcula dinámicamente el saldo final valorizado del Kardex a partir de los asientos contables.
- * Replica el mismo algoritmo del módulo Kardex del sistema (Costo Promedio Ponderado).
- */
-export function calcularInventarioKardexDinamico(asientos = []) {
-    let existencias = 0;
-    let saldoValorizadoCentavos = 0;
-    let inventarioInicialCentavos = 0;
-    let esPrimeraLinea = true;
-
-    // Recorrer asientos en orden cronológico
-    for (const a of asientos) {
-        for (const d of a.detalle_asientos || []) {
-            const cod = String(d.cuentas?.codigo || "");
-            const concepto = (a.concepto || "").toLowerCase();
-            const desc = (d.descripcion || "").toLowerCase();
-            const textoCompleto = `${concepto} ${desc}`;
-
-            // Movimientos asociados a inventario de mercaderías (1103) o compras/ventas
-            if (cod.startsWith("1103") || cod.startsWith("4101") || cod.startsWith("4102") || cod.startsWith("5101")) {
-                const debeCent = centavos(d.debe);
-                const haberCent = centavos(d.haber);
-
-                // Detectar si es inventario inicial (Apertura)
-                if (cod.startsWith("1103") && debeCent > 0 && esPrimeraLinea) {
-                    // Extraer unidades del texto si existen (ej. "100 unidades" o "100 unid")
-                    const match = textoCompleto.match(/(\d+)\s*(?:unidades|unid|uds|piezas)/i);
-                    const unidades = match ? parseInt(match[1], 10) : 100;
-                    existencias += unidades;
-                    saldoValorizadoCentavos += debeCent;
-                    inventarioInicialCentavos = debeCent;
-                    esPrimeraLinea = false;
-                } else if ((cod.startsWith("1103") || cod.startsWith("4101")) && debeCent > 0) {
-                    // Entrada / Compra de mercadería
-                    const match = textoCompleto.match(/(\d+)\s*(?:unidades|unid|uds|piezas)/i);
-                    const unidades = match ? parseInt(match[1], 10) : 50;
-                    existencias += unidades;
-                    saldoValorizadoCentavos += debeCent;
-                } else if (cod.startsWith("5101") && haberCent > 0) {
-                    // Salida / Venta de mercadería
-                    const match = textoCompleto.match(/(\d+)\s*(?:unidades|unid|uds|piezas)/i);
-                    const unidadesVendidas = match ? parseInt(match[1], 10) : 35;
-                    
-                    if (existencias > 0) {
-                        const costoUnitarioCentavos = saldoValorizadoCentavos / existencias;
-                        const costoSalidaCentavos = Math.round(costoUnitarioCentavos * unidadesVendidas);
-                        existencias = Math.max(0, existencias - unidadesVendidas);
-                        saldoValorizadoCentavos = Math.max(0, saldoValorizadoCentavos - costoSalidaCentavos);
-                    }
-                }
-            }
-        }
+export function calcularBalanceGeneral({
+    filasMayorAcumulado = [],
+    catalogoCuentas = [],
+    inventarioFinalKardex = null,
+    utilidadEstadoResultados = null
+}) {
+    // Mapa rápido de catálogo para nombres oficiales y niveles
+    const mapaCatalogo = new Map();
+    for (const c of catalogoCuentas) {
+        mapaCatalogo.set(String(c.codigo), c.nombre);
     }
 
-    return {
-        inventarioInicial: dolares(inventarioInicialCentavos),
-        inventarioFinal: dolares(saldoValorizadoCentavos),
-        existencias
-    };
-}
-
-export function calcularBalanceGeneral(filasMayorAcumulado = [], filasMayorPeriodo = [], inventarioInicial = 0, inventarioFinal = null) {
-    // 1. LIQUIDACIÓN DE IVA DINÁMICA
-    // Busca las cuentas de Crédito Fiscal y Débito Fiscal tanto por código estándar (1105, 2107)
-    // como por nombre o código alternativo del catálogo (210201, 2102, etc.)
-    let ivaCreditoFiscalCentavos = 0;
-    let ivaDebitoFiscalCentavos = 0;
+    // 1. LIQUIDACIÓN DE IVA
+    let ivaCreditoFiscalCent = 0;
+    let ivaDebitoFiscalCent = 0;
 
     for (const f of filasMayorAcumulado) {
         const cod = String(f.codigo || "");
-        const nom = (f.nombre || "").toLowerCase();
+        const nom = (f.nombre || mapaCatalogo.get(cod) || "").toLowerCase();
         const debe = centavos(f.total_debe || 0);
         const haber = centavos(f.total_haber || 0);
 
         if (cod.startsWith("1105") || nom.includes("crédito fiscal") || nom.includes("credito fiscal")) {
-            ivaCreditoFiscalCentavos += (debe - haber);
+            ivaCreditoFiscalCent += (debe - haber);
         } else if (cod.startsWith("2107") || nom.includes("débito fiscal") || nom.includes("debito fiscal") || cod === "210201") {
-            ivaDebitoFiscalCentavos += (haber - debe);
+            ivaDebitoFiscalCent += (haber - debe);
         }
     }
 
-    const diferenciaIvaCentavos = ivaDebitoFiscalCentavos - ivaCreditoFiscalCentavos;
-    const impuestoIvaPagarCentavos = diferenciaIvaCentavos > 0 ? diferenciaIvaCentavos : 0;
-    const remanenteIvaFavorCentavos = diferenciaIvaCentavos < 0 ? Math.abs(diferenciaIvaCentavos) : 0;
+    const diferenciaIvaCent = ivaDebitoFiscalCent - ivaCreditoFiscalCent;
+    const impuestoIvaPagarCent = diferenciaIvaCent > 0 ? diferenciaIvaCent : 0;
+    const remanenteIvaFavorCent = diferenciaIvaCent < 0 ? Math.abs(diferenciaIvaCent) : 0;
 
-    // 2. INVENTARIO FINAL DINÁMICO
-    let saldo1103LibroMayorCentavos = 0;
+    // 2. INVENTARIO FINAL DEL KARDEX
+    let saldo1103MayorCent = 0;
     for (const f of filasMayorAcumulado) {
         if (String(f.codigo || "").startsWith("1103")) {
-            saldo1103LibroMayorCentavos += (centavos(f.total_debe || 0) - centavos(f.total_haber || 0));
+            saldo1103MayorCent += (centavos(f.total_debe || 0) - centavos(f.total_haber || 0));
         }
     }
 
-    const invInicialCentavos = inventarioInicial > 0 ? centavos(inventarioInicial) : saldo1103LibroMayorCentavos;
-    const invFinalCentavos = (inventarioFinal !== null && inventarioFinal !== undefined && Number(inventarioFinal) > 0)
-        ? centavos(inventarioFinal)
-        : saldo1103LibroMayorCentavos;
+    // Si viene el inventario final del Kardex se usa ese; si no, el del mayor
+    const invFinalCent = (inventarioFinalKardex !== null && inventarioFinalKardex !== undefined && Number(inventarioFinalKardex) > 0)
+        ? centavos(inventarioFinalKardex)
+        : saldo1103MayorCent;
 
-    // 3. RESULTADO DEL EJERCICIO DINÁMICO (INGRESOS - COSTOS - GASTOS)
-    let ingresosCentavos = 0;
-    let gastosCostosCentavos = 0;
-
-    for (const f of filasMayorPeriodo) {
-        const cod = String(f.codigo || "");
-        const debe = centavos(f.total_debe || 0);
-        const haber = centavos(f.total_haber || 0);
-
-        if (cod.startsWith("5")) {
-            // Ingresos (Ventas, rebajas s/compras, otros ingresos)
-            ingresosCentavos += (haber - debe);
-        } else if (cod.startsWith("4")) {
-            // Costos y Gastos de operación
-            gastosCostosCentavos += (debe - haber);
+    // 3. UTILIDAD DEL ESTADO DE RESULTADOS
+    // Si viene calculada del Estado de Resultados se respeta idéntica; si no, por diferencia ingresos - gastos
+    let utilidadEjercicioCent = 0;
+    if (utilidadEstadoResultados !== null && utilidadEstadoResultados !== undefined && !isNaN(Number(utilidadEstadoResultados))) {
+        utilidadEjercicioCent = centavos(utilidadEstadoResultados);
+    } else {
+        let ingresosCent = 0;
+        let gastosCent = 0;
+        for (const f of filasMayorAcumulado) {
+            const cod = String(f.codigo || "");
+            const debe = centavos(f.total_debe || 0);
+            const haber = centavos(f.total_haber || 0);
+            if (cod.startsWith("5")) ingresosCent += (haber - debe);
+            if (cod.startsWith("4")) gastosCent += (debe - haber);
         }
+        utilidadEjercicioCent = ingresosCent - gastosCent;
     }
 
-    // El Costo de Venta analítico considera: Compras netas + Inv. Inicial - Inv. Final
-    // Por tanto, la variación de inventario impacta directamente la utilidad neta
-    const variacionInventarioCentavos = invFinalCentavos - invInicialCentavos;
-    const utilidadEjercicioCentavos = (ingresosCentavos - gastosCostosCentavos) + variacionInventarioCentavos;
-
-    // 4. ACTIVOS CORRIENTES
-    const cuentasActivoCorriente = [];
-    let totalActivoCorrienteCentavos = 0;
-
-    // Agrupar dinámicamente por prefijo contable
-    const saldosCuentas = {};
-    const nombresCuentas = {};
+    // 4. CLASIFICACIÓN DINÁMICA POR CATÁLOGO
+    // Cuentas de Mayor (nivel 2 o 4 dígitos como 1101, 1102, 1104, 1201, 2101, etc.)
+    const saldosPorCodigo = new Map();
+    const nombresPorCodigo = new Map();
 
     for (const f of filasMayorAcumulado) {
         const cod = String(f.codigo || "");
@@ -142,225 +82,185 @@ export function calcularBalanceGeneral(filasMayorAcumulado = [], filasMayorPerio
         const haber = centavos(f.total_haber || 0);
         const saldo = cod.startsWith("1") ? (debe - haber) : (haber - debe);
 
-        saldosCuentas[cod] = (saldosCuentas[cod] || 0) + saldo;
-        nombresCuentas[cod] = f.nombre || "";
+        // Agrupar a nivel de cuenta principal (4 dígitos)
+        const codigoGrupo = cod.length >= 4 ? cod.substring(0, 4) : cod;
+        saldosPorCodigo.set(codigoGrupo, (saldosPorCodigo.get(codigoGrupo) || 0) + saldo);
+
+        if (!nombresPorCodigo.has(codigoGrupo)) {
+            nombresPorCodigo.set(codigoGrupo, mapaCatalogo.get(codigoGrupo) || f.nombre || "");
+        }
     }
 
-    // Efectivo (1101)
-    let efectivoCent = 0;
-    for (const [c, s] of Object.entries(saldosCuentas)) {
-        if (c.startsWith("1101")) efectivoCent += s;
-    }
-    if (efectivoCent !== 0) {
-        cuentasActivoCorriente.push({
-            codigo: "1101",
-            concepto: "Efectivo y equivalentes de efectivo",
-            monto: dolares(efectivoCent),
-            nota: "Caja general y cuentas bancarias"
-        });
+    // ACTIVOS CORRIENTES (Prefijo 11)
+    const cuentasActivoCorriente = [];
+    for (const [codigo, saldoCent] of saldosPorCodigo.entries()) {
+        if (!codigo.startsWith("11")) continue;
+
+        // La 1103 (Inventario) se muestra con el valor final del Kardex
+        if (codigo === "1103") {
+            cuentasActivoCorriente.push({
+                codigo: "1103",
+                concepto: nombresPorCodigo.get("1103") || "Inventario de mercaderías",
+                monto: dolares(invFinalCent),
+                nota: "Saldo final valorizado del Kardex"
+            });
+            continue;
+        }
+
+        // El IVA Crédito Fiscal (1105) se sustituye por la liquidación de IVA neta
+        if (codigo === "1105") continue;
+
+        if (saldoCent !== 0) {
+            cuentasActivoCorriente.push({
+                codigo,
+                concepto: nombresPorCodigo.get(codigo) || `Cuenta ${codigo}`,
+                monto: dolares(saldoCent)
+            });
+        }
     }
 
-    // Inventario Final (1103)
-    cuentasActivoCorriente.push({
-        codigo: "1103",
-        concepto: "Inventario de mercaderías (Final)",
-        monto: dolares(invFinalCentavos),
-        nota: "Saldo final valorizado del Kardex"
-    });
-
-    // Inversiones a corto plazo (1102)
-    let invCortoCent = 0;
-    for (const [c, s] of Object.entries(saldosCuentas)) {
-        if (c.startsWith("1102")) invCortoCent += s;
-    }
-    if (invCortoCent !== 0) {
-        cuentasActivoCorriente.push({
-            codigo: "1102",
-            concepto: "Inversiones a corto plazo",
-            monto: dolares(invCortoCent)
-        });
-    }
-
-    // Cuentas por cobrar (1104)
-    let cxcCent = 0;
-    for (const [c, s] of Object.entries(saldosCuentas)) {
-        if (c.startsWith("1104")) cxcCent += s;
-    }
-    if (cxcCent !== 0) {
-        cuentasActivoCorriente.push({
-            codigo: "1104",
-            concepto: "Cuentas y documentos por cobrar",
-            monto: dolares(cxcCent)
-        });
-    }
-
-    // Remanente de IVA a favor
-    if (remanenteIvaFavorCentavos > 0) {
+    // Agregar Remanente de IVA a favor si existe
+    if (remanenteIvaFavorCent > 0) {
         cuentasActivoCorriente.push({
             codigo: "1105-L",
             concepto: "IVA Remanente a favor",
-            monto: dolares(remanenteIvaFavorCentavos),
-            nota: `Crédito fiscal ($${dolares(ivaCreditoFiscalCentavos)}) > Débito fiscal ($${dolares(ivaDebitoFiscalCentavos)})`
+            monto: dolares(remanenteIvaFavorCent),
+            nota: `Crédito fiscal ($${dolares(ivaCreditoFiscalCent)}) > Débito fiscal ($${dolares(ivaDebitoFiscalCent)})`
         });
     }
 
-    totalActivoCorrienteCentavos = cuentasActivoCorriente.reduce((acc, c) => acc + centavos(c.monto), 0);
+    // Ordenar por código
+    cuentasActivoCorriente.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    const totalActivoCorrienteCent = cuentasActivoCorriente.reduce((acc, c) => acc + centavos(c.monto), 0);
 
-    // 5. ACTIVOS NO CORRIENTES
+    // ACTIVOS NO CORRIENTES (Prefijo 12)
     const cuentasActivoNoCorriente = [];
-    let propPlantaCent = 0;
-    for (const [c, s] of Object.entries(saldosCuentas)) {
-        if (c.startsWith("1201")) propPlantaCent += s;
-    }
-    if (propPlantaCent !== 0) {
-        cuentasActivoNoCorriente.push({
-            codigo: "1201",
-            concepto: "Propiedad, Planta y Equipo",
-            monto: dolares(propPlantaCent),
-            nota: "Bienes de uso duradero"
-        });
-    }
-
-    // Otros activos no corrientes (1202, 1203)
-    let otrosActivosCent = 0;
-    for (const [c, s] of Object.entries(saldosCuentas)) {
-        if (c.startsWith("1202") || c.startsWith("1203")) otrosActivosCent += s;
-    }
-    if (otrosActivosCent !== 0) {
-        cuentasActivoNoCorriente.push({
-            codigo: "1202",
-            concepto: "Otros activos no corrientes",
-            monto: dolares(otrosActivosCent)
-        });
-    }
-
-    const totalActivoNoCorrienteCentavos = cuentasActivoNoCorriente.reduce((acc, c) => acc + centavos(c.monto), 0);
-    const totalActivosCentavos = totalActivoCorrienteCentavos + totalActivoNoCorrienteCentavos;
-
-    // 6. PASIVOS CORRIENTES
-    const cuentasPasivoCorriente = [];
-    
-    // Proveedores (2101)
-    let provCent = 0;
-    for (const [c, s] of Object.entries(saldosCuentas)) {
-        if (c.startsWith("2101")) provCent += s;
-    }
-    if (provCent !== 0) {
-        cuentasPasivoCorriente.push({
-            codigo: "2101",
-            concepto: "Cuentas por pagar",
-            monto: dolares(provCent),
-            nota: "Proveedores y acreedores diversos"
-        });
-    }
-
-    // Préstamos u otras obligaciones corrientes (2103 u otras cuentas 21 distintas al IVA)
-    let prestamosCent = 0;
-    for (const [c, s] of Object.entries(saldosCuentas)) {
-        const nom = (nombresCuentas[c] || "").toLowerCase();
-        // Evitar sumar el IVA Débito que ya fue liquidado
-        if (c.startsWith("2103") || (c.startsWith("2102") && !c.startsWith("210201") && !nom.includes("debito") && !nom.includes("débito"))) {
-            prestamosCent += s;
+    for (const [codigo, saldoCent] of saldosPorCodigo.entries()) {
+        if (codigo.startsWith("12") && saldoCent !== 0) {
+            cuentasActivoNoCorriente.push({
+                codigo,
+                concepto: nombresPorCodigo.get(codigo) || `Cuenta ${codigo}`,
+                monto: dolares(saldoCent)
+            });
         }
     }
-    if (prestamosCent !== 0) {
-        cuentasPasivoCorriente.push({
-            codigo: "2103",
-            concepto: "Préstamos bancarios a corto plazo",
-            monto: dolares(prestamosCent),
-            nota: "Deuda financiera < 1 año"
-        });
+    cuentasActivoNoCorriente.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    const totalActivoNoCorrienteCent = cuentasActivoNoCorriente.reduce((acc, c) => acc + centavos(c.monto), 0);
+    const totalActivosCent = totalActivoCorrienteCent + totalActivoNoCorrienteCent;
+
+    // PASIVOS CORRIENTES (Prefijo 21)
+    const cuentasPasivoCorriente = [];
+    for (const [codigo, saldoCent] of saldosPorCodigo.entries()) {
+        if (!codigo.startsWith("21")) continue;
+        // Omitir IVA Débito Fiscal si fue liquidado
+        if (codigo === "2107" || codigo === "2102") {
+            const nom = (nombresPorCodigo.get(codigo) || "").toLowerCase();
+            if (nom.includes("debito") || nom.includes("débito")) continue;
+        }
+
+        if (saldoCent !== 0) {
+            cuentasPasivoCorriente.push({
+                codigo,
+                concepto: nombresPorCodigo.get(codigo) || `Cuenta ${codigo}`,
+                monto: dolares(saldoCent)
+            });
+        }
     }
 
-    if (impuestoIvaPagarCentavos > 0) {
+    // Agregar IVA por pagar si resultó débito a pagar
+    if (impuestoIvaPagarCent > 0) {
         cuentasPasivoCorriente.push({
             codigo: "2107-L",
             concepto: "IVA por pagar (Liquidación F-07)",
-            monto: dolares(impuestoIvaPagarCentavos)
+            monto: dolares(impuestoIvaPagarCent)
         });
     }
 
-    const totalPasivoCorrienteCentavos = cuentasPasivoCorriente.reduce((acc, c) => acc + centavos(c.monto), 0);
-    const totalPasivosCentavos = totalPasivoCorrienteCentavos;
+    cuentasPasivoCorriente.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    const totalPasivoCorrienteCent = cuentasPasivoCorriente.reduce((acc, c) => acc + centavos(c.monto), 0);
 
-    // 7. PATRIMONIO NETO / CAPITAL
+    // PASIVOS NO CORRIENTES (Prefijo 22)
+    const cuentasPasivoNoCorriente = [];
+    for (const [codigo, saldoCent] of saldosPorCodigo.entries()) {
+        if (codigo.startsWith("22") && saldoCent !== 0) {
+            cuentasPasivoNoCorriente.push({
+                codigo,
+                concepto: nombresPorCodigo.get(codigo) || `Cuenta ${codigo}`,
+                monto: dolares(saldoCent)
+            });
+        }
+    }
+    cuentasPasivoNoCorriente.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    const totalPasivoNoCorrienteCent = cuentasPasivoNoCorriente.reduce((acc, c) => acc + centavos(c.monto), 0);
+    const totalPasivosCent = totalPasivoCorrienteCent + totalPasivoNoCorrienteCent;
+
+    // PATRIMONIO NETO / CAPITAL (Prefijo 3)
     const cuentasCapital = [];
-    let capitalSocialCent = 0;
-    let reservaLegalCent = 0;
-
-    for (const [c, s] of Object.entries(saldosCuentas)) {
-        if (c.startsWith("3101")) capitalSocialCent += s;
-        if (c.startsWith("3102")) reservaLegalCent += s;
+    for (const [codigo, saldoCent] of saldosPorCodigo.entries()) {
+        if (codigo.startsWith("31") && saldoCent !== 0) {
+            cuentasCapital.push({
+                codigo,
+                concepto: nombresPorCodigo.get(codigo) || `Cuenta ${codigo}`,
+                monto: dolares(saldoCent)
+            });
+        }
     }
 
+    // Utilidad o Pérdida del ejercicio proveniente del Estado de Resultados
     cuentasCapital.push({
-        codigo: "3101",
-        concepto: "Capital Social",
-        monto: dolares(capitalSocialCent),
-        nota: "Aportes de los socios / propietarios"
-    });
-
-    if (reservaLegalCent !== 0) {
-        cuentasCapital.push({
-            codigo: "3102",
-            concepto: "Reserva Legal",
-            monto: dolares(reservaLegalCent)
-        });
-    }
-
-    cuentasCapital.push({
-        codigo: "3103-U",
-        concepto: utilidadEjercicioCentavos >= 0 ? "Utilidad del ejercicio" : "Pérdida del ejercicio",
-        monto: dolares(utilidadEjercicioCentavos),
+        codigo: "3104-E",
+        concepto: utilidadEjercicioCent >= 0 ? "Utilidad del ejercicio" : "Pérdida del ejercicio",
+        monto: dolares(utilidadEjercicioCent),
         nota: "Resultado neto del Estado de Resultados"
     });
 
-    const totalCapitalCentavos = capitalSocialCent + reservaLegalCent + utilidadEjercicioCentavos;
-    const totalPasivoMasCapitalCentavos = totalPasivosCentavos + totalCapitalCentavos;
+    cuentasCapital.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    const totalCapitalCent = cuentasCapital.reduce((acc, c) => acc + centavos(c.monto), 0);
+    const totalPasivoMasCapitalCent = totalPasivosCent + totalCapitalCent;
 
-    const diferenciaCentavos = totalActivosCentavos - totalPasivoMasCapitalCentavos;
+    const diferenciaCent = totalActivosCent - totalPasivoMasCapitalCent;
 
     return {
         activo: {
             corriente: {
                 cuentas: cuentasActivoCorriente,
-                total: dolares(totalActivoCorrienteCentavos)
+                total: dolares(totalActivoCorrienteCent)
             },
             noCorriente: {
                 cuentas: cuentasActivoNoCorriente,
-                total: dolares(totalActivoNoCorrienteCentavos)
+                total: dolares(totalActivoNoCorrienteCent)
             },
-            total: dolares(totalActivosCentavos)
+            total: dolares(totalActivosCent)
         },
         pasivo: {
             corriente: {
                 cuentas: cuentasPasivoCorriente,
-                total: dolares(totalPasivoCorrienteCentavos)
+                total: dolares(totalPasivoCorrienteCent)
             },
             noCorriente: {
-                cuentas: [],
-                total: 0
+                cuentas: cuentasPasivoNoCorriente,
+                total: dolares(totalPasivoNoCorrienteCent)
             },
-            total: dolares(totalPasivosCentavos)
+            total: dolares(totalPasivosCent)
         },
         capital: {
             cuentas: cuentasCapital,
-            total: dolares(totalCapitalCentavos)
+            total: dolares(totalCapitalCent)
         },
-        totalPasivoCapital: dolares(totalPasivoMasCapitalCentavos),
+        totalPasivoCapital: dolares(totalPasivoMasCapitalCent),
         validacion: {
-            cuadra: Math.abs(diferenciaCentavos) === 0,
-            diferencia: dolares(diferenciaCentavos),
-            totalActivos: dolares(totalActivosCentavos),
-            totalPasivoCapital: dolares(totalPasivoMasCapitalCentavos)
+            cuadra: Math.abs(diferenciaCent) === 0,
+            diferencia: dolares(diferenciaCent),
+            totalActivos: dolares(totalActivosCent),
+            totalPasivoCapital: dolares(totalPasivoMasCapitalCent)
         },
         liquidacionIva: {
-            ivaCreditoFiscal: dolares(ivaCreditoFiscalCentavos),
-            ivaDebitoFiscal: dolares(ivaDebitoFiscalCentavos),
-            diferencia: dolares(diferenciaIvaCentavos),
-            impuestoAPagar: dolares(impuestoIvaPagarCentavos),
-            remanenteAFavor: dolares(remanenteIvaFavorCentavos),
-            tipo: diferenciaIvaCentavos > 0 ? "IMPUESTO_PAGAR" : "REMANENTE_FAVOR"
+            ivaCreditoFiscal: dolares(ivaCreditoFiscalCent),
+            ivaDebitoFiscal: dolares(ivaDebitoFiscalCent),
+            diferencia: dolares(diferenciaIvaCent),
+            impuestoAPagar: dolares(impuestoIvaPagarCent),
+            remanenteAFavor: dolares(remanenteIvaFavorCent),
+            tipo: diferenciaIvaCent > 0 ? "IMPUESTO_PAGAR" : "REMANENTE_FAVOR"
         }
     };
 }

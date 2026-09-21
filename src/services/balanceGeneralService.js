@@ -12,6 +12,7 @@ export async function obtenerBalanceGeneral({ desde, hasta, inventarioFinal } = 
     if (desde) query.set("desde", desde);
     if (hasta) query.set("hasta", hasta);
     if (inventarioFinal !== undefined && inventarioFinal !== null) {
+        query.set("inventario_final", inventarioFinal);
         query.set("inventarioFinal", inventarioFinal);
     }
 

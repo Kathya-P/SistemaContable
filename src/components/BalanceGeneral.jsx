@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { solicitarApi } from "../services/api";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 

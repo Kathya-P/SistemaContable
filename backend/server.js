@@ -656,6 +656,51 @@ apiRouter.get("/libro-diario", async (req, res) => {
     }
 });
 
+apiRouter.get("/kardex", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        const { desde, hasta } = req.query;
+
+        let query = supabase
+            .from("asientos")
+            .select(`
+                id,
+                fecha,
+                numero_partida,
+                concepto,
+                estado,
+                detalle_asientos(
+                    cuenta_id,
+                    descripcion,
+                    debe,
+                    haber,
+                    cuentas(id, codigo, nombre, cuenta_padre_id)
+                )
+            `)
+            .eq("empresa_id", usuario.empresa_id)
+            .eq("estado", "CONTABILIZADO");
+
+        if (desde) {
+            query = query.gte("fecha", desde);
+        }
+        if (hasta) {
+            query = query.lte("fecha", hasta);
+        }
+
+        const { data, error } = await query
+            .order("fecha", { ascending: true })
+            .order("numero_partida", { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        return res.json(data || []);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
 apiRouter.get("/libro-mayor", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);

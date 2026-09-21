@@ -1,5 +1,3 @@
-import PropTypes from "prop-types";
-
 function formatearDinero(monto) {
     if (monto === null || monto === undefined || isNaN(monto)) return "$0.00";
     return "$" + Number(monto).toLocaleString("en-US", {
@@ -61,15 +59,3 @@ export function LiquidacionIvaModal({ liquidacion, onClose }) {
         </div>
     );
 }
-
-LiquidacionIvaModal.propTypes = {
-    liquidacion: PropTypes.shape({
-        ivaCreditoFiscal: PropTypes.number,
-        ivaDebitoFiscal: PropTypes.number,
-        diferencia: PropTypes.number,
-        tipo: PropTypes.string,
-        impuestoAPagar: PropTypes.number,
-        remanenteAFavor: PropTypes.number
-    }),
-    onClose: PropTypes.func.isRequired
-};

@@ -1,5 +1,3 @@
-import PropTypes from "prop-types";
-
 function formatearDinero(monto) {
     if (monto === null || monto === undefined || isNaN(monto)) return "$0.00";
     return "$" + Number(monto).toLocaleString("en-US", {
@@ -63,17 +61,3 @@ export function ValidacionBalance({ validacion, liquidacionIva }) {
         </div>
     );
 }
-
-ValidacionBalance.propTypes = {
-    validacion: PropTypes.shape({
-        cuadra: PropTypes.bool,
-        diferencia: PropTypes.number,
-        totalActivos: PropTypes.number,
-        totalPasivoCapital: PropTypes.number
-    }),
-    liquidacionIva: PropTypes.shape({
-        tipo: PropTypes.string,
-        remanenteAFavor: PropTypes.number,
-        impuestoAPagar: PropTypes.number
-    })
-};

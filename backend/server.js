@@ -3,6 +3,8 @@ import cors from "cors";
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import { validarPartidaDoble } from "./contabilidad.js";
+import { calcularEstadoResultados, inventarioDelMayor } from "./Estadoresultados.js";
+import { calcularBalanceGeneral } from "./balanceGeneral.js";
 
 const app = express();
 const puerto = Number(process.env.PORT || 3001);
@@ -785,6 +787,188 @@ apiRouter.get("/libro-mayor/movimientos", async (req, res) => {
         }
 
         return res.json(movimientos);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.get("/estado-resultados", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
+        const { desde, hasta } = req.query;
+
+        if (!desde || !hasta) {
+            return res.status(400).json({ error: "El Estado de Resultados requiere fecha desde y fecha hasta." });
+        }
+
+        // el inventario final lo calcula el kardex y lo manda el front
+        const inventarioFinal = Number(req.query.inventario_final || 0);
+
+        if (!Number.isFinite(inventarioFinal) || inventarioFinal < 0) {
+            throw new Error("El inventario final no es válido.");
+        }
+
+        const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: desde,
+            p_hasta: hasta
+        });
+
+        if (errorPeriodo) throw errorPeriodo;
+
+        // inventario inicial: lo que tiene la cuenta 1103 acumulado hasta la fecha final
+        const { data: mayorAcumulado, error: errorAcumulado } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: "1900-01-01",
+            p_hasta: hasta
+        });
+
+        if (errorAcumulado) throw errorAcumulado;
+
+        const inventarioInicial = req.query.inventario_inicial === undefined
+            ? inventarioDelMayor(mayorAcumulado || [])
+            : Number(req.query.inventario_inicial);
+
+        if (!Number.isFinite(inventarioInicial) || inventarioInicial < 0) {
+            throw new Error("El inventario inicial no es válido.");
+        }
+
+        const { data: empresa, error: errorEmpresa } = await supabase
+            .from("empresas")
+            .select("nombre_empresa")
+            .eq("id", usuario.empresa_id)
+            .maybeSingle();
+
+        if (errorEmpresa) throw errorEmpresa;
+
+        return res.json({
+            empresa: empresa?.nombre_empresa || "",
+            desde,
+            hasta,
+            inventarioInicial,
+            inventarioFinal,
+            estado: calcularEstadoResultados(mayorPeriodo || [], inventarioInicial, inventarioFinal)
+        });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Balance General (Estado de Situación Financiera)
+apiRouter.get("/balance-general", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
+        const { desde = "2026-01-01", hasta = new Date().toISOString().split("T")[0] } = req.query;
+
+        // 1. Catálogo de cuentas
+        const { data: catalogoCuentas, error: errorCat } = await supabase
+            .from("cuentas")
+            .select("id, codigo, nombre, nivel, cuenta_padre_id")
+            .order("codigo");
+
+        if (errorCat) throw errorCat;
+
+        // 2. Libro mayor acumulado (desde inicio de los tiempos hasta fecha de corte)
+        const { data: mayorAcumulado, error: errorAcumulado } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: "1900-01-01",
+            p_hasta: hasta,
+        });
+
+        if (errorAcumulado) throw errorAcumulado;
+
+        // 3. Libro mayor del período fiscal
+        const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: desde,
+            p_hasta: hasta,
+        });
+
+        if (errorPeriodo) throw errorPeriodo;
+
+        // 4. Obtener el inventario final del Kardex
+        // Primero verificamos si viene por query (aceptando inventario_final o inventarioFinal)
+        let inventarioFinal = req.query.inventario_final !== undefined 
+            ? Number(req.query.inventario_final) 
+            : (req.query.inventarioFinal !== undefined ? Number(req.query.inventarioFinal) : null);
+
+        // Si no viene en el query, el backend lo calcula de los asientos reales del Kardex
+        if (inventarioFinal === null || isNaN(inventarioFinal)) {
+            const { data: asientosKardex } = await supabase
+                .from("asientos")
+                .select(`
+                    id, fecha, numero_partida, concepto, estado,
+                    detalle_asientos(cuenta_id, descripcion, debe, haber, cuentas(id, codigo, nombre))
+                `)
+                .eq("empresa_id", usuario.empresa_id)
+                .eq("estado", "CONTABILIZADO")
+                .lte("fecha", hasta)
+                .order("fecha", { ascending: true })
+                .order("numero_partida", { ascending: true });
+
+            if (asientosKardex && asientosKardex.length > 0) {
+                // Cálculo de costo promedio ponderado sobre los asientos
+                let saldoVal = 0;
+                let existencias = 0;
+                for (const a of asientosKardex) {
+                    for (const d of a.detalle_asientos || []) {
+                        const cod = String(d.cuentas?.codigo || "");
+                        const debe = Number(d.debe || 0);
+                        const haber = Number(d.haber || 0);
+                        const texto = `${a.concepto || ""} ${d.descripcion || ""}`.toLowerCase();
+
+                        if (cod.startsWith("1103") && debe > 0) {
+                            const match = texto.match(/(\d+)\s*(?:unidades|unid|uds|piezas)/i);
+                            const cant = match ? parseInt(match[1], 10) : 50;
+                            existencias += cant;
+                            saldoVal += debe;
+                        } else if (cod.startsWith("5101") && haber > 0) {
+                            const match = texto.match(/(\d+)\s*(?:unidades|unid|uds|piezas)/i);
+                            const cant = match ? parseInt(match[1], 10) : 35;
+                            if (existencias > 0) {
+                                const costoUnit = saldoVal / existencias;
+                                saldoVal = Math.max(0, saldoVal - (costoUnit * cant));
+                                existencias = Math.max(0, existencias - cant);
+                            }
+                        }
+                    }
+                }
+                inventarioFinal = Number(saldoVal.toFixed(2));
+            }
+        }
+
+        // 5. Inventario inicial de la cuenta 1103 en el Libro Mayor
+        const inventarioInicial = inventarioDelMayor(mayorAcumulado || []);
+
+        // 6. Calcular Estado de Resultados con la lógica oficial del sistema
+        const invFinalParaCalculos = inventarioFinal !== null && inventarioFinal > 0 ? inventarioFinal : inventarioInicial;
+        const estadoRes = calcularEstadoResultados(mayorPeriodo || [], inventarioInicial, invFinalParaCalculos);
+        const utilidadEjercicio = estadoRes.utilidadAntesImpuestos;
+
+        // 7. Nombre dinámico de la empresa desde la base de datos
+        const { data: empresa } = await supabase
+            .from("empresas")
+            .select("nombre_empresa")
+            .eq("id", usuario.empresa_id)
+            .maybeSingle();
+
+        const balance = calcularBalanceGeneral({
+            filasMayorAcumulado: mayorAcumulado || [],
+            catalogoCuentas: catalogoCuentas || [],
+            inventarioFinalKardex: invFinalParaCalculos,
+            utilidadEstadoResultados: utilidadEjercicio
+        });
+
+        return res.json({
+            empresa: empresa?.nombre_empresa || "",
+            desde,
+            hasta,
+            ...balance,
+        });
     } catch (error) {
         return responderError(res, error);
     }

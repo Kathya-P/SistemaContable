@@ -143,7 +143,7 @@ function Login(){
             <section className="login-card">
                 <div className="login-brand">
                     <span className="brand-mark">SC</span>
-                    <span>Sistema Contable</span>
+                    <span>ContaCabal</span>
                 </div>
                 <p className="eyebrow">Acceso al sistema</p>
                 <h1>{pestana === "ingreso" ? "Iniciar sesión" : "Crear cuenta"}</h1>

@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { solicitarApi } from "../services/api";
+import { obtenerCuentas } from "../services/cuentasService";
+import CuentaT from "./CuentaT";
 
 function hoy(){
     return new Date().toISOString().slice(0, 10);
@@ -16,15 +18,26 @@ function LibroMayor(){
     const [desde, setDesde] = useState(`${new Date().getFullYear()}-01-01`);
     const [hasta, setHasta] = useState(hoy());
     const [cuentas, setCuentas] = useState([]);
+    const [asientos, setAsientos] = useState([]);
+    const [catalogo, setCatalogo] = useState([]);
+    const [filaSeleccionada, setFilaSeleccionada] = useState(null);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
 
     const cargarMayor = useCallback(async () => {
         setCargando(true);
         setError("");
+        setFilaSeleccionada(null);
 
         try{
-            setCuentas(await solicitarApi(`/libro-mayor?desde=${desde}&hasta=${hasta}`));
+            const [totales, movimientos, catalogoCompleto] = await Promise.all([
+                solicitarApi(`/libro-mayor?desde=${desde}&hasta=${hasta}`),
+                solicitarApi(`/kardex?desde=${desde}&hasta=${hasta}`),
+                obtenerCuentas()
+            ]);
+            setCuentas(totales);
+            setAsientos(movimientos);
+            setCatalogo(catalogoCompleto);
         }catch(errorCarga){
             setError(errorCarga.message || "No se pudo cargar el Libro Mayor.");
         }finally{
@@ -37,6 +50,100 @@ function LibroMayor(){
         // eslint-disable-next-line react-hooks/set-state-in-effect
         cargarMayor();
     }, [cargarMayor]);
+
+    const catalogoPorId = useMemo(() => {
+        const mapa = new Map();
+        for (const cuenta of catalogo) {
+            mapa.set(String(cuenta.id), cuenta);
+        }
+        return mapa;
+    }, [catalogo]);
+
+    // Decide qué cuenta se debe mostrar: si el padre es una CUENTA de 4
+    // dígitos (ej. 1101 Efectivo y equivalentes), se agrupa ahí. Si el padre
+    // es GRUPO/SUBGRUPO (1-2 dígitos) o no hay padre, la cuenta ya es la que
+    // se muestra tal cual (ej. IVA, Ventas, Compras).
+    const resolverCuentaMostrada = useCallback((cuentaId) => {
+        const cuenta = catalogoPorId.get(String(cuentaId));
+        if (!cuenta) {
+            return { id: String(cuentaId), codigo: "", nombre: "" };
+        }
+
+        const padre = cuenta.cuenta_padre_id ? catalogoPorId.get(String(cuenta.cuenta_padre_id)) : null;
+
+        if (padre && String(padre.codigo || "").length === 4) {
+            return { id: String(padre.id), codigo: padre.codigo, nombre: padre.nombre };
+        }
+
+        return { id: String(cuenta.id), codigo: cuenta.codigo, nombre: cuenta.nombre };
+    }, [catalogoPorId]);
+
+    // Agrupa los TOTALES de /libro-mayor por cuenta mostrada: esta es la lista que se pinta en la tabla.
+    const filasMostradas = useMemo(() => {
+        const mapa = new Map();
+
+        for (const cuenta of cuentas) {
+            const mostrada = resolverCuentaMostrada(cuenta.cuenta_id);
+
+            if (!mapa.has(mostrada.id)) {
+                mapa.set(mostrada.id, {
+                    cuenta_id: mostrada.id,
+                    codigo: mostrada.codigo,
+                    nombre: mostrada.nombre,
+                    total_debe: 0,
+                    total_haber: 0
+                });
+            }
+
+            const fila = mapa.get(mostrada.id);
+            fila.total_debe += Number(cuenta.total_debe || 0);
+            fila.total_haber += Number(cuenta.total_haber || 0);
+        }
+
+        return [...mapa.values()]
+            .map(fila => {
+                const saldo = Math.round((fila.total_debe - fila.total_haber) * 100) / 100;
+                return {
+                    ...fila,
+                    saldo_deudor: saldo > 0 ? saldo : 0,
+                    saldo_acreedor: saldo < 0 ? Math.abs(saldo) : 0
+                };
+            })
+            .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+    }, [cuentas, resolverCuentaMostrada]);
+
+    // Agrupa cada línea de detalle (de /kardex) por la misma cuenta mostrada, para la Cuenta T.
+    const movimientosPorCuenta = useMemo(() => {
+        const mapa = new Map();
+
+        for (const asiento of asientos) {
+            for (const detalle of asiento.detalle_asientos || []) {
+                const cuentaDetalle = detalle.cuentas;
+                if (!cuentaDetalle) continue;
+
+                const mostrada = resolverCuentaMostrada(cuentaDetalle.id);
+
+                if (!mapa.has(mostrada.id)) {
+                    mapa.set(mostrada.id, { ...mostrada, movimientos: [] });
+                }
+
+                mapa.get(mostrada.id).movimientos.push({
+                    numero_partida: asiento.numero_partida,
+                    fecha: asiento.fecha,
+                    debe: Number(detalle.debe || 0),
+                    haber: Number(detalle.haber || 0)
+                });
+            }
+        }
+
+        return mapa;
+    }, [asientos, resolverCuentaMostrada]);
+
+    function alternarFila(cuentaId) {
+        setFilaSeleccionada(actual => (String(actual) === String(cuentaId) ? null : cuentaId));
+    }
+
+    const cuentaTSeleccionada = filaSeleccionada ? movimientosPorCuenta.get(String(filaSeleccionada)) : null;
 
     return(
         <section className="view-section">
@@ -60,34 +167,49 @@ function LibroMayor(){
             {cargando && <p>Cargando Libro Mayor...</p>}
             {error && <p className="message-error">{error}</p>}
             {!cargando && !error && (
-                <div className="table-shell">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Cuenta</th>
-                                <th>Debe</th>
-                                <th>Haber</th>
-                                <th>Saldo deudor</th>
-                                <th>Saldo acreedor</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {cuentas.length === 0 ? (
-                                <tr><td colSpan="6" className="empty-state">No hay movimientos contabilizados en el período.</td></tr>
-                            ) : cuentas.map(cuenta => (
-                                <tr key={cuenta.cuenta_id}>
-                                    <td className="account-code">{cuenta.codigo}</td>
-                                    <td>{cuenta.nombre}</td>
-                                    <td>$ {moneda(cuenta.total_debe)}</td>
-                                    <td>$ {moneda(cuenta.total_haber)}</td>
-                                    <td>$ {moneda(cuenta.saldo_deudor)}</td>
-                                    <td>$ {moneda(cuenta.saldo_acreedor)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <>
+                    <p className="form-help">Haz clic en una cuenta para ver su Cuenta T.</p>
+                    <div className="mayor-layout">
+                        <div className="table-shell mayor-tabla">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Cuenta</th>
+                                        <th>Debe</th>
+                                        <th>Haber</th>
+                                        <th>Saldo deudor</th>
+                                        <th>Saldo acreedor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filasMostradas.length === 0 ? (
+                                        <tr><td colSpan="6" className="empty-state">No hay movimientos contabilizados en el período.</td></tr>
+                                    ) : filasMostradas.map(cuenta => (
+                                        <tr
+                                            key={cuenta.cuenta_id}
+                                            className={String(cuenta.cuenta_id) === String(filaSeleccionada) ? "lm-cuenta-row is-selected" : "lm-cuenta-row"}
+                                            onClick={() => alternarFila(cuenta.cuenta_id)}
+                                        >
+                                            <td className="account-code">{cuenta.codigo}</td>
+                                            <td>{cuenta.nombre}</td>
+                                            <td>$ {moneda(cuenta.total_debe)}</td>
+                                            <td>$ {moneda(cuenta.total_haber)}</td>
+                                            <td>$ {moneda(cuenta.saldo_deudor)}</td>
+                                            <td>$ {moneda(cuenta.saldo_acreedor)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {cuentaTSeleccionada && (
+                            <div className="mayor-panel-lateral">
+                                <CuentaT cuenta={cuentaTSeleccionada} onCerrar={() => setFilaSeleccionada(null)} />
+                            </div>
+                        )}
+                    </div>
+                </>
             )}
         </section>
     );

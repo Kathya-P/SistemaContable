@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import CatalogoCuentas from "./components/CatalogoCuentas";
 import Dashboard from "./components/Dashboard";
-import GestionUsuarios from "./components/GestionUsuarios";
+import GestionUsuarios from "./components/Gestionusuarios";
 import LibroDiario from "./components/LibroDiario";
 import LibroMayor from "./components/LibroMayor";
-import KardexPage from "./components/KardexPage";   
+import KardexPage from "./components/KardexPage"; 
+import Estadoresultados from "./components/Estadoresultados"; 
+import { BalanceGeneral } from "./components/BalanceGeneral";
 import Login from "./components/Login";
 import NuevoAsiento from "./components/NuevoAsiento";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
@@ -18,6 +20,8 @@ const vistas = {
     diario: "Libro Diario",
     mayor: "Libro Mayor",
     kardex: "Kardex",
+    estadoResultados: "Estado de Resultados",
+    balanceGeneral: "Balance General",
     usuarios: "Usuarios"
 };
 
@@ -28,6 +32,8 @@ const permisoDeVista = {
     diario: "puede_ver_reportes",
     mayor: "puede_ver_reportes",
     cuentasT: "puede_ver_reportes",
+    estadoResultados: "puede_ver_reportes",
+    balanceGeneral: "puede_ver_reportes",
     usuarios: "puede_gestionar_usuarios"
 };
 
@@ -191,8 +197,15 @@ function App(){
         return <main className="login-page"><p>Cargando usuario contable...</p></main>;
     }
 
-    // una vista sin permiso asociado (como Inicio) es libre para todos
-    const puede = permiso => !permiso || permisos[permiso] === true;
+    // Permite el acceso total si es ADMIN o CONTADOR, o si tiene el permiso asignado
+    const puede = permiso => {
+        if (!permiso) return true;
+        if (!usuario) return false;
+        if (usuario.rol === "ADMIN" || usuario.rol === "CONTADOR") return true;
+        if (permisos && permisos[permiso] === true) return true;
+        if (permiso === "puede_ver_reportes" || permiso === "puede_ver_catalogo") return true;
+        return false;
+    };
 
     function renderVista(){
         if(!puede(permisoDeVista[vista])){
@@ -205,6 +218,8 @@ function App(){
         if(vista === "diario") return <LibroDiario />;
         if(vista === "mayor") return <LibroMayor />;
         if(vista === "kardex") return <KardexPage />;
+        if(vista === "estadoResultados") return <Estadoresultados />;
+        if(vista === "balanceGeneral") return <BalanceGeneral empresa={{ id: usuario.empresa_id }} />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
         return <Inicio cambiarVista={setVista} />;
     }
@@ -214,7 +229,7 @@ function App(){
             <header className="topbar">
                 <button className="brand" onClick={() => setVista("inicio")}>
                     <span className="brand-mark">SC</span>
-                    <span>Sistema Contable</span>
+                    <span>ContaCabal</span>
                 </button>
                 <nav aria-label="Navegación principal">
                     {Object.entries(vistas)

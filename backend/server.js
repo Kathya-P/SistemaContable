@@ -4,6 +4,7 @@ import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import { validarPartidaDoble } from "./contabilidad.js";
 import { calcularEstadoResultados, inventarioDelMayor } from "./Estadoresultados.js";
+import { calcularBalanceGeneral } from "./balanceGeneral.js";
 
 const app = express();
 const puerto = Number(process.env.PORT || 3001);

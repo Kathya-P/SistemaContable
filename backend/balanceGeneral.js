@@ -1,5 +1,3 @@
-import { calcularEstadoResultados } from "./estadoResultados.js";
-
 function centavos(monto) {
     if (monto === null || monto === undefined || isNaN(monto)) return 0;
     return Math.round(Number(monto) * 100);
@@ -35,19 +33,20 @@ export function calcularBalanceGeneral(filasMayorAcumulado = [], filasMayorPerio
     const impuestoIvaPagarCentavos = diferenciaIvaCentavos > 0 ? diferenciaIvaCentavos : 0;
     const remanenteIvaFavorCentavos = diferenciaIvaCentavos < 0 ? Math.abs(diferenciaIvaCentavos) : 0;
 
-    // 2. RESULTADO DEL EJERCICIO (UTILIDAD / PÉRDIDA)
-    const saldoLibroMayor1103Centavos = saldoPrefijo(filasMayorAcumulado, "1103", "debe");
+    // 2. RESULTADO DEL EJERCICIO (INGRESOS - GASTOS)
+    // Ingresos de operación (Clase 5: saldo acreedor Haber - Debe)
+    const ingresosCentavos = saldoPrefijo(filasMayorPeriodo, "5", "haber");
+    // Costos y Gastos (Clase 4: saldo deudor Debe - Haber)
+    const gastosCostosCentavos = saldoPrefijo(filasMayorPeriodo, "4", "debe");
     
-    const inventarioInicialCentavos = centavos(inventarioInicial);
-    // El inventario final viene del Kardex, o por defecto del saldo en libros de la cuenta 1103
+    // Utilidad o Pérdida neta del período
+    const utilidadEjercicioCentavos = ingresosCentavos - gastosCostosCentavos;
+
+    // Saldo de inventario 1103 en libros
+    const saldoLibroMayor1103Centavos = saldoPrefijo(filasMayorAcumulado, "1103", "debe");
     const inventarioFinalCentavos = (inventarioFinal !== null && inventarioFinal !== undefined && Number(inventarioFinal) > 0)
         ? centavos(inventarioFinal)
-        : (inventarioInicialCentavos > 0 ? inventarioInicialCentavos : saldoLibroMayor1103Centavos);
-
-    const invFinalParaCalculos = dolares(inventarioFinalCentavos);
-    const estadoResultados = calcularEstadoResultados(filasMayorPeriodo, inventarioInicial, invFinalParaCalculos);
-    const utilidadEjercicio = estadoResultados.utilidadAntesImpuestos;
-    const utilidadEjercicioCentavos = centavos(utilidadEjercicio);
+        : (saldoLibroMayor1103Centavos > 0 ? saldoLibroMayor1103Centavos : centavos(inventarioInicial));
 
     // 3. ACTIVOS CORRIENTES
     const efectivoCentavos = saldoPrefijo(filasMayorAcumulado, "1101", "debe");

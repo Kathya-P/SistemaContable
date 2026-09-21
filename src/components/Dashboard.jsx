@@ -89,6 +89,7 @@ function Dashboard({ cambiarVista }) {
 	const [balance, setBalance] = useState(null);
 	const [cargando, setCargando] = useState(true);
 	const [error, setError] = useState("");
+	const [avisoHerramienta, setAvisoHerramienta] = useState("");
 	const anioActual = new Date().getFullYear();
 	const fechaInicio = `${anioActual}-01-01`;
 	const fechaFin = `${anioActual}-12-31`;
@@ -290,26 +291,46 @@ function Dashboard({ cambiarVista }) {
 					</div>
 
 					<div className="dashboard-tools">
-						<button type="button">
+						<button type="button" onClick={() => cambiarVista("kardex")}>
 							Kardex <span>→</span>
 						</button>
 
-						<button type="button">
+						<button type="button" onClick={() => cambiarVista("estadoResultados")}>
 							Estado de resultados <span>→</span>
 						</button>
 
-						<button type="button">
+						<button
+							type="button"
+							onClick={() =>
+								setAvisoHerramienta(
+									"Ratios financieros no está disponible todavía."
+								)
+							}
+						>
 							Ratios financieros <span>→</span>
 						</button>
 
-						<button type="button">
+						<button type="button" onClick={() => cambiarVista("balanceGeneral")}>
 							Balance General <span>→</span>
 						</button>
 
-						<button type="button">
+						<button
+							type="button"
+							onClick={() =>
+								setAvisoHerramienta(
+									"Trazabilidad y auditoría no está disponible todavía."
+								)
+							}
+						>
 							Trazabilidad y auditoría <span>→</span>
 						</button>
 					</div>
+
+					{avisoHerramienta && (
+						<p className="dashboard-tool-notice">
+							{avisoHerramienta}
+						</p>
+					)}
 				</article>
 			</div>
 

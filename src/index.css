@@ -987,6 +987,7 @@ code {
 .dashboard-tools button { display: flex; align-items: center; justify-content: space-between; font: inherit; }
 .dashboard-tools button:hover, .dashboard-link:hover { color: #087f86; }
 .dashboard-tools button span { color: #087f86; font-size: 18px; }
+.dashboard-tool-notice { margin: 16px 0 0; padding: 10px 12px; color: #8a5300; background: #fff3d6; border: 1px solid #f0d99b; border-radius: 6px; font-size: 13px; }
 
 .dashboard-activity-panel { margin-top: 20px; }
 .dashboard-link { padding: 0; color: #087f86; background: transparent; border: 0; cursor: pointer; font: inherit; }

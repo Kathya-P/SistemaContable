@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import { validarPartidaDoble } from "./contabilidad.js";
+import { calcularEstadoResultados, inventarioDelMayor } from "./estadoResultados.js";
 
 const app = express();
 const puerto = Number(process.env.PORT || 3001);
@@ -790,6 +791,69 @@ apiRouter.get("/libro-mayor/movimientos", async (req, res) => {
     }
 });
 
+apiRouter.get("/estado-resultados", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
+        const { desde, hasta } = req.query;
+
+        if (!desde || !hasta) {
+            return res.status(400).json({ error: "El Estado de Resultados requiere fecha desde y fecha hasta." });
+        }
+
+        // el inventario final lo calcula el kardex y lo manda el front
+        const inventarioFinal = Number(req.query.inventario_final || 0);
+
+        if (!Number.isFinite(inventarioFinal) || inventarioFinal < 0) {
+            throw new Error("El inventario final no es válido.");
+        }
+
+        const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: desde,
+            p_hasta: hasta
+        });
+
+        if (errorPeriodo) throw errorPeriodo;
+
+        // inventario inicial: lo que tiene la cuenta 1103 acumulado hasta la fecha final
+        const { data: mayorAcumulado, error: errorAcumulado } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: "1900-01-01",
+            p_hasta: hasta
+        });
+
+        if (errorAcumulado) throw errorAcumulado;
+
+        const inventarioInicial = req.query.inventario_inicial === undefined
+            ? inventarioDelMayor(mayorAcumulado || [])
+            : Number(req.query.inventario_inicial);
+
+        if (!Number.isFinite(inventarioInicial) || inventarioInicial < 0) {
+            throw new Error("El inventario inicial no es válido.");
+        }
+
+        const { data: empresa, error: errorEmpresa } = await supabase
+            .from("empresas")
+            .select("nombre_empresa")
+            .eq("id", usuario.empresa_id)
+            .maybeSingle();
+
+        if (errorEmpresa) throw errorEmpresa;
+
+        return res.json({
+            empresa: empresa?.nombre_empresa || "",
+            desde,
+            hasta,
+            inventarioInicial,
+            inventarioFinal,
+            estado: calcularEstadoResultados(mayorPeriodo || [], inventarioInicial, inventarioFinal)
+        });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
 // Registrar rutas tanto en /api como en la raíz del enrutador
 app.use("/api", apiRouter);
 app.use(apiRouter);

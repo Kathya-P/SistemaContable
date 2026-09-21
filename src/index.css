@@ -2702,3 +2702,17 @@ select {
     color: #000 !important;
   }
 }
+/*estado de resultados*/
+.er-heading { display: grid; gap: 0.15rem; padding: 0.75rem 1rem; text-align: center; }
+.er-table td { padding: 0.3rem 0.75rem; }
+.er-table .er-mark { width: 4rem; white-space: nowrap; }
+.er-table .er-amount { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.er-table .er-note { font-size: 0.85rem; opacity: 0.7; }
+.er-table .er-total td { font-weight: 700; border-top: 1px solid currentColor; }
+.er-table .er-final td { font-weight: 700; border-top: 2px solid currentColor; border-bottom: 3px double currentColor; }
+.er-table .er-group td { font-weight: 700; }
+.er-kardex-panel { margin-top: 1rem; padding: 0.75rem 1rem; border: 1px dashed currentColor; }
+
+@media print {
+    .topbar, .er-controls, .er-actions, .er-kardex-panel, .er-table .er-note { display: none !important; }
+}

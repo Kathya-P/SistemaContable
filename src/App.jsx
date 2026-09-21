@@ -4,7 +4,8 @@ import Dashboard from "./components/Dashboard";
 import GestionUsuarios from "./components/GestionUsuarios";
 import LibroDiario from "./components/LibroDiario";
 import LibroMayor from "./components/LibroMayor";
-import KardexPage from "./components/KardexPage";   
+import KardexPage from "./components/KardexPage"; 
+import Estadoresultados from "./components/Estadoresultados";  
 import Login from "./components/Login";
 import NuevoAsiento from "./components/NuevoAsiento";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
@@ -18,6 +19,7 @@ const vistas = {
     diario: "Libro Diario",
     mayor: "Libro Mayor",
     kardex: "Kardex",
+    estadoResultados: "Estado de Resultados",
     usuarios: "Usuarios"
 };
 
@@ -28,6 +30,7 @@ const permisoDeVista = {
     diario: "puede_ver_reportes",
     mayor: "puede_ver_reportes",
     cuentasT: "puede_ver_reportes",
+    estadoResultados: "puede_ver_reportes",
     usuarios: "puede_gestionar_usuarios"
 };
 
@@ -205,6 +208,7 @@ function App(){
         if(vista === "diario") return <LibroDiario />;
         if(vista === "mayor") return <LibroMayor />;
         if(vista === "kardex") return <KardexPage />;
+        if(vista === "estadoResultados") return <Estadoresultados />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
         return <Inicio cambiarVista={setVista} />;
     }
@@ -214,7 +218,7 @@ function App(){
             <header className="topbar">
                 <button className="brand" onClick={() => setVista("inicio")}>
                     <span className="brand-mark">SC</span>
-                    <span>Sistema Contable</span>
+                    <span>ContaCabal</span>
                 </button>
                 <nav aria-label="Navegación principal">
                     {Object.entries(vistas)

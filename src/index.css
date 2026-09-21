@@ -2716,3 +2716,204 @@ select {
 @media print {
     .topbar, .er-controls, .er-actions, .er-kardex-panel, .er-table .er-note { display: none !important; }
 }
+/* ==========================================================================
+   Cuenta T (clic sobre una fila del Libro Mayor)
+   ========================================================================== */
+
+.lm-cuenta-row {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.lm-cuenta-row:hover {
+  background-color: #E3EFE7;
+}
+
+.lm-cuenta-row.is-selected {
+  background-color: #E3EFE7;
+}
+
+.mayor-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.mayor-tabla {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mayor-panel-lateral {
+  flex: 0 0 360px;
+  position: sticky;
+  top: 20px;
+}
+
+.mayor-panel-lateral .t-account-panel {
+  margin-top: 0;
+}
+
+.mayor-panel-lateral .t-account {
+  max-width: none;
+}
+
+.t-account-panel {
+  margin-top: 24px;
+  padding: 20px;
+  background: #FFFFFF;
+  border: 1px solid #DDE3E0;
+  border-radius: 8px;
+}
+
+.t-account-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.t-account-panel-heading h2 {
+  margin: 0;
+  color: #1C2321;
+  font-size: 18px;
+}
+
+.t-account {
+  max-width: 480px;
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid #DDE3E0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.t-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.t-side-debe {
+  border-right: 1px solid #DDE3E0;
+}
+
+.t-head {
+  padding: 8px;
+  text-align: center;
+  color: #1B4332;
+  background: #E3EFE7;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
+
+.t-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 10px;
+  border-bottom: 1px solid #edf0eb;
+  font-size: 13px;
+}
+
+.t-row span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.t-ref {
+  color: #65706b;
+  font-size: 11.5px;
+}
+
+.t-total {
+  padding: 8px 10px;
+  text-align: right;
+  border-top: 2px solid #1B4332;
+  font-weight: 700;
+}
+
+.t-saldo {
+  padding: 10px;
+  text-align: center;
+  color: #1C2321;
+  background: #F6F7F8;
+  border-top: 1px solid #DDE3E0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tema-oscuro .lm-cuenta-row:hover,
+.tema-oscuro .lm-cuenta-row.is-selected {
+  background-color: rgba(27, 67, 50, 0.18);
+}
+
+.tema-oscuro .t-account-panel {
+  background: #1a2a36;
+  border-color: #30434f;
+}
+
+.tema-oscuro .t-account-panel-heading h2 {
+  color: #f3f4f6;
+}
+
+.tema-oscuro .t-account {
+  background: #16222b;
+  border-color: #2b3b47;
+}
+
+.tema-oscuro .t-side-debe {
+  border-right-color: #2b3b47;
+}
+
+.tema-oscuro .t-head {
+  color: #a7f3d0;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.tema-oscuro .t-row {
+  border-bottom-color: #1e293b;
+  color: #e5e7eb;
+}
+
+.tema-oscuro .t-ref {
+  color: #9eafb9;
+}
+
+.tema-oscuro .t-total {
+  border-top-color: #22c55e;
+  color: #f3f4f6;
+}
+
+.tema-oscuro .t-saldo {
+  background: #111827;
+  border-top-color: #30434f;
+  color: #e5e7eb;
+}
+
+@media (max-width: 960px) {
+  .mayor-layout {
+    flex-direction: column;
+  }
+
+  .mayor-panel-lateral {
+    flex: 1 1 auto;
+    width: 100%;
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  .t-body {
+    grid-template-columns: 1fr;
+  }
+
+  .t-side-debe {
+    border-right: 0;
+    border-bottom: 1px solid #DDE3E0;
+  }
+}

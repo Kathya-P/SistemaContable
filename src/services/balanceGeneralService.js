@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { solicitarApi } from "./api";
 
 /**
  * Obtiene el balance general calculado desde el backend contable.
@@ -16,5 +16,5 @@ export async function obtenerBalanceGeneral({ desde, hasta, inventarioFinal } = 
     }
 
     const qs = query.toString() ? `?${query.toString()}` : "";
-    return await apiFetch(`/api/balance-general${qs}`);
+    return await solicitarApi(`/balance-general${qs}`);
 }

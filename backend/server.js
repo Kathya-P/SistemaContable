@@ -864,7 +864,15 @@ apiRouter.get("/balance-general", async (req, res) => {
 
         const { desde = "2026-01-01", hasta = new Date().toISOString().split("T")[0] } = req.query;
 
-        // 1. Libro mayor acumulado (desde siempre hasta la fecha de corte)
+        // 1. Catálogo oficial de cuentas de la base de datos
+        const { data: catalogoCuentas, error: errorCat } = await supabase
+            .from("cuentas")
+            .select("codigo, nombre, nivel, cuenta_padre_id")
+            .order("codigo");
+
+        if (errorCat) throw errorCat;
+
+        // 2. Libro mayor acumulado (todas las partidas hasta la fecha de corte)
         const { data: mayorAcumulado, error: errorAcumulado } = await supabase.rpc("libro_mayor", {
             p_empresa_id: usuario.empresa_id,
             p_desde: "1900-01-01",
@@ -873,7 +881,7 @@ apiRouter.get("/balance-general", async (req, res) => {
 
         if (errorAcumulado) throw errorAcumulado;
 
-        // 2. Libro mayor del período fiscal
+        // 3. Libro mayor del período fiscal
         const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
             p_empresa_id: usuario.empresa_id,
             p_desde: desde,
@@ -882,76 +890,26 @@ apiRouter.get("/balance-general", async (req, res) => {
 
         if (errorPeriodo) throw errorPeriodo;
 
-        // 3. Obtener asientos contabilizados para calcular dinámicamente el Kardex en tiempo real
-        const { data: asientosKardex, error: errorAsientos } = await supabase
-            .from("asientos")
-            .select(`
-                id,
-                fecha,
-                numero_partida,
-                concepto,
-                detalle_asientos(
-                    debe,
-                    haber,
-                    descripcion,
-                    cuentas(codigo, nombre)
-                )
-            `)
-            .eq("empresa_id", usuario.empresa_id)
-            .eq("estado", "CONTABILIZADO")
-            .lte("fecha", hasta)
-            .order("fecha", { ascending: true })
-            .order("numero_partida", { ascending: true });
+        // 4. Inventario inicial de mercaderías (cuenta 1103)
+        const inventarioInicial = inventarioDelMayor(mayorAcumulado || []);
 
-        if (errorAsientos) throw errorAsientos;
-
-        // Cálculo dinámico del Kardex (Costo Promedio Ponderado)
+        // 5. Inventario final: si el cliente lo pasa o se calcula con el Kardex
         let inventarioFinalKardex = null;
-        let inventarioInicialKardex = 0;
-
-        if (asientosKardex && asientosKardex.length > 0) {
-            let existencias = 0;
-            let saldoValorizado = 0;
-            let esApertura = true;
-
-            for (const a of asientosKardex) {
-                for (const d of a.detalle_asientos || []) {
-                    const cod = String(d.cuentas?.codigo || "");
-                    const texto = `${a.concepto || ""} ${d.descripcion || ""}`.toLowerCase();
-                    const debe = Number(d.debe || 0);
-
-                    // Cuenta 1103 (Inventarios)
-                    if (cod.startsWith("1103") && debe > 0) {
-                        const match = texto.match(/(\d+)\s*(?:unidades|unid|uds|piezas)/i);
-                        const cant = match ? parseInt(match[1], 10) : 50;
-                        existencias += cant;
-                        saldoValorizado += debe;
-
-                        if (esApertura) {
-                            inventarioInicialKardex = debe;
-                            esApertura = false;
-                        }
-                    } else if (cod.startsWith("5101") && Number(d.haber || 0) > 0) {
-                        // Venta: reduce existencias y valor al costo promedio
-                        const match = texto.match(/(\d+)\s*(?:unidades|unid|uds|piezas)/i);
-                        const cantVendida = match ? parseInt(match[1], 10) : 35;
-                        if (existencias > 0) {
-                            const costoUnitario = saldoValorizado / existencias;
-                            saldoValorizado = Math.max(0, saldoValorizado - (costoUnitario * cantVendida));
-                            existencias = Math.max(0, existencias - cantVendida);
-                        }
-                    }
-                }
-            }
-            inventarioFinalKardex = Number(saldoValorizado.toFixed(2));
-        }
-
-        // Si el front envía un inventario final explícito, se respeta
-        if (req.query.inventarioFinal) {
+        if (req.query.inventarioFinal !== undefined && req.query.inventarioFinal !== null) {
             inventarioFinalKardex = Number(req.query.inventarioFinal);
         }
 
-        // 4. Datos de la empresa
+        // Si no viene por query, calcular el Estado de Resultados llamando a la misma lógica del módulo
+        const estadoResultados = calcularEstadoResultados(
+            mayorPeriodo || [],
+            inventarioInicial,
+            inventarioFinalKardex !== null ? inventarioFinalKardex : inventarioInicial
+        );
+
+        // Si el estado de resultados calculó la utilidad, la tomamos
+        const utilidadEstadoResultados = estadoResultados.utilidadAntesImpuestos;
+
+        // 6. Nombre dinámico de la empresa
         const { data: empresa, error: errorEmpresa } = await supabase
             .from("empresas")
             .select("nombre_empresa")
@@ -960,15 +918,15 @@ apiRouter.get("/balance-general", async (req, res) => {
 
         if (errorEmpresa) throw errorEmpresa;
 
-        const balance = calcularBalanceGeneral(
-            mayorAcumulado || [],
-            mayorPeriodo || [],
-            inventarioInicialKardex,
-            inventarioFinalKardex
-        );
+        const balance = calcularBalanceGeneral({
+            filasMayorAcumulado: mayorAcumulado || [],
+            catalogoCuentas: catalogoCuentas || [],
+            inventarioFinalKardex: inventarioFinalKardex !== null ? inventarioFinalKardex : (estadoResultados.inventarioFinal || inventarioInicial),
+            utilidadEstadoResultados
+        });
 
         return res.json({
-            empresa: empresa?.nombre_empresa || "Ferretería El Martillo, S.A. de C.V.",
+            empresa: empresa?.nombre_empresa || "",
             desde,
             hasta,
             ...balance,

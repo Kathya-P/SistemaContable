@@ -958,7 +958,7 @@ code {
 
 .dashboard-stat:last-child { border-right: 0; }
 .dashboard-stat span, .dashboard-stat small { color: #66746f; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
-.dashboard-stat strong { color: #146b65; font-family: Georgia, serif; font-size: 31px; font-weight: 500; letter-spacing: -.5px; }
+.dashboard-stat strong { color: #146b65; font-family: 'Palatino Linotype', 'Book Antiqua', Georgia, serif; font-size: 31px; font-weight: 500; letter-spacing: 0; font-variant-numeric: lining-nums tabular-nums; }
 .dashboard-stat small { letter-spacing: 0; text-transform: none; }
 
 .dashboard-grid {

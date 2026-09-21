@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { obtenerCuentas } from "../services/cuentasService";
+import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 import { obtenerLibroDiario } from "../services/libroDiarioService";
 import { supabaseConfigurado } from "../lib/supabase";
 
@@ -85,8 +86,12 @@ function calcularResumen(asientos, cuentas) {
 function Dashboard({ cambiarVista }) {
 	const [asientos, setAsientos] = useState([]);
 	const [cuentas, setCuentas] = useState([]);
+	const [balance, setBalance] = useState(null);
 	const [cargando, setCargando] = useState(true);
 	const [error, setError] = useState("");
+	const anioActual = new Date().getFullYear();
+	const fechaInicio = `${anioActual}-01-01`;
+	const fechaFin = `${anioActual}-12-31`;
 
 	useEffect(() => {
 		async function cargarDatos() {
@@ -99,14 +104,19 @@ function Dashboard({ cambiarVista }) {
 			}
 
 			try {
-				const [asientosCargados, cuentasCargadas] =
+				const [asientosCargados, cuentasCargadas, balanceCargado] =
 					await Promise.all([
 						obtenerLibroDiario(),
-						obtenerCuentas()
+						obtenerCuentas(),
+						obtenerBalanceGeneral({
+							desde: fechaInicio,
+							hasta: fechaFin
+						})
 					]);
 
 				setAsientos(asientosCargados);
 				setCuentas(cuentasCargadas);
+				setBalance(balanceCargado);
 			} catch (errorCarga) {
 				console.error(
 					"Error cargando el dashboard:",
@@ -123,7 +133,7 @@ function Dashboard({ cambiarVista }) {
 		}
 
 		cargarDatos();
-	}, []);
+	}, [fechaFin, fechaInicio]);
 
 	const resumen = useMemo(() => {
 		return calcularResumen(asientos, cuentas);
@@ -178,14 +188,14 @@ function Dashboard({ cambiarVista }) {
 				<article className="dashboard-stat">
 					<span>Activos</span>
 					<strong>
-						$ {moneda(resumen.activos)}
+						$ {moneda(balance?.activo?.total)}
 					</strong>
 				</article>
 
 				<article className="dashboard-stat">
 					<span>Pasivos</span>
 					<strong>
-						$ {moneda(resumen.pasivos)}
+						$ {moneda(balance?.pasivo?.total)}
 					</strong>
 				</article>
 

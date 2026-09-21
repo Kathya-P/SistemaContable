@@ -21,6 +21,7 @@ const vistas = {
     mayor: "Libro Mayor",
     kardex: "Kardex",
     estadoResultados: "Estado de Resultados",
+    balanceGeneral: "Balance General",
     usuarios: "Usuarios"
 };
 
@@ -32,6 +33,7 @@ const permisoDeVista = {
     mayor: "puede_ver_reportes",
     cuentasT: "puede_ver_reportes",
     estadoResultados: "puede_ver_reportes",
+    balanceGeneral: "puede_ver_reportes",
     usuarios: "puede_gestionar_usuarios"
 };
 
@@ -210,6 +212,7 @@ function App(){
         if(vista === "mayor") return <LibroMayor />;
         if(vista === "kardex") return <KardexPage />;
         if(vista === "estadoResultados") return <Estadoresultados />;
+        if(vista === "balanceGeneral") return <BalanceGeneral empresa={{ id: usuario.empresa_id }} />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
         return <Inicio cambiarVista={setVista} />;
     }

@@ -1,5 +1,3 @@
-import PropTypes from "prop-types";
-
 function formatearDinero(monto) {
     if (monto === null || monto === undefined || isNaN(monto)) return "$0.00";
     return "$" + Number(monto).toLocaleString("en-US", {
@@ -187,12 +185,3 @@ export function TablaBalanceGeneral({ balance }) {
         </div>
     );
 }
-
-TablaBalanceGeneral.propTypes = {
-    balance: PropTypes.shape({
-        activo: PropTypes.object,
-        pasivo: PropTypes.object,
-        capital: PropTypes.object,
-        totalPasivoCapital: PropTypes.number
-    })
-};

@@ -1,4 +1,4 @@
-# 📘 Sistema Contable
+# 📘 ContaCabal
 
 Sistema web contable desarrollado para la gestión de procesos contables básicos, permitiendo administrar cuentas contables, registrar movimientos financieros y consultar información mediante un Libro Diario.
 
@@ -326,7 +326,7 @@ Reportes contables
 - Balance general
 👨‍💻 Equipo de desarrollo
 Proyecto académico:
-Sistema Contable
+ContaCabal
 Tecnologías:
 React + Supabase
 Año:

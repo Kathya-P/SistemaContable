@@ -13,6 +13,8 @@ function IconoSvg({ nombre }){
             return <svg {...props}><rect x="4" y="4" width="16" height="16" rx="1.5" /><path d="M4 9h16" /></svg>;
         case "reportes":
             return <svg {...props}><rect x="3.5" y="4" width="17" height="16" rx="1.5" /><path d="M10 4v16" /></svg>;
+        case "herramientas":
+            return <svg {...props}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" /></svg>;
         case "administracion":
             return <svg {...props}><circle cx="12" cy="12" r="3" /><path d="M12 2.5v2.6M12 18.9v2.6M4.2 5.5l1.8 1.8M18 16.7l1.8 1.8M2.5 12h2.6M18.9 12h2.6M4.2 18.5l1.8-1.8M18 7.3l1.8-1.8" /></svg>;
         case "sol":

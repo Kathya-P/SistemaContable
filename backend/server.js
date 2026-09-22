@@ -6,6 +6,7 @@ import { validarPartidaDoble } from "./contabilidad.js";
 import { calcularEstadoResultados, inventarioDelMayor } from "./Estadoresultados.js";
 import { calcularBalanceGeneral } from "./balanceGeneral.js";
 import { calcularRatios } from "./ratiosFinancieros.js";
+import { registrarAuditoria, consultarLogsAuditoria } from "./auditoria.js";
 
 const app = express();
 const puerto = Number(process.env.PORT || 3001);
@@ -176,6 +177,144 @@ apiRouter.get("/cuentas", async (req, res) => {
         }
 
         return res.json(data || []);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Crear cuenta contable en el catálogo
+apiRouter.post("/cuentas", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos"); // O permiso de administración de catálogo
+
+        const { codigo, nombre, tipo, nivel, cuenta_padre_id, permite_movimientos } = req.body || {};
+        if (!codigo) throw new Error("El código de la cuenta es obligatorio.");
+        if (!nombre) throw new Error("El nombre de la cuenta es obligatorio.");
+
+        const { data, error } = await supabase
+            .from("cuentas")
+            .insert([{
+                codigo: String(codigo).trim(),
+                nombre: String(nombre).trim(),
+                tipo: tipo || "ACTIVO",
+                nivel: nivel || 1,
+                cuenta_padre_id: cuenta_padre_id || null,
+                permite_movimientos: permite_movimientos !== false
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // Registrar auditoría de creación de cuenta
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "crear",
+            entidad_afectada: "Cuenta",
+            entidad_id: data.codigo || data.id,
+            descripcion: `Creó cuenta ${data.codigo} - ${data.nombre}`,
+            datos_nuevos: data,
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.status(201).json(data);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Editar cuenta contable
+apiRouter.patch("/cuentas/:id", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
+        const { data: anterior } = await supabase
+            .from("cuentas")
+            .select("*")
+            .eq("id", req.params.id)
+            .maybeSingle();
+
+        const { data, error } = await supabase
+            .from("cuentas")
+            .update(req.body)
+            .eq("id", req.params.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // Registrar auditoría de edición de cuenta
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "editar",
+            entidad_afectada: "Cuenta",
+            entidad_id: data.codigo || data.id,
+            descripcion: `Editó cuenta ${data.codigo} - ${data.nombre}`,
+            datos_anteriores: anterior,
+            datos_nuevos: data,
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.json(data);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Eliminar cuenta contable
+apiRouter.delete("/cuentas/:id", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
+        const { data: anterior } = await supabase
+            .from("cuentas")
+            .select("*")
+            .eq("id", req.params.id)
+            .maybeSingle();
+
+        if (!anterior) {
+            const err = new Error("Cuenta no encontrada.");
+            err.statusCode = 404;
+            throw err;
+        }
+
+        const { error } = await supabase
+            .from("cuentas")
+            .delete()
+            .eq("id", req.params.id);
+
+        if (error) throw error;
+
+        // Registrar auditoría de eliminación de cuenta
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "eliminar",
+            entidad_afectada: "Cuenta",
+            entidad_id: anterior.codigo || anterior.id,
+            descripcion: `Eliminó cuenta ${anterior.codigo} - ${anterior.nombre}`,
+            datos_anteriores: anterior,
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.json({ mensaje: "Cuenta eliminada con éxito." });
     } catch (error) {
         return responderError(res, error);
     }
@@ -470,8 +609,44 @@ apiRouter.post("/usuarios", async (req, res) => {
             throw errorUsuario;
         }
 
+        // Registrar auditoría de creación de usuario (sin guardar contraseña)
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: administrador.empresa_id,
+            usuario_id: administrador.id,
+            usuario_nombre: administrador.nombre,
+            tipo_accion: "crear",
+            entidad_afectada: "Usuario",
+            entidad_id: usuarioCreado.id,
+            descripcion: `Creó usuario ${usuarioCreado.nombre} (${usuarioCreado.correo}) con rol ${usuarioCreado.rol}`,
+            datos_nuevos: {
+                id: usuarioCreado.id,
+                nombre: usuarioCreado.nombre,
+                correo: usuarioCreado.correo,
+                rol: usuarioCreado.rol,
+                estado: usuarioCreado.estado
+            },
+            resultado: "exitoso",
+            req
+        }).catch(e => console.warn("Error log auditoria:", e.message));
+
         return res.status(201).json(usuarioCreado);
     } catch (error) {
+        // Registrar error en auditoría si es posible
+        if (req?.usuario) {
+            registrarAuditoria({
+                supabaseClient: supabase,
+                empresa_id: req.usuario.empresa_id,
+                usuario_id: req.usuario.id,
+                usuario_nombre: req.usuario.nombre,
+                tipo_accion: "crear",
+                entidad_afectada: "Usuario",
+                descripcion: `Intento fallido de crear usuario ${req.body?.nombre || ""} (${req.body?.correo || ""})`,
+                resultado: error.statusCode === 403 ? "denegado por permisos" : "error",
+                detalles_error: error.message,
+                req
+            }).catch(() => {});
+        }
         return responderError(res, error);
     }
 });
@@ -501,7 +676,7 @@ apiRouter.patch("/usuarios/:id", async (req, res) => {
         // solo puede tocar usuarios de su propia empresa
         const { data: objetivo, error: errorObjetivo } = await supabase
             .from("usuarios")
-            .select("id, rol, estado")
+            .select("id, nombre, correo, rol, estado")
             .eq("id", req.params.id)
             .eq("empresa_id", administrador.empresa_id)
             .maybeSingle();
@@ -543,7 +718,137 @@ apiRouter.patch("/usuarios/:id", async (req, res) => {
             throw error;
         }
 
+        // Registrar auditoría de edición de usuario
+        const detallesCambios = [];
+        if (cambios.rol !== undefined && cambios.rol !== objetivo.rol) detallesCambios.push(`rol: ${objetivo.rol} → ${cambios.rol}`);
+        if (cambios.estado !== undefined && cambios.estado !== objetivo.estado) detallesCambios.push(`estado: ${objetivo.estado ? "Activo" : "Inactivo"} → ${cambios.estado ? "Activo" : "Inactivo"}`);
+
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: administrador.empresa_id,
+            usuario_id: administrador.id,
+            usuario_nombre: administrador.nombre,
+            tipo_accion: "editar",
+            entidad_afectada: "Usuario",
+            entidad_id: objetivo.id,
+            descripcion: `Editó usuario ${objetivo.nombre} (${detallesCambios.join(", ") || "actualización"})`,
+            datos_anteriores: { rol: objetivo.rol, estado: objetivo.estado },
+            datos_nuevos: { rol: data.rol, estado: data.estado },
+            resultado: "exitoso",
+            req
+        }).catch(e => console.warn("Error log auditoria:", e.message));
+
         return res.json(data);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Eliminar usuario
+apiRouter.delete("/usuarios/:id", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const administrador = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(administrador, "puede_gestionar_usuarios");
+
+        const { data: objetivo, error: errorObjetivo } = await supabase
+            .from("usuarios")
+            .select("id, nombre, correo, rol, estado, auth_id")
+            .eq("id", req.params.id)
+            .eq("empresa_id", administrador.empresa_id)
+            .maybeSingle();
+
+        if (errorObjetivo) throw errorObjetivo;
+        if (!objetivo) {
+            const error = new Error("No se encontró ese usuario.");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (objetivo.id === administrador.id) {
+            throw new Error("No puedes eliminar tu propia cuenta de usuario.");
+        }
+
+        if (objetivo.auth_id) {
+            await supabase.auth.admin.deleteUser(objetivo.auth_id).catch(() => {});
+        }
+
+        const { error: errorBorrar } = await supabase
+            .from("usuarios")
+            .delete()
+            .eq("id", objetivo.id);
+
+        if (errorBorrar) throw errorBorrar;
+
+        // Registrar auditoría de eliminación de usuario
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: administrador.empresa_id,
+            usuario_id: administrador.id,
+            usuario_nombre: administrador.nombre,
+            tipo_accion: "eliminar",
+            entidad_afectada: "Usuario",
+            entidad_id: objetivo.id,
+            descripcion: `Eliminó usuario ${objetivo.nombre} (${objetivo.correo})`,
+            datos_anteriores: {
+                id: objetivo.id,
+                nombre: objetivo.nombre,
+                correo: objetivo.correo,
+                rol: objetivo.rol,
+                estado: objetivo.estado
+            },
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.json({ mensaje: "Usuario eliminado con éxito.", id: objetivo.id });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Cambiar contraseña de un usuario
+apiRouter.post("/usuarios/:id/cambiar-password", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const administrador = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(administrador, "puede_gestionar_usuarios");
+
+        const nuevaPassword = String(req.body?.password || "");
+        if (nuevaPassword.length < 6) throw new Error("La nueva contraseña debe tener al menos 6 caracteres.");
+
+        const { data: objetivo } = await supabase
+            .from("usuarios")
+            .select("id, nombre, correo, auth_id")
+            .eq("id", req.params.id)
+            .eq("empresa_id", administrador.empresa_id)
+            .maybeSingle();
+
+        if (!objetivo) {
+            const error = new Error("Usuario no encontrado.");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (objetivo.auth_id) {
+            await supabase.auth.admin.updateUserById(objetivo.auth_id, { password: nuevaPassword });
+        }
+
+        // Registrar auditoría de cambio de contraseña (SIN detalles de contraseña)
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: administrador.empresa_id,
+            usuario_id: administrador.id,
+            usuario_nombre: administrador.nombre,
+            tipo_accion: "editar",
+            entidad_afectada: "Usuario",
+            entidad_id: objetivo.id,
+            descripcion: `Cambió contraseña del usuario ${objetivo.nombre}`,
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.json({ mensaje: "Contraseña actualizada con éxito." });
     } catch (error) {
         return responderError(res, error);
     }
@@ -609,7 +914,102 @@ apiRouter.post("/asientos", async (req, res) => {
 
         if (error) throw error;
 
+        // Registrar auditoría de creación de asiento contable
+        const numPartida = data?.numero_partida || data?.id || "";
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "crear",
+            entidad_afectada: "Asiento",
+            entidad_id: numPartida,
+            descripcion: `Creó asiento #${numPartida}: ${asiento.concepto}`,
+            datos_nuevos: {
+                numero_partida: numPartida,
+                fecha: asiento.fecha,
+                concepto: asiento.concepto,
+                total_debe: detalles.reduce((acc, d) => acc + Number(d.debe || 0), 0),
+                total_haber: detalles.reduce((acc, d) => acc + Number(d.haber || 0), 0),
+                movimientos: detalles.map(d => ({
+                    cuenta_id: d.cuenta_id,
+                    descripcion: d.descripcion,
+                    debe: Number(d.debe || 0),
+                    haber: Number(d.haber || 0)
+                }))
+            },
+            resultado: "exitoso",
+            req
+        }).catch(e => console.warn("Error log auditoria asiento:", e.message));
+
         return res.status(201).json(data);
+    } catch (error) {
+        if (req?.usuario) {
+            registrarAuditoria({
+                supabaseClient: supabase,
+                empresa_id: req.usuario.empresa_id,
+                usuario_id: req.usuario.id,
+                usuario_nombre: req.usuario.nombre,
+                tipo_accion: "crear",
+                entidad_afectada: "Asiento",
+                descripcion: `Intento fallido de crear asiento: ${req.body?.asiento?.concepto || "Sin concepto"}`,
+                resultado: error.statusCode === 403 ? "denegado por permisos" : "error",
+                detalles_error: error.message,
+                req
+            }).catch(() => {});
+        }
+        return responderError(res, error);
+    }
+});
+
+// Ver detalle de un asiento específico (auditoría "ver")
+apiRouter.get("/asientos/:id", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
+        const { data, error } = await supabase
+            .from("asientos")
+            .select(`
+                id,
+                fecha,
+                numero_partida,
+                concepto,
+                estado,
+                detalle_asientos(
+                    cuenta_id,
+                    descripcion,
+                    debe,
+                    haber,
+                    cuentas(id, codigo, nombre)
+                )
+            `)
+            .eq("id", req.params.id)
+            .eq("empresa_id", usuario.empresa_id)
+            .maybeSingle();
+
+        if (error) throw error;
+        if (!data) {
+            const err = new Error("Asiento no encontrado.");
+            err.statusCode = 404;
+            throw err;
+        }
+
+        // Registrar auditoría de visualización de asiento
+        registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "ver",
+            entidad_afectada: "Asiento",
+            entidad_id: data.numero_partida || data.id,
+            descripcion: `Consultó detalle del asiento #${data.numero_partida || data.id}`,
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.json(data);
     } catch (error) {
         return responderError(res, error);
     }
@@ -1227,6 +1627,81 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
         return responderError(res, error);
     }
 });
+
+// ==========================================================
+// Módulo de Auditoría (Logs_Auditoria)
+// ==========================================================
+
+// Consulta el historial de logs de auditoría con paginación, filtros y resumen de métricas
+apiRouter.get("/auditoria", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_gestionar_usuarios");
+
+        // Si no activó "incluir_mis_acciones", excluimos sus propias acciones por defecto
+        const excluirMisAcciones = req.query.incluir_mis_acciones !== "true";
+        const excluirUsuarioId = excluirMisAcciones ? usuario.id : null;
+
+        const resultado = await consultarLogsAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            desde: req.query.desde,
+            hasta: req.query.hasta,
+            usuario_id: req.query.usuario_id,
+            tipo_accion: req.query.tipo_accion,
+            entidad_afectada: req.query.entidad_afectada,
+            resultado: req.query.resultado,
+            buscar: req.query.buscar,
+            excluir_usuario_id: excluirUsuarioId,
+            pagina: req.query.pagina,
+            limite: req.query.limite,
+            orden_campo: req.query.orden_campo,
+            orden_dir: req.query.orden_dir
+        });
+
+        return res.json(resultado);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Registrar un log de auditoría desde el cliente (ej. descarga de reportes, etc.)
+apiRouter.post("/auditoria", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        const {
+            tipo_accion,
+            entidad_afectada,
+            entidad_id,
+            descripcion,
+            datos_anteriores,
+            datos_nuevos,
+            resultado,
+            detalles_error
+        } = req.body || {};
+
+        const logRegistrado = await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: tipo_accion || "ver",
+            entidad_afectada: entidad_afectada || "General",
+            entidad_id,
+            descripcion: descripcion || "Acción registrada",
+            datos_anteriores,
+            datos_nuevos,
+            resultado: resultado || "exitoso",
+            detalles_error,
+            req
+        });
+
+        return res.status(201).json(logRegistrado);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
 // Registrar rutas tanto en /api como en la raíz del enrutador
 app.use("/api", apiRouter);
 app.use(apiRouter);

@@ -2814,6 +2814,13 @@ select {
   box-shadow: 0 1px 4px rgba(6, 78, 59, 0.2);
 }
 
+.kardex-pill-check {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .kardex-cuenta-filter-active {
   display: flex;
   align-items: center;
@@ -2837,45 +2844,6 @@ select {
 .btn-limpiar-filtro-cuenta:hover {
   background: #D1FAE5;
   color: #064E3B;
-}
-
-.col-cuenta-filtro {
-  vertical-align: middle;
-}
-
-.cuenta-header-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-}
-
-.cuenta-header-title {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: #3C5045;
-}
-
-.select-filtro-cuenta {
-  background: #FFFFFF;
-  border: 1.5px solid #059669;
-  border-radius: 5px;
-  color: #064E3B;
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 2px 4px;
-  cursor: pointer;
-  outline: none;
-  max-width: 125px;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(6, 95, 70, 0.08);
-}
-
-.select-filtro-cuenta:hover,
-.select-filtro-cuenta:focus {
-  border-color: #047857;
-  background-color: #F0FDF4;
 }
 
 .brand,
@@ -3093,12 +3061,6 @@ select {
 }
 
 /* Estilos de modo oscuro para el filtro */
-.tema-oscuro .select-filtro-cuenta {
-  background: #18221E;
-  border-color: #059669;
-  color: #A7F3D0;
-}
-
 .tema-oscuro .kardex-cuenta-filter-bar {
   background: #14261E;
   border-color: #2D4C3A;

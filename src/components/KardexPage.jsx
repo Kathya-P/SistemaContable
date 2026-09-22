@@ -4,9 +4,11 @@ import { FiltersPeriodo } from "./FiltersPeriodo";
 import { TablaKardex } from "./TablaKardex";
 import { formatearMoneda } from "../utils/kardexCalculos";
 
+const anioActual = new Date().getFullYear();
+
 export function KardexPage() {
-    const [fechaInicio, setFechaInicio] = useState("");
-    const [fechaFin, setFechaFin] = useState("");
+    const [fechaInicio, setFechaInicio] = useState(`${anioActual}-01-01`);
+    const [fechaFin, setFechaFin] = useState(`${anioActual}-12-31`);
 
     const [filas, setFilas] = useState([]);
     const [totales, setTotales] = useState({});
@@ -38,8 +40,8 @@ export function KardexPage() {
     }, [cargarKardex]);
 
     function handleLimpiarFiltros() {
-        setFechaInicio("");
-        setFechaFin("");
+        setFechaInicio(`${anioActual}-01-01`);
+        setFechaFin(`${anioActual}-12-31`);
     }
 
     return (

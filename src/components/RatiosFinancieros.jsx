@@ -160,7 +160,7 @@ export function RatiosFinancieros() {
         try {
             let invFinal = null;
             try {
-                const kardex = await obtenerDatosKardex({ fechaInicio, fechaFin });
+                const kardex = await obtenerDatosKardex({ fechaFin: fechaFin || "" });
                 const saldo = Number(kardex?.totales?.saldo_final ?? 0);
                 if (saldo > 0) invFinal = saldo;
             } catch (errKardex) {

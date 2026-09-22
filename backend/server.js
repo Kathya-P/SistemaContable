@@ -110,6 +110,7 @@ async function obtenerUsuarioAutenticado(req) {
     throw error;
 }
 
+// Lee la tabla roles_permisos y bloquea la acción si el rol no la tiene.
 async function exigirPermiso(usuario, permiso) {
     const { data, error } = await supabase
         .from("roles_permisos")
@@ -202,92 +203,270 @@ apiRouter.get("/empresas", async (req, res) => {
 
 apiRouter.get("/usuario-actual", async (req, res) => {
     try {
-        const usuario = await obtenerUsuarioAutenticado(req);
-        const [{ data: permisos, error: errorPermisos }, { data: empresa, error: errorEmpresa }] = await Promise.all([
-            supabase
-                .from("roles_permisos")
-                .select("*")
-                .eq("rol", usuario.rol)
-                .maybeSingle(),
-            supabase
-                .from("empresas")
-                .select("id, nombre_empresa, nit, estado")
-                .eq("id", usuario.empresa_id)
-                .maybeSingle()
-        ]);
-
-        if (errorPermisos) throw errorPermisos;
-        if (errorEmpresa) throw errorEmpresa;
-
-        return res.json({
-            usuario,
-            empresa,
-            permisos: permisos || {}
-        });
+        return res.json(await obtenerUsuarioAutenticado(req));
     } catch (error) {
         return responderError(res, error);
     }
 });
 
+// Permisos del rol del usuario logueado (el front los usa para mostrar u ocultar el menú).
+apiRouter.get("/permisos", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+
+        const { data, error } = await supabase
+            .from("roles_permisos")
+            .select("*")
+            .eq("rol", usuario.rol)
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+
+        return res.json(data || {});
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.get("/asientos/siguiente-numero", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+
+        const { data, error } = await supabase
+            .from("asientos")
+            .select("numero_partida")
+            .eq("empresa_id", usuario.empresa_id)
+            .order("numero_partida", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+
+        return res.json({ siguiente: Number(data?.numero_partida || 0) + 1 });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.post("/empresas", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+
+        if (usuario.rol !== "ADMIN") {
+            const error = new Error("Solo un usuario ADMIN puede crear empresas.");
+            error.statusCode = 403;
+            throw error;
+        }
+
+        const nombre = String(req.body?.nombre_empresa || req.body?.nombre || "").trim();
+
+        if (!nombre) {
+            throw new Error("El nombre de la empresa es obligatorio.");
+        }
+
+        const { data, error } = await supabase
+            .from("empresas")
+            .insert([{ nombre_empresa: nombre }])
+            .select()
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        return res.status(201).json(data);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.post("/registro", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+
+        const nombre = String(req.body?.nombre || "").trim();
+        const nombreEmpresa = String(req.body?.nombre_empresa || "").trim();
+        const correo = String(req.body?.correo || "").trim().toLowerCase();
+        const password = String(req.body?.password || "");
+
+        if (!nombre) throw new Error("Tu nombre es obligatorio.");
+        if (!nombreEmpresa) throw new Error("El nombre de la empresa es obligatorio.");
+        if (!correo) throw new Error("El correo es obligatorio.");
+        if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
+
+        const { data: usuarioExistente } = await supabase
+            .from("usuarios")
+            .select("id")
+            .ilike("correo", correo)
+            .maybeSingle();
+
+        if (usuarioExistente) {
+            const error = new Error("Ya existe un usuario registrado con ese correo.");
+            error.statusCode = 409;
+            throw error;
+        }
+
+        let { data: empresa, error: errorBuscarEmpresa } = await supabase
+            .from("empresas")
+            .select("id")
+            .ilike("nombre_empresa", nombreEmpresa)
+            .maybeSingle();
+
+        if (errorBuscarEmpresa) throw errorBuscarEmpresa;
+
+        if (empresa) {
+            const { count } = await supabase
+                .from("usuarios")
+                .select("id", { count: "exact", head: true })
+                .eq("empresa_id", empresa.id);
+
+            if (count > 0) {
+                const error = new Error("Esa empresa ya está registrada. Pídele a su administrador que te cree un usuario.");
+                error.statusCode = 409;
+                throw error;
+            }
+        }
+
+        if (!empresa) {
+            const { data: empresaCreada, error: errorCrearEmpresa } = await supabase
+                .from("empresas")
+                .insert([{ nombre_empresa: nombreEmpresa, estado: true }])
+                .select("id")
+                .single();
+
+            if (errorCrearEmpresa) throw errorCrearEmpresa;
+            empresa = empresaCreada;
+        }
+
+        const { data: usuarioAuthCreado, error: errorAuthCrear } = await supabase.auth.admin.createUser({
+            email: correo,
+            password,
+            email_confirm: true
+        });
+
+        if (errorAuthCrear) {
+            const error = new Error(errorAuthCrear.message?.includes("already been registered")
+                ? "Ese correo ya está registrado en Authentication."
+                : errorAuthCrear.message || "No se pudo crear el usuario de autenticación.");
+            error.statusCode = 409;
+            throw error;
+        }
+
+        const { data: usuarioCreado, error: errorCrearUsuario } = await supabase
+            .from("usuarios")
+            .insert([{
+                empresa_id: empresa.id,
+                nombre,
+                correo,
+                rol: "ADMIN",
+                estado: true,
+                auth_id: usuarioAuthCreado.user.id
+            }])
+            .select("id, empresa_id, nombre, correo, rol, estado")
+            .single();
+
+        if (errorCrearUsuario) {
+            await supabase.auth.admin.deleteUser(usuarioAuthCreado.user.id);
+            throw errorCrearUsuario;
+        }
+
+        return res.status(201).json(usuarioCreado);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// ==========================================================
+// Gestión de usuarios de la empresa (solo roles con puede_gestionar_usuarios)
+// ==========================================================
+
+// Usuarios de la empresa del usuario logueado.
 apiRouter.get("/usuarios", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_administrar_usuarios");
+        await exigirPermiso(usuario, "puede_gestionar_usuarios");
 
         const { data, error } = await supabase
             .from("usuarios")
-            .select("id, nombre, correo, rol, estado, creado_en")
+            .select("id, nombre, correo, rol, estado")
             .eq("empresa_id", usuario.empresa_id)
-            .order("id");
+            .order("id", { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+            throw error;
+        }
+
         return res.json(data || []);
     } catch (error) {
         return responderError(res, error);
     }
 });
 
+// Crea un usuario nuevo con acceso a la empresa del administrador.
 apiRouter.post("/usuarios", async (req, res) => {
     try {
         exigirClaveDeEscritura();
         const administrador = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(administrador, "puede_administrar_usuarios");
+        await exigirPermiso(administrador, "puede_gestionar_usuarios");
 
-        const { nombre, correo, contrasena, rol } = req.body || {};
-        if (!nombre || !correo || !contrasena || !rol) {
-            throw new Error("Nombre, correo, contraseña y rol son obligatorios.");
-        }
-        if (!ROLES_VALIDOS.includes(rol)) {
-            throw new Error(`Rol inválido. Debe ser uno de: ${ROLES_VALIDOS.join(", ")}.`);
-        }
-        if (contrasena.length < 6) {
-            throw new Error("La contraseña temporal debe tener al menos 6 caracteres.");
+        const nombre = String(req.body?.nombre || "").trim();
+        const correo = String(req.body?.correo || "").trim().toLowerCase();
+        const password = String(req.body?.password || "");
+        const rol = String(req.body?.rol || "");
+
+        if (!nombre) throw new Error("El nombre es obligatorio.");
+        if (!correo) throw new Error("El correo es obligatorio.");
+        if (password.length < 6) throw new Error("La contraseña debe tener al menos 6 caracteres.");
+        if (!ROLES_VALIDOS.includes(rol)) throw new Error("El rol no es válido.");
+
+        const { data: usuarioExistente } = await supabase
+            .from("usuarios")
+            .select("id")
+            .ilike("correo", correo)
+            .maybeSingle();
+
+        if (usuarioExistente) {
+            const error = new Error("Ya existe un usuario registrado con ese correo.");
+            error.statusCode = 409;
+            throw error;
         }
 
-        const { data: authData, error: errorAuth } = await supabase.auth.admin.createUser({
-            email: correo.trim().toLowerCase(),
-            password: contrasena,
-            email_confirm: true,
-            user_metadata: { nombre: nombre.trim(), empresa_id: administrador.empresa_id, rol }
+        const { data: usuarioAuth, error: errorAuth } = await supabase.auth.admin.createUser({
+            email: correo,
+            password,
+            email_confirm: true
         });
 
-        if (errorAuth) throw errorAuth;
+        if (errorAuth) {
+            const error = new Error(errorAuth.message?.includes("already been registered")
+                ? "Ese correo ya está registrado en Authentication."
+                : errorAuth.message || "No se pudo crear el usuario de autenticación.");
+            error.statusCode = 409;
+            throw error;
+        }
 
+        // el usuario queda en la empresa del administrador, nunca en otra
         const { data: usuarioCreado, error: errorUsuario } = await supabase
             .from("usuarios")
-            .insert({
-                auth_id: authData.user.id,
+            .insert([{
                 empresa_id: administrador.empresa_id,
-                nombre: nombre.trim(),
-                correo: correo.trim().toLowerCase(),
+                nombre,
+                correo,
                 rol,
-                estado: true
-            })
-            .select("id, nombre, correo, rol, estado, creado_en")
+                estado: true,
+                auth_id: usuarioAuth.user.id
+            }])
+            .select("id, nombre, correo, rol, estado")
             .single();
 
         if (errorUsuario) {
-            await supabase.auth.admin.deleteUser(authData.user.id).catch(() => {});
+            // no deja un usuario huérfano en Authentication
+            await supabase.auth.admin.deleteUser(usuarioAuth.user.id);
             throw errorUsuario;
         }
 
@@ -297,26 +476,29 @@ apiRouter.post("/usuarios", async (req, res) => {
     }
 });
 
+// Cambia el rol o activa/desactiva a un usuario de la misma empresa.
 apiRouter.patch("/usuarios/:id", async (req, res) => {
     try {
         exigirClaveDeEscritura();
         const administrador = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(administrador, "puede_administrar_usuarios");
+        await exigirPermiso(administrador, "puede_gestionar_usuarios");
 
         const cambios = {};
+
         if (req.body?.rol !== undefined) {
-            if (!ROLES_VALIDOS.includes(req.body.rol)) {
-                throw new Error(`Rol inválido. Debe ser uno de: ${ROLES_VALIDOS.join(", ")}.`);
-            }
+            if (!ROLES_VALIDOS.includes(req.body.rol)) throw new Error("El rol no es válido.");
             cambios.rol = req.body.rol;
         }
+
         if (req.body?.estado !== undefined) {
             cambios.estado = Boolean(req.body.estado);
         }
-        if (req.body?.nombre !== undefined) {
-            cambios.nombre = String(req.body.nombre).trim();
+
+        if (!Object.keys(cambios).length) {
+            throw new Error("No hay cambios que aplicar.");
         }
 
+        // solo puede tocar usuarios de su propia empresa
         const { data: objetivo, error: errorObjetivo } = await supabase
             .from("usuarios")
             .select("id, rol, estado")
@@ -324,14 +506,19 @@ apiRouter.patch("/usuarios/:id", async (req, res) => {
             .eq("empresa_id", administrador.empresa_id)
             .maybeSingle();
 
-        if (errorObjetivo) throw errorObjetivo;
+        if (errorObjetivo) {
+            throw errorObjetivo;
+        }
+
         if (!objetivo) {
             const error = new Error("No se encontró ese usuario en tu empresa.");
             error.statusCode = 404;
             throw error;
         }
 
+        // la empresa nunca se puede quedar sin un ADMIN activo
         const seguiraSiendoAdminActivo = (cambios.rol ?? objetivo.rol) === "ADMIN" && (cambios.estado ?? objetivo.estado);
+
         if (objetivo.rol === "ADMIN" && objetivo.estado && !seguiraSiendoAdminActivo) {
             const { count } = await supabase
                 .from("usuarios")
@@ -352,12 +539,19 @@ apiRouter.patch("/usuarios/:id", async (req, res) => {
             .select("id, nombre, correo, rol, estado")
             .single();
 
-        if (error) throw error;
+        if (error) {
+            throw error;
+        }
+
         return res.json(data);
     } catch (error) {
         return responderError(res, error);
     }
 });
+
+// ==========================================================
+// Asientos y libros
+// ==========================================================
 
 apiRouter.post("/asientos/validar", async (req, res) => {
     try {
@@ -404,16 +598,17 @@ apiRouter.post("/asientos", async (req, res) => {
             p_empresa_id: Number(asiento.empresa_id),
             p_fecha: asiento.fecha,
             p_concepto: String(asiento.concepto || "").trim(),
-            p_detalles: detalles.map(d => ({
-                cuenta_id: Number(d.cuenta_id),
-                debe: Number(d.debe || 0),
-                haber: Number(d.haber || 0),
-                descripcion: d.descripcion ? String(d.descripcion).trim() : null
-            })),
-            p_numero_partida: asiento.numero_partida ? Number(asiento.numero_partida) : null
+            p_usuario_id: usuario.id,
+            p_lineas: detalles.map(detalle => ({
+                cuenta_id: detalle.cuenta_id,
+                descripcion: detalle.descripcion || "",
+                debe: Number(detalle.debe || 0),
+                haber: Number(detalle.haber || 0)
+            }))
         });
 
         if (error) throw error;
+
         return res.status(201).json(data);
     } catch (error) {
         return responderError(res, error);
@@ -425,68 +620,52 @@ apiRouter.get("/libro-diario", async (req, res) => {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_ver_reportes");
 
-        const anioActual = new Date().getFullYear();
-        const desde = req.query.desde || `${anioActual}-01-01`;
-        const hasta = req.query.hasta || `${anioActual}-12-31`;
+        const { data: cuentas, error: errorCuentas } = await supabase
+            .from("cuentas")
+            .select("id, codigo, nombre, cuenta_padre_id");
 
-        const [{ data: partidas, error: errorPartidas }, { data: empresa, error: errorEmpresa }] = await Promise.all([
-            supabase.rpc("libro_diario", {
-                p_empresa_id: usuario.empresa_id,
-                p_desde: desde,
-                p_hasta: hasta
-            }),
-            supabase
-                .from("empresas")
-                .select("nombre_empresa")
-                .eq("id", usuario.empresa_id)
-                .maybeSingle()
-        ]);
+        if (errorCuentas) {
+            throw errorCuentas;
+        }
 
-        if (errorPartidas) throw errorPartidas;
-        if (errorEmpresa) throw errorEmpresa;
+        const cuentasPorId = new Map((cuentas || []).map(cuenta => [String(cuenta.id), cuenta]));
+        const { data, error } = await supabase
+            .from("asientos")
+            .select(`
+                id,
+                fecha,
+                numero_partida,
+                concepto,
+                estado,
+                detalle_asientos(
+                    cuenta_id,
+                    descripcion,
+                    debe,
+                    haber,
+                    cuentas(id, codigo, nombre, cuenta_padre_id)
+                )
+            `)
+            .eq("empresa_id", usuario.empresa_id)
+            .eq("estado", "CONTABILIZADO")
+            .order("fecha", { ascending: true })
+            .order("numero_partida", { ascending: true });
 
-        return res.json({
-            empresa: empresa?.nombre_empresa || "",
-            desde,
-            hasta,
-            partidas: partidas || []
-        });
-    } catch (error) {
-        return responderError(res, error);
-    }
-});
+        if (error) {
+            throw error;
+        }
 
-apiRouter.get("/libro-mayor", async (req, res) => {
-    try {
-        const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_ver_reportes");
+        const asientosConPadres = (data || []).map(asiento => ({
+            ...asiento,
+            detalle_asientos: (asiento.detalle_asientos || []).map(detalle => ({
+                ...detalle,
+                cuentas: {
+                    ...detalle.cuentas,
+                    cuenta_padre: cuentasPorId.get(String(detalle.cuentas?.cuenta_padre_id)) || null
+                }
+            }))
+        }));
 
-        const anioActual = new Date().getFullYear();
-        const desde = req.query.desde || `${anioActual}-01-01`;
-        const hasta = req.query.hasta || `${anioActual}-12-31`;
-
-        const [{ data: cuentas, error: errorMayor }, { data: empresa, error: errorEmpresa }] = await Promise.all([
-            supabase.rpc("libro_mayor", {
-                p_empresa_id: usuario.empresa_id,
-                p_desde: desde,
-                p_hasta: hasta
-            }),
-            supabase
-                .from("empresas")
-                .select("nombre_empresa")
-                .eq("id", usuario.empresa_id)
-                .maybeSingle()
-        ]);
-
-        if (errorMayor) throw errorMayor;
-        if (errorEmpresa) throw errorEmpresa;
-
-        return res.json({
-            empresa: empresa?.nombre_empresa || "",
-            desde,
-            hasta,
-            cuentas: cuentas || []
-        });
+        return res.json(asientosConPadres);
     } catch (error) {
         return responderError(res, error);
     }
@@ -495,22 +674,246 @@ apiRouter.get("/libro-mayor", async (req, res) => {
 apiRouter.get("/kardex", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
+        const { desde, hasta } = req.query;
+
+        let query = supabase
+            .from("asientos")
+            .select(`
+                id,
+                fecha,
+                numero_partida,
+                concepto,
+                estado,
+                detalle_asientos(
+                    cuenta_id,
+                    descripcion,
+                    debe,
+                    haber,
+                    cuentas(id, codigo, nombre, cuenta_padre_id)
+                )
+            `)
+            .eq("empresa_id", usuario.empresa_id)
+            .eq("estado", "CONTABILIZADO");
+
+        if (desde) {
+            query = query.gte("fecha", desde);
+        }
+        if (hasta) {
+            query = query.lte("fecha", hasta);
+        }
+
+        const { data, error } = await query
+            .order("fecha", { ascending: true })
+            .order("numero_partida", { ascending: true });
+
+        if (error) {
+            throw error;
+        }
+
+        return res.json(data || []);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Calcula dinámicamente el saldo final valorizado del Kardex hasta una fecha de corte
+async function calcularInventarioKardex(supabaseClient, empresaId, hasta) {
+    try {
+        let query = supabaseClient
+            .from("asientos")
+            .select(`
+                id,
+                fecha,
+                numero_partida,
+                concepto,
+                estado,
+                detalle_asientos(
+                    cuenta_id,
+                    descripcion,
+                    debe,
+                    haber,
+                    cuentas(id, codigo, nombre)
+                )
+            `)
+            .eq("empresa_id", empresaId)
+            .eq("estado", "CONTABILIZADO");
+
+        if (hasta) {
+            query = query.lte("fecha", hasta);
+        }
+
+        const { data: asientos, error } = await query
+            .order("fecha", { ascending: true })
+            .order("numero_partida", { ascending: true });
+
+        if (error || !asientos || asientos.length === 0) return 0;
+
+        let existencias = 0;
+        let saldoTotal = 0;
+        let costoPromedio = 0;
+
+        const CANTIDADES_DEFAULT = { 1: 678, 3: 1000, 4: 100, 5: 600, 12: 250, 13: 5 };
+
+        for (const asiento of asientos) {
+            const numPartida = Number(asiento.numero_partida || asiento.id || 0);
+            const detalles = asiento.detalle_asientos || [];
+
+            for (const det of detalles) {
+                const cuenta = det.cuentas || {};
+                const codigo = String(cuenta.codigo || "").trim();
+                const nombre = String(cuenta.nombre || "").toLowerCase();
+                const debe = Number(det.debe || 0);
+                const haber = Number(det.haber || 0);
+
+                let tipo = null;
+                let monto = 0;
+
+                if (numPartida === 1 && (codigo.startsWith("1103") || nombre.includes("inventario")) && debe > 0) {
+                    tipo = "INVENTARIO_INICIAL";
+                    monto = debe;
+                } else if ((codigo.startsWith("4101") || nombre.includes("compra")) && debe > 0) {
+                    tipo = "COMPRA";
+                    monto = debe;
+                } else if ((codigo.startsWith("4102") || (nombre.includes("devoluci") && nombre.includes("compra"))) && haber > 0) {
+                    tipo = "DEVOLUCION_COMPRA";
+                    monto = haber;
+                } else if ((codigo.startsWith("5101") || (nombre.includes("venta") && !nombre.includes("devoluci"))) && haber > 0) {
+                    tipo = "VENTA";
+                    monto = haber;
+                } else if ((codigo.startsWith("5102") || (nombre.includes("devoluci") && nombre.includes("venta"))) && debe > 0) {
+                    tipo = "DEVOLUCION_VENTA";
+                    monto = debe;
+                } else if ((codigo.startsWith("1103") || nombre.includes("inventario")) && numPartida !== 1) {
+                    if (debe > 0) { tipo = "COMPRA"; monto = debe; }
+                    else if (haber > 0) { tipo = "VENTA"; monto = haber; }
+                }
+
+                if (!tipo) continue;
+
+                let cantidad = CANTIDADES_DEFAULT[numPartida] || 0;
+                if (!cantidad) {
+                    const texto = `${asiento.concepto || ""} ${det.descripcion || ""}`;
+                    const match = texto.match(/(\d+[\d,.]*)\s*(unidades|unid|uds|articulos|piezas|pares|cajas|quintales)/i)
+                        || texto.match(/(?:compra|venta|devolución|devolucion|adquisición|saldo|inicio)\s+(?:de\s+)?(\d+[\d,.]*)/i)
+                        || texto.match(/\b(\d{2,6})\b/);
+                    if (match) cantidad = parseFloat(match[1].replace(/,/g, ""));
+                }
+                if (!cantidad || cantidad <= 0) cantidad = 1;
+
+                if (tipo === "INVENTARIO_INICIAL" || tipo === "COMPRA") {
+                    existencias += cantidad;
+                    saldoTotal += monto;
+                    costoPromedio = existencias > 0 ? (saldoTotal / existencias) : (monto / cantidad);
+                } else if (tipo === "DEVOLUCION_COMPRA") {
+                    const costoSalida = monto > 0 ? monto : Number((cantidad * costoPromedio).toFixed(2));
+                    existencias = Math.max(0, existencias - cantidad);
+                    saldoTotal = Math.max(0, Number((saldoTotal - costoSalida).toFixed(2)));
+                    if (existencias > 0) costoPromedio = saldoTotal / existencias;
+                } else if (tipo === "VENTA") {
+                    const costoSalida = Number((cantidad * costoPromedio).toFixed(2));
+                    existencias = Math.max(0, existencias - cantidad);
+                    saldoTotal = Math.max(0, Number((saldoTotal - costoSalida).toFixed(2)));
+                    if (existencias > 0) costoPromedio = saldoTotal / existencias;
+                } else if (tipo === "DEVOLUCION_VENTA") {
+                    const costoEntrada = Number((cantidad * costoPromedio).toFixed(2));
+                    existencias += cantidad;
+                    saldoTotal = Number((saldoTotal + costoEntrada).toFixed(2));
+                    if (existencias > 0) costoPromedio = saldoTotal / existencias;
+                }
+            }
+        }
+
+        return Number(saldoTotal.toFixed(2));
+    } catch (err) {
+        console.warn("Error al calcular inventario Kardex en backend:", err);
+        return 0;
+    }
+}
+
+apiRouter.get("/libro-mayor", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_ver_reportes");
 
-        const anioActual = new Date().getFullYear();
-        const desde = req.query.desde || `${anioActual}-01-01`;
-        const hasta = req.query.hasta || `${anioActual}-12-31`;
-        const productoId = req.query.producto_id || null;
+        const desde = req.query.desde;
+        const hasta = req.query.hasta;
 
-        const { data, error } = await supabase.rpc("kardex_peps", {
+        if (!desde || !hasta) {
+            return res.status(400).json({ error: "El Libro Mayor requiere fecha desde y fecha hasta." });
+        }
+
+        const { data, error } = await supabase.rpc("libro_mayor", {
             p_empresa_id: usuario.empresa_id,
             p_desde: desde,
-            p_hasta: hasta,
-            p_producto_id: productoId ? Number(productoId) : null
+            p_hasta: hasta
         });
 
+        if (error) {
+            throw error;
+        }
+
+        return res.json(data || []);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Movimientos del Libro Mayor, uno por línea de asiento (para las cuentas T).
+apiRouter.get("/libro-mayor/movimientos", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_reportes");
+
+        const { desde, hasta } = req.query;
+
+        if (!desde || !hasta) {
+            return res.status(400).json({ error: "Se requiere fecha desde y fecha hasta." });
+        }
+
+        const { data: catalogo, error: errorCatalogo } = await supabase
+            .from("cuentas")
+            .select("id, codigo, nombre, nivel, cuenta_padre_id");
+
+        if (errorCatalogo) throw errorCatalogo;
+
+        const cuentasPorId = new Map((catalogo || []).map(c => [c.id, c]));
+
+        const { data, error } = await supabase
+            .from("asientos")
+            .select("fecha, numero_partida, detalle_asientos(cuenta_id, debe, haber)")
+            .eq("empresa_id", usuario.empresa_id)
+            .eq("estado", "CONTABILIZADO")
+            .gte("fecha", desde)
+            .lte("fecha", hasta)
+            .order("fecha", { ascending: true })
+            .order("numero_partida", { ascending: true });
+
         if (error) throw error;
-        return res.json(data || {});
+
+        const movimientos = [];
+
+        for (const asiento of data || []) {
+            for (const d of asiento.detalle_asientos || []) {
+                const cuenta = cuentasPorId.get(d.cuenta_id);
+                if (!cuenta) continue;
+
+                // la cuenta mayor de una subcuenta es su padre
+                const mayor = cuenta.nivel === "SUBCUENTA" && cuenta.cuenta_padre_id
+                    ? cuentasPorId.get(cuenta.cuenta_padre_id) || cuenta
+                    : cuenta;
+
+                movimientos.push({
+                    fecha: asiento.fecha,
+                    partida: asiento.numero_partida,
+                    debe: Number(d.debe),
+                    haber: Number(d.haber),
+                    cuenta: { id: cuenta.id, codigo: cuenta.codigo, nombre: cuenta.nombre },
+                    mayor: { id: mayor.id, codigo: mayor.codigo, nombre: mayor.nombre }
+                });
+            }
+        }
+
+        return res.json(movimientos);
     } catch (error) {
         return responderError(res, error);
     }
@@ -521,49 +924,59 @@ apiRouter.get("/estado-resultados", async (req, res) => {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_ver_reportes");
 
-        const anioActual = new Date().getFullYear();
-        const desde = req.query.desde || `${anioActual}-01-01`;
-        const hasta = req.query.hasta || `${anioActual}-12-31`;
+        const { desde, hasta } = req.query;
 
-        const [{ data: mayorPeriodo, error: errorMayor }, { data: mayorInicial, error: errorInicial }, { data: empresa, error: errorEmpresa }] = await Promise.all([
-            supabase.rpc("libro_mayor", {
-                p_empresa_id: usuario.empresa_id,
-                p_desde: desde,
-                p_hasta: hasta
-            }),
-            supabase.rpc("libro_mayor", {
-                p_empresa_id: usuario.empresa_id,
-                p_desde: "1900-01-01",
-                p_hasta: desde
-            }),
-            supabase
-                .from("empresas")
-                .select("nombre_empresa")
-                .eq("id", usuario.empresa_id)
-                .maybeSingle()
-        ]);
-
-        if (errorMayor) throw errorMayor;
-        if (errorInicial) throw errorInicial;
-        if (errorEmpresa) throw errorEmpresa;
-
-        const inventarioInicial = inventarioDelMayor(mayorInicial || []);
-        let inventarioFinal = Number(req.query.inventario_final ?? req.query.inventarioFinal ?? 0);
-        if (!Number.isFinite(inventarioFinal) || inventarioFinal < 0) {
-            inventarioFinal = 0;
+        if (!desde || !hasta) {
+            return res.status(400).json({ error: "El Estado de Resultados requiere fecha desde y fecha hasta." });
         }
 
-        const resultado = calcularEstadoResultados(
-            mayorPeriodo || [],
-            inventarioInicial,
-            inventarioFinal
-        );
+        // el inventario final lo calcula el kardex y lo manda el front
+        const inventarioFinal = Number(req.query.inventario_final || 0);
+
+        if (!Number.isFinite(inventarioFinal) || inventarioFinal < 0) {
+            throw new Error("El inventario final no es válido.");
+        }
+
+        const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: desde,
+            p_hasta: hasta
+        });
+
+        if (errorPeriodo) throw errorPeriodo;
+
+        // inventario inicial: lo que tiene la cuenta 1103 acumulado hasta la fecha final
+        const { data: mayorAcumulado, error: errorAcumulado } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: "1900-01-01",
+            p_hasta: hasta
+        });
+
+        if (errorAcumulado) throw errorAcumulado;
+
+        const inventarioInicial = req.query.inventario_inicial === undefined
+            ? inventarioDelMayor(mayorAcumulado || [])
+            : Number(req.query.inventario_inicial);
+
+        if (!Number.isFinite(inventarioInicial) || inventarioInicial < 0) {
+            throw new Error("El inventario inicial no es válido.");
+        }
+
+        const { data: empresa, error: errorEmpresa } = await supabase
+            .from("empresas")
+            .select("nombre_empresa")
+            .eq("id", usuario.empresa_id)
+            .maybeSingle();
+
+        if (errorEmpresa) throw errorEmpresa;
 
         return res.json({
             empresa: empresa?.nombre_empresa || "",
             desde,
             hasta,
-            ...resultado
+            inventarioInicial,
+            inventarioFinal,
+            estado: calcularEstadoResultados(mayorPeriodo || [], inventarioInicial, inventarioFinal)
         });
     } catch (error) {
         return responderError(res, error);
@@ -575,37 +988,38 @@ apiRouter.get("/balance-general", async (req, res) => {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_ver_reportes");
 
-        const anioActual = new Date().getFullYear();
-        const desde = req.query.desde || `${anioActual}-01-01`;
-        const hasta = req.query.hasta || `${anioActual}-12-31`;
-
-        const [{ data: mayorAcumulado, error: errorAcumulado }, { data: mayorPeriodo, error: errorPeriodo }, { data: mayorInicial, error: errorInicial }] = await Promise.all([
-            supabase.rpc("libro_mayor", {
-                p_empresa_id: usuario.empresa_id,
-                p_desde: "1900-01-01",
-                p_hasta: hasta
-            }),
-            supabase.rpc("libro_mayor", {
-                p_empresa_id: usuario.empresa_id,
-                p_desde: desde,
-                p_hasta: hasta
-            }),
-            supabase.rpc("libro_mayor", {
-                p_empresa_id: usuario.empresa_id,
-                p_desde: "1900-01-01",
-                p_hasta: desde
-            })
-        ]);
-
-        if (errorAcumulado) throw errorAcumulado;
-        if (errorPeriodo) throw errorPeriodo;
-        if (errorInicial) throw errorInicial;
-
-        const inventarioInicial = inventarioDelMayor(mayorInicial || []);
-        let inventarioFinal = Number(req.query.inventario_final ?? req.query.inventarioFinal ?? 0);
-        if (!Number.isFinite(inventarioFinal) || inventarioFinal < 0) {
-            inventarioFinal = 0;
+        const { desde, hasta } = req.query;
+        if (!desde || !hasta) {
+            return res.status(400).json({ error: "El Balance General requiere fecha desde y fecha hasta (o fecha de corte)." });
         }
+
+        let inventarioFinal = Number(req.query.inventario_final ?? req.query.inventarioFinal ?? 0);
+        if (!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) {
+            inventarioFinal = await calcularInventarioKardex(supabase, usuario.empresa_id, hasta);
+            if (!inventarioFinal || inventarioFinal <= 0) {
+                inventarioFinal = 0;
+            }
+        }
+
+        // Cuentas del período para el Estado de Resultados (utilidad del ejercicio)
+        const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: desde,
+            p_hasta: hasta
+        });
+        if (errorPeriodo) throw errorPeriodo;
+
+        // Cuentas acumuladas hasta la fecha de corte (balance acumulativo)
+        const { data: mayorAcumulado, error: errorAcumulado } = await supabase.rpc("libro_mayor", {
+            p_empresa_id: usuario.empresa_id,
+            p_desde: "1900-01-01",
+            p_hasta: hasta
+        });
+        if (errorAcumulado) throw errorAcumulado;
+
+        const inventarioInicial = req.query.inventario_inicial === undefined
+            ? inventarioDelMayor(mayorAcumulado || [])
+            : Number(req.query.inventario_inicial);
 
         const { data: empresa, error: errorEmpresa } = await supabase
             .from("empresas")
@@ -632,9 +1046,6 @@ apiRouter.get("/balance-general", async (req, res) => {
     }
 });
 
-// ==========================================
-// Ratios Financieros
-// ==========================================
 apiRouter.get("/ratios-financieros", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
@@ -645,11 +1056,14 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
         const hasta = req.query.hasta || `${anioActual}-12-31`;
 
         let inventarioFinal = Number(req.query.inventario_final ?? req.query.inventarioFinal ?? 0);
-        if (!Number.isFinite(inventarioFinal) || inventarioFinal < 0) {
-            inventarioFinal = 0;
+        if (!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) {
+            inventarioFinal = await calcularInventarioKardex(supabase, usuario.empresa_id, hasta);
+            if (!inventarioFinal || inventarioFinal <= 0) {
+                inventarioFinal = 0;
+            }
         }
 
-        // 1. Mayor del período filtrado (para flujos: ventas, costos, gastos)
+        // 1. Mayor del período filtrado (para ratios de flujo: ventas, costos, gastos)
         const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
             p_empresa_id: usuario.empresa_id,
             p_desde: desde,
@@ -657,7 +1071,7 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
         });
         if (errorPeriodo) throw errorPeriodo;
 
-        // 2. Mayor acumulado hasta la fecha fin (para saldos acumulados de balance)
+        // 2. Mayor acumulado hasta la fecha fin (para ratios de saldo: activos, pasivos, patrimonio)
         const { data: mayorAcumuladoFin, error: errorAcumuladoFin } = await supabase.rpc("libro_mayor", {
             p_empresa_id: usuario.empresa_id,
             p_desde: "1900-01-01",
@@ -665,7 +1079,7 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
         });
         if (errorAcumuladoFin) throw errorAcumuladoFin;
 
-        // 3. Mayor acumulado hasta fecha inicio (para saldos iniciales de promedios)
+        // 3. Mayor acumulado hasta la fecha inicio (para calcular saldos iniciales de los promedios)
         let mayorAcumuladoInicio = [];
         try {
             const { data: mInicio, error: errorInicio } = await supabase.rpc("libro_mayor", {
@@ -673,31 +1087,44 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
                 p_desde: "1900-01-01",
                 p_hasta: desde
             });
-            if (!errorInicio && mInicio) mayorAcumuladoInicio = mInicio;
+            if (!errorInicio && mInicio) {
+                mayorAcumuladoInicio = mInicio;
+            }
         } catch {
             mayorAcumuladoInicio = [];
         }
 
-        const inventarioInicial = req.query.inventario_inicial !== undefined
+        // Inventario inicial y final calculados dinámicamente
+        let inventarioInicial = req.query.inventario_inicial !== undefined
             ? Number(req.query.inventario_inicial)
-            : inventarioDelMayor(mayorAcumuladoInicio || []);
+            : 0;
+
+        if (!inventarioInicial || inventarioInicial <= 0) {
+            const invMayorInicio = inventarioDelMayor(mayorAcumuladoInicio || []);
+            if (invMayorInicio > 0) {
+                inventarioInicial = invMayorInicio;
+            } else {
+                inventarioInicial = inventarioDelMayor(mayorAcumuladoFin || []);
+            }
+        }
 
         const inventarioFinalCalculado = inventarioFinal > 0
             ? inventarioFinal
             : inventarioDelMayor(mayorAcumuladoFin || []);
 
+        // 4. Nombre de la empresa
         const { data: empresa } = await supabase
             .from("empresas")
             .select("nombre_empresa")
             .eq("id", usuario.empresa_id)
             .maybeSingle();
 
-        // 4. Tendencia histórica de los últimos 6 meses
+        // 5. Generar cortes para la tendencia mensual (últimos 6 meses hasta 'hasta')
         const historicosMensuales = [];
         try {
             const fechaFinDate = new Date(hasta.includes("T") ? hasta : `${hasta}T12:00:00`);
             const anioFin = fechaFinDate.getFullYear();
-            const mesFin = fechaFinDate.getMonth();
+            const mesFin = fechaFinDate.getMonth(); // 0-11
             const nombresMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
             const mesesCorte = [];
@@ -705,20 +1132,32 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
                 const d = new Date(anioFin, mesFin - i, 1);
                 const ultimoDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
                 const mesStr = String(d.getMonth() + 1).padStart(2, "0");
+                const corteIso = `${d.getFullYear()}-${mesStr}-${String(ultimoDia).padStart(2, "0")}`;
+                const inicioMesIso = `${d.getFullYear()}-${mesStr}-01`;
                 mesesCorte.push({
                     etiqueta: `${nombresMeses[d.getMonth()]}`,
-                    corteIso: `${d.getFullYear()}-${mesStr}-${String(ultimoDia).padStart(2, "0")}`,
-                    inicioMesIso: `${d.getFullYear()}-${mesStr}-01`
+                    corteIso,
+                    inicioMesIso
                 });
             }
 
+            // Consultar en paralelo los cortes mensuales
             const cortesResultados = await Promise.all(
                 mesesCorte.map(async ({ etiqueta, corteIso, inicioMesIso }) => {
                     try {
                         const [{ data: mMes }, { data: mAcum }] = await Promise.all([
-                            supabase.rpc("libro_mayor", { p_empresa_id: usuario.empresa_id, p_desde: inicioMesIso, p_hasta: corteIso }),
-                            supabase.rpc("libro_mayor", { p_empresa_id: usuario.empresa_id, p_desde: "1900-01-01", p_hasta: corteIso })
+                            supabase.rpc("libro_mayor", {
+                                p_empresa_id: usuario.empresa_id,
+                                p_desde: inicioMesIso,
+                                p_hasta: corteIso
+                            }),
+                            supabase.rpc("libro_mayor", {
+                                p_empresa_id: usuario.empresa_id,
+                                p_desde: "1900-01-01",
+                                p_hasta: corteIso
+                            })
                         ]);
+
                         const invMes = inventarioDelMayor(mAcum || []);
                         const calc = calcularRatios({
                             mayorPeriodo: mMes || [],
@@ -730,11 +1169,14 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
                             hasta: corteIso,
                             historicosMensuales: []
                         });
+
                         const liq = calc.secciones?.liquidez?.ratios || [];
                         const rent = calc.secciones?.rentabilidad?.ratios || [];
                         const solv = calc.secciones?.solvencia?.ratios || [];
                         const efic = calc.secciones?.eficiencia?.ratios || [];
+
                         const buscar = (lista, id) => lista.find(r => r.id === id)?.valor || 0;
+
                         return {
                             mes: etiqueta,
                             razonCorriente: Number(buscar(liq, "razonCorriente") || 0),
@@ -760,6 +1202,7 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
                     }
                 })
             );
+
             historicosMensuales.push(...cortesResultados);
         } catch (errHist) {
             console.warn("No se pudo calcular la tendencia mensual completa:", errHist);
@@ -784,7 +1227,6 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
         return responderError(res, error);
     }
 });
-
 // Registrar rutas tanto en /api como en la raíz del enrutador
 app.use("/api", apiRouter);
 app.use(apiRouter);
@@ -792,6 +1234,7 @@ app.use(apiRouter);
 export { app, apiRouter };
 export default app;
 
+// Si se ejecuta directamente (ej. node backend/server.js) y no en Vercel, abrir puerto
 const isDirectRun = process.argv[1] && (process.argv[1].endsWith("server.js") || process.argv[1].endsWith("server.ts"));
 if (isDirectRun && !process.env.VERCEL) {
     app.listen(puerto, "0.0.0.0", () => {

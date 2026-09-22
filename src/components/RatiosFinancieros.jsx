@@ -42,7 +42,7 @@ function obtenerRangoRapido(opcion) {
 }
 
 // Mini Gráfico de línea en SVG puro para visualizar la evolución mensual
-function MiniGraficoTendencia({ datos = [], color = "#1B4332", unidad = "" }) {
+function MiniGraficoTendencia({ datos = [], color = "#047857", unidad = "" }) {
     const [puntoHover, setPuntoHover] = useState(null);
 
     const puntosValidos = useMemo(() => {
@@ -56,7 +56,7 @@ function MiniGraficoTendencia({ datos = [], color = "#1B4332", unidad = "" }) {
 
     if (!puntosValidos || puntosValidos.length < 2) {
         return (
-            <div style={{ fontSize: "11px", color: "#64748b", fontStyle: "italic", padding: "6px 0" }}>
+            <div style={{ fontSize: "11px", color: "#065f46", fontStyle: "italic", padding: "6px 0" }}>
                 Tendencia histórica no disponible para este rango
             </div>
         );
@@ -90,8 +90,8 @@ function MiniGraficoTendencia({ datos = [], color = "#1B4332", unidad = "" }) {
             <svg viewBox={`0 0 ${width} ${height}`} style={{ width: "100%", height: "auto", overflow: "visible" }}>
                 <defs>
                     <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity="0.22" />
-                        <stop offset="100%" stopColor={color} stopOpacity="0.01" />
+                        <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+                        <stop offset="100%" stopColor={color} stopOpacity="0.02" />
                     </linearGradient>
                 </defs>
 
@@ -122,7 +122,7 @@ function MiniGraficoTendencia({ datos = [], color = "#1B4332", unidad = "" }) {
                         top: "-26px",
                         left: `${(coords[puntoHover].x / width) * 100}%`,
                         transform: "translateX(-50%)",
-                        background: "#1B4332",
+                        background: "#064e3b",
                         color: "#ffffff",
                         padding: "2px 7px",
                         borderRadius: "4px",
@@ -130,7 +130,7 @@ function MiniGraficoTendencia({ datos = [], color = "#1B4332", unidad = "" }) {
                         fontWeight: 700,
                         whiteSpace: "nowrap",
                         pointerEvents: "none",
-                        boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
+                        boxShadow: "0 2px 6px rgba(6, 78, 59, 0.25)",
                         zIndex: 10
                     }}
                 >
@@ -151,7 +151,8 @@ export function RatiosFinancieros() {
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState(null);
 
-    const [seccionActiva, setSeccionActiva] = useState("todas");
+    // Solo 4 secciones, por defecto la primera (liquidez)
+    const [seccionActiva, setSeccionActiva] = useState("liquidez");
     const [mostrarFormulas, setMostrarFormulas] = useState(false);
 
     const cargarRatios = async (fechaInicio, fechaFin) => {
@@ -196,44 +197,44 @@ export function RatiosFinancieros() {
         }
     };
 
-    // Paleta de estados en armonía con el verde institucional y fondo claro
+    // Paleta de estados exclusivamente en tonos armónicos de verde
     const getEstadoBadge = (estado) => {
         if (estado === "saludable") {
             return {
                 label: "Saludable",
-                bg: "#EAF5EE",
-                border: "#B7E4C7",
-                color: "#1B4332",
-                chartColor: "#2D6A4F",
+                bg: "#ecfdf5",
+                border: "#6ee7b7",
+                color: "#047857",
+                chartColor: "#059669",
                 icon: "✓"
             };
         }
         if (estado === "alerta") {
             return {
                 label: "Atención",
-                bg: "#FFF9E6",
-                border: "#FED7AA",
-                color: "#9A3412",
-                chartColor: "#C2410C",
+                bg: "#f0fdf4",
+                border: "#a7f3d0",
+                color: "#15803d",
+                chartColor: "#16a34a",
                 icon: "!"
             };
         }
         if (estado === "critico") {
             return {
-                label: "Riesgo",
-                bg: "#FDF2F2",
-                border: "#FECACA",
-                color: "#991B1B",
-                chartColor: "#DC2626",
-                icon: "✕"
+                label: "Revisar",
+                bg: "#f0fdf4",
+                border: "#86efac",
+                color: "#166534",
+                chartColor: "#15803d",
+                icon: "●"
             };
         }
         return {
             label: "Informativo",
-            bg: "#F8FAFC",
-            border: "#DDE3E0",
-            color: "#475569",
-            chartColor: "#52B788",
+            bg: "#f0fdf4",
+            border: "#d1fae5",
+            color: "#065f46",
+            chartColor: "#10b981",
             icon: "ℹ"
         };
     };
@@ -242,19 +243,169 @@ export function RatiosFinancieros() {
     const promedios = datosRatios?.promediosInfo || {};
 
     return (
-        <section className="bg-section" style={{ maxWidth: "1280px", margin: "0 auto", padding: "24px 20px" }}>
+        <section className="bg-section ratios-container" style={{ maxWidth: "1280px", margin: "0 auto", padding: "24px 20px" }}>
+            <style>{`
+                .ratios-container {
+                    color: #064e3b;
+                }
+                .panel-ratios-filtro {
+                    margin-top: 18px;
+                    padding: 16px 20px;
+                    border-radius: 12px;
+                    background: #ffffff;
+                    border: 1.5px solid #d1fae5;
+                    box-shadow: 0 2px 8px rgba(6, 95, 70, 0.04);
+                }
+                .btn-ratios-accion {
+                    font-size: 13px;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    border: 1.5px solid #a7f3d0;
+                    background: #ffffff;
+                    color: #065f46;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: all 0.15s ease;
+                }
+                .btn-ratios-accion:hover {
+                    background: #ecfdf5;
+                    border-color: #6ee7b7;
+                    color: #064e3b;
+                    transform: translateY(-1px);
+                    box-shadow: 0 2px 6px rgba(6, 95, 70, 0.1);
+                }
+                .btn-ratios-accion.is-active {
+                    background: #047857;
+                    border-color: #047857;
+                    color: #ffffff;
+                    font-weight: 700;
+                }
+                .chip-ratios-periodo {
+                    font-size: 12.5px;
+                    padding: 6px 14px;
+                    border-radius: 7px;
+                    cursor: pointer;
+                    border: 1.5px solid #d1fae5;
+                    background: #f0fdf4;
+                    color: #065f46;
+                    font-weight: 600;
+                    transition: all 0.15s ease;
+                }
+                .chip-ratios-periodo:hover {
+                    background: #d1fae5;
+                    border-color: #6ee7b7;
+                    color: #064e3b;
+                }
+                .chip-ratios-periodo.is-active {
+                    background: #047857;
+                    border-color: #047857;
+                    color: #ffffff;
+                    font-weight: 700;
+                    box-shadow: 0 2px 5px rgba(4, 120, 87, 0.25);
+                }
+                .input-ratios-fecha {
+                    font-size: 13px;
+                    padding: 6px 12px;
+                    border-radius: 7px;
+                    border: 1.5px solid #a7f3d0;
+                    background: #ffffff;
+                    color: #064e3b;
+                    font-weight: 500;
+                    outline: none;
+                    transition: all 0.15s ease;
+                }
+                .input-ratios-fecha:focus {
+                    border-color: #059669;
+                    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+                }
+                .btn-ratios-actualizar {
+                    font-size: 13px;
+                    font-weight: 700;
+                    padding: 7px 18px;
+                    border-radius: 7px;
+                    background: #047857;
+                    color: #ffffff;
+                    border: none;
+                    cursor: pointer;
+                    box-shadow: 0 2px 4px rgba(4, 120, 87, 0.2);
+                    transition: all 0.15s ease;
+                }
+                .btn-ratios-actualizar:hover:not(:disabled) {
+                    background: #065f46;
+                    box-shadow: 0 4px 8px rgba(6, 95, 70, 0.25);
+                    transform: translateY(-1px);
+                }
+                .btn-ratios-actualizar:disabled {
+                    opacity: 0.7;
+                    cursor: wait;
+                }
+                .tabs-ratios-container {
+                    display: flex;
+                    gap: 8px;
+                    margin-top: 18px;
+                    border-bottom: 2px solid #e2f5ea;
+                    padding-bottom: 6px;
+                    overflow-x: auto;
+                }
+                .tab-ratios-btn {
+                    font-size: 13.5px;
+                    font-weight: 600;
+                    padding: 9px 18px;
+                    border-radius: 8px;
+                    border: 1.5px solid transparent;
+                    background: #f0fdf4;
+                    color: #065f46;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                    white-space: nowrap;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+                .tab-ratios-btn:hover {
+                    background: #d1fae5;
+                    color: #064e3b;
+                    border-color: #a7f3d0;
+                }
+                .tab-ratios-btn.is-active {
+                    background: #065f46;
+                    border-color: #065f46;
+                    color: #ffffff;
+                    font-weight: 700;
+                    box-shadow: 0 3px 8px rgba(6, 95, 70, 0.25);
+                }
+                .card-ratio-item {
+                    padding: 18px;
+                    border-radius: 10px;
+                    border: 1.5px solid #d1fae5;
+                    background: #ffffff;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    gap: 12px;
+                    box-shadow: 0 1px 4px rgba(6, 95, 70, 0.03);
+                    transition: all 0.15s ease;
+                }
+                .card-ratio-item:hover {
+                    border-color: #a7f3d0;
+                    box-shadow: 0 4px 12px rgba(6, 95, 70, 0.08);
+                }
+            `}</style>
             
             {/* Cabecera Principal */}
             <header style={{ marginBottom: "22px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
                     <div>
-                        <span style={{ fontSize: "11.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "var(--accent, #1B4332)" }}>
+                        <span style={{ fontSize: "11.5px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "#047857" }}>
                             ContaCabal • Análisis Financiero
                         </span>
-                        <h1 style={{ fontSize: "28px", fontWeight: 800, margin: "4px 0 6px 0", color: "var(--text-h, #1C2321)" }}>
+                        <h1 style={{ fontSize: "28px", fontWeight: 800, margin: "4px 0 6px 0", color: "#064e3b" }}>
                             Ratios Financieros
                         </h1>
-                        <p style={{ margin: 0, fontSize: "14px", color: "#55655D" }}>
+                        <p style={{ margin: 0, fontSize: "14px", color: "#065f46" }}>
                             Indicadores calculados con datos reales del Libro Mayor, Balance General, Estado de Resultados y Kardex.
                         </p>
                     </div>
@@ -263,19 +414,7 @@ export function RatiosFinancieros() {
                         <button
                             type="button"
                             onClick={() => window.print()}
-                            style={{
-                                fontSize: "13px",
-                                fontWeight: 600,
-                                padding: "8px 14px",
-                                borderRadius: "8px",
-                                border: "1px solid var(--border, #DDE3E0)",
-                                background: "var(--panel, #FFFFFF)",
-                                color: "var(--accent, #1B4332)",
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px"
-                            }}
+                            className="btn-ratios-accion"
                         >
                             <span>🖨️</span> Imprimir reporte
                         </button>
@@ -283,39 +422,20 @@ export function RatiosFinancieros() {
                         <button
                             type="button"
                             onClick={() => setMostrarFormulas(!mostrarFormulas)}
-                            style={{
-                                fontSize: "13px",
-                                fontWeight: 600,
-                                padding: "8px 15px",
-                                borderRadius: "8px",
-                                border: "1px solid var(--border, #DDE3E0)",
-                                background: mostrarFormulas ? "var(--accent-soft, #E3EFE7)" : "var(--panel, #FFFFFF)",
-                                color: "var(--accent, #1B4332)",
-                                cursor: "pointer",
-                                transition: "all 0.15s ease"
-                            }}
+                            className={`btn-ratios-accion ${mostrarFormulas ? "is-active" : ""}`}
                         >
                             {mostrarFormulas ? "Ocultar fórmulas" : "Ver fórmulas y sustitución"}
                         </button>
                     </div>
                 </div>
 
-                {/* Barra de Filtro Global de Fechas con diseño Verde y Claro */}
-                <div
-                    style={{
-                        marginTop: "18px",
-                        padding: "16px 20px",
-                        borderRadius: "10px",
-                        background: "var(--panel, #FFFFFF)",
-                        border: "1px solid var(--border, #DDE3E0)",
-                        boxShadow: "0 2px 8px rgba(27, 67, 50, 0.04)"
-                    }}
-                >
+                {/* Barra de Filtro Global de Fechas con diseño Verde */}
+                <div className="panel-ratios-filtro">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
                         
                         {/* Botones de Selección Rápida */}
                         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text, #1C2321)", marginRight: "4px" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#064e3b", marginRight: "4px" }}>
                                 Período:
                             </span>
                             {[
@@ -331,17 +451,7 @@ export function RatiosFinancieros() {
                                         key={btn.id}
                                         type="button"
                                         onClick={() => manejarOpcionRapida(btn.id)}
-                                        style={{
-                                            fontSize: "12.5px",
-                                            fontWeight: activo ? 700 : 500,
-                                            padding: "6px 13px",
-                                            borderRadius: "6px",
-                                            cursor: "pointer",
-                                            border: activo ? "1px solid var(--accent, #1B4332)" : "1px solid var(--border, #DDE3E0)",
-                                            background: activo ? "var(--accent, #1B4332)" : "var(--panel, #FFFFFF)",
-                                            color: activo ? "#FFFFFF" : "var(--text, #1C2321)",
-                                            transition: "all 0.15s ease"
-                                        }}
+                                        className={`chip-ratios-periodo ${activo ? "is-active" : ""}`}
                                     >
                                         {btn.label}
                                     </button>
@@ -352,7 +462,7 @@ export function RatiosFinancieros() {
                         {/* Controles de Fechas Desde y Hasta */}
                         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <label htmlFor="filtro-desde" style={{ fontSize: "12.5px", fontWeight: 600, color: "#55655D" }}>
+                                <label htmlFor="filtro-desde" style={{ fontSize: "12.5px", fontWeight: 600, color: "#065f46" }}>
                                     Desde:
                                 </label>
                                 <input
@@ -363,19 +473,12 @@ export function RatiosFinancieros() {
                                         setOpcionRapida("personalizado");
                                         setDesde(e.target.value);
                                     }}
-                                    style={{
-                                        fontSize: "13px",
-                                        padding: "6px 10px",
-                                        borderRadius: "6px",
-                                        border: "1px solid var(--border, #DDE3E0)",
-                                        background: "var(--panel, #FFFFFF)",
-                                        color: "var(--text, #1C2321)"
-                                    }}
+                                    className="input-ratios-fecha"
                                 />
                             </div>
 
                             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                <label htmlFor="filtro-hasta" style={{ fontSize: "12.5px", fontWeight: 600, color: "#55655D" }}>
+                                <label htmlFor="filtro-hasta" style={{ fontSize: "12.5px", fontWeight: 600, color: "#065f46" }}>
                                     Hasta (corte):
                                 </label>
                                 <input
@@ -386,14 +489,7 @@ export function RatiosFinancieros() {
                                         setOpcionRapida("personalizado");
                                         setHasta(e.target.value);
                                     }}
-                                    style={{
-                                        fontSize: "13px",
-                                        padding: "6px 10px",
-                                        borderRadius: "6px",
-                                        border: "1px solid var(--border, #DDE3E0)",
-                                        background: "var(--panel, #FFFFFF)",
-                                        color: "var(--text, #1C2321)"
-                                    }}
+                                    className="input-ratios-fecha"
                                 />
                             </div>
 
@@ -401,17 +497,7 @@ export function RatiosFinancieros() {
                                 type="button"
                                 onClick={() => cargarRatios(desde, hasta)}
                                 disabled={cargando}
-                                style={{
-                                    fontSize: "13px",
-                                    fontWeight: 700,
-                                    padding: "6px 16px",
-                                    borderRadius: "6px",
-                                    background: "var(--accent, #1B4332)",
-                                    color: "#FFFFFF",
-                                    border: "none",
-                                    cursor: cargando ? "wait" : "pointer",
-                                    transition: "background 0.15s ease"
-                                }}
+                                className="btn-ratios-actualizar"
                             >
                                 {cargando ? "Calculando..." : "Actualizar"}
                             </button>
@@ -422,17 +508,19 @@ export function RatiosFinancieros() {
                     <div
                         style={{
                             marginTop: "12px",
-                            paddingTop: "10px",
-                            borderTop: "1px dashed var(--border, #DDE3E0)",
+                            padding: "8px 12px",
+                            borderRadius: "7px",
+                            background: "#f0fdf4",
+                            border: "1px dashed #a7f3d0",
                             fontSize: "12px",
-                            color: "#55655D",
+                            color: "#065f46",
                             display: "flex",
                             alignItems: "center",
                             gap: "8px",
                             flexWrap: "wrap"
                         }}
                     >
-                        <span style={{ fontWeight: 700, color: "var(--accent, #1B4332)" }}>
+                        <span style={{ fontWeight: 700, color: "#047857" }}>
                             ℹ Metodología Contable:
                         </span>
                         <span>
@@ -445,10 +533,9 @@ export function RatiosFinancieros() {
                     </div>
                 </div>
 
-                {/* Pestañas de Navegación por Sub-Secciones */}
-                <div style={{ display: "flex", gap: "8px", marginTop: "18px", borderBottom: "1px solid var(--border, #DDE3E0)", paddingBottom: "2px", overflowX: "auto" }}>
+                {/* Pestañas de Navegación por Sub-Secciones: Solo las 4 secciones */}
+                <div className="tabs-ratios-container">
                     {[
-                        { id: "todas", label: "Todas las secciones" },
                         { id: "liquidez", label: "1. Liquidez" },
                         { id: "rentabilidad", label: "2. Rentabilidad" },
                         { id: "solvencia", label: "3. Solvencia" },
@@ -460,18 +547,7 @@ export function RatiosFinancieros() {
                                 key={tab.id}
                                 type="button"
                                 onClick={() => setSeccionActiva(tab.id)}
-                                style={{
-                                    fontSize: "13.5px",
-                                    fontWeight: activo ? 800 : 500,
-                                    padding: "9px 16px",
-                                    border: "none",
-                                    borderBottom: activo ? "3px solid var(--accent, #1B4332)" : "3px solid transparent",
-                                    background: "transparent",
-                                    color: activo ? "var(--accent, #1B4332)" : "#55655D",
-                                    cursor: "pointer",
-                                    transition: "all 0.15s ease",
-                                    whiteSpace: "nowrap"
-                                }}
+                                className={`tab-ratios-btn ${activo ? "is-active" : ""}`}
                             >
                                 {tab.label}
                             </button>
@@ -503,8 +579,8 @@ export function RatiosFinancieros() {
                     {promedios.cuentasCobrar && (
                         <div
                             style={{
-                                background: "var(--accent-soft, #E3EFE7)",
-                                border: "1px solid var(--accent-border, #DDE3E0)",
+                                background: "#f0fdf4",
+                                border: "1.5px solid #a7f3d0",
                                 borderRadius: "10px",
                                 padding: "14px 18px",
                                 display: "flex",
@@ -516,11 +592,11 @@ export function RatiosFinancieros() {
                         >
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                 <span style={{ fontSize: "16px" }}>📊</span>
-                                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent, #1B4332)" }}>
+                                <span style={{ fontSize: "13px", fontWeight: 700, color: "#064e3b" }}>
                                     Base de Promedios Contables:
                                 </span>
                             </div>
-                            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", fontSize: "12.5px", color: "#1C2321" }}>
+                            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", fontSize: "12.5px", color: "#065f46" }}>
                                 <span>
                                     <strong>Inventario Prom.:</strong> (${Number(promedios.inventario?.inicial || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })} + ${Number(promedios.inventario?.final || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}) / 2 = <strong>${Number(promedios.inventario?.promedio || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                                 </span>
@@ -535,21 +611,21 @@ export function RatiosFinancieros() {
                     {/* ========================================================= */}
                     {/* 1. SECCIÓN DE LIQUIDEZ                                    */}
                     {/* ========================================================= */}
-                    {(seccionActiva === "todas" || seccionActiva === "liquidez") && secciones.liquidez && (
-                        <div style={{ background: "var(--panel, #FFFFFF)", borderRadius: "10px", border: "1px solid var(--border, #DDE3E0)", padding: "22px", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
-                            <div style={{ marginBottom: "16px", borderBottom: "1px solid #EEF2F0", paddingBottom: "10px" }}>
+                    {seccionActiva === "liquidez" && secciones.liquidez && (
+                        <div style={{ background: "#ffffff", borderRadius: "12px", border: "1.5px solid #d1fae5", padding: "22px", boxShadow: "0 2px 8px rgba(6, 95, 70, 0.03)" }}>
+                            <div style={{ marginBottom: "16px", borderBottom: "1px solid #e2f5ea", paddingBottom: "10px" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <span style={{ background: "var(--accent-soft, #E3EFE7)", color: "var(--accent, #1B4332)", fontWeight: 800, fontSize: "13px", padding: "3px 8px", borderRadius: "5px" }}>
+                                    <span style={{ background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", fontWeight: 800, fontSize: "13px", padding: "3px 8px", borderRadius: "5px" }}>
                                         01
                                     </span>
-                                    <h2 style={{ fontSize: "19px", fontWeight: 800, margin: 0, color: "var(--text-h, #1C2321)" }}>
+                                    <h2 style={{ fontSize: "19px", fontWeight: 800, margin: 0, color: "#064e3b" }}>
                                         {secciones.liquidez.titulo}
                                     </h2>
-                                    <span style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic" }}>
+                                    <span style={{ fontSize: "12px", color: "#047857", fontStyle: "italic" }}>
                                         (Fuente: Balance General acumulado al {hasta})
                                     </span>
                                 </div>
-                                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#55655D" }}>
+                                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#065f46" }}>
                                     {secciones.liquidez.descripcion}
                                 </p>
                             </div>
@@ -560,21 +636,11 @@ export function RatiosFinancieros() {
                                     return (
                                         <div
                                             key={ratio.id}
-                                            style={{
-                                                padding: "18px",
-                                                borderRadius: "8px",
-                                                border: "1px solid var(--border, #DDE3E0)",
-                                                background: "var(--panel, #FFFFFF)",
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                justifyContent: "space-between",
-                                                gap: "12px",
-                                                boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-                                            }}
+                                            className="card-ratio-item"
                                         >
                                             <div>
                                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
-                                                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "var(--text-h, #1C2321)" }}>
+                                                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "#064e3b" }}>
                                                         {ratio.nombre}
                                                     </h3>
                                                     <span
@@ -598,28 +664,28 @@ export function RatiosFinancieros() {
                                                 </div>
 
                                                 <div style={{ margin: "12px 0 6px 0" }}>
-                                                    <span style={{ fontSize: "27px", fontWeight: 800, color: "var(--text-h, #1C2321)", fontFamily: "ui-monospace, monospace" }}>
+                                                    <span style={{ fontSize: "27px", fontWeight: 800, color: "#064e3b", fontFamily: "ui-monospace, monospace" }}>
                                                         {ratio.formato}
                                                     </span>
-                                                    <span style={{ fontSize: "12px", color: "#64748b", marginLeft: "8px" }}>
+                                                    <span style={{ fontSize: "12px", color: "#047857", marginLeft: "8px" }}>
                                                         (Saludable: {ratio.rangoSaludable})
                                                     </span>
                                                 </div>
 
-                                                <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#334155", lineHeight: 1.5 }}>
+                                                <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#374151", lineHeight: 1.5 }}>
                                                     {ratio.interpretacion}
                                                 </p>
 
                                                 {mostrarFormulas && (
-                                                    <div style={{ background: "var(--bg, #F6F7F8)", padding: "9px 12px", borderRadius: "6px", border: "1px solid var(--border, #DDE3E0)", fontSize: "11.5px", color: "#475569", marginBottom: "10px" }}>
-                                                        <div style={{ fontWeight: 600, color: "var(--accent, #1B4332)" }}>Fórmula: {ratio.formula}</div>
-                                                        <div style={{ color: "#64748b", marginTop: "2px" }}>Sustitución: {ratio.valoresCalculo}</div>
+                                                    <div style={{ background: "#f0fdf4", padding: "9px 12px", borderRadius: "6px", border: "1px solid #d1fae5", fontSize: "11.5px", color: "#065f46", marginBottom: "10px" }}>
+                                                        <div style={{ fontWeight: 600, color: "#047857" }}>Fórmula: {ratio.formula}</div>
+                                                        <div style={{ color: "#065f46", marginTop: "2px" }}>Sustitución: {ratio.valoresCalculo}</div>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div style={{ borderTop: "1px solid #EEF2F0", paddingTop: "10px" }}>
-                                                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent, #1B4332)", textTransform: "uppercase", marginBottom: "4px" }}>
+                                            <div style={{ borderTop: "1px solid #e2f5ea", paddingTop: "10px" }}>
+                                                <div style={{ fontSize: "11px", fontWeight: 700, color: "#047857", textTransform: "uppercase", marginBottom: "4px" }}>
                                                     Evolución Mensual:
                                                 </div>
                                                 <MiniGraficoTendencia datos={ratio.tendencia} color={badge.chartColor} unidad={ratio.tipo === "moneda" ? "$" : "x"} />
@@ -634,21 +700,21 @@ export function RatiosFinancieros() {
                     {/* ========================================================= */}
                     {/* 2. SECCIÓN DE RENTABILIDAD                                */}
                     {/* ========================================================= */}
-                    {(seccionActiva === "todas" || seccionActiva === "rentabilidad") && secciones.rentabilidad && (
-                        <div style={{ background: "var(--panel, #FFFFFF)", borderRadius: "10px", border: "1px solid var(--border, #DDE3E0)", padding: "22px", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
-                            <div style={{ marginBottom: "16px", borderBottom: "1px solid #EEF2F0", paddingBottom: "10px" }}>
+                    {seccionActiva === "rentabilidad" && secciones.rentabilidad && (
+                        <div style={{ background: "#ffffff", borderRadius: "12px", border: "1.5px solid #d1fae5", padding: "22px", boxShadow: "0 2px 8px rgba(6, 95, 70, 0.03)" }}>
+                            <div style={{ marginBottom: "16px", borderBottom: "1px solid #e2f5ea", paddingBottom: "10px" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <span style={{ background: "var(--accent-soft, #E3EFE7)", color: "var(--accent, #1B4332)", fontWeight: 800, fontSize: "13px", padding: "3px 8px", borderRadius: "5px" }}>
+                                    <span style={{ background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", fontWeight: 800, fontSize: "13px", padding: "3px 8px", borderRadius: "5px" }}>
                                         02
                                     </span>
-                                    <h2 style={{ fontSize: "19px", fontWeight: 800, margin: 0, color: "var(--text-h, #1C2321)" }}>
+                                    <h2 style={{ fontSize: "19px", fontWeight: 800, margin: 0, color: "#064e3b" }}>
                                         {secciones.rentabilidad.titulo}
                                     </h2>
-                                    <span style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic" }}>
+                                    <span style={{ fontSize: "12px", color: "#047857", fontStyle: "italic" }}>
                                         (Fuente: Estado de Resultados en rango + Balance)
                                     </span>
                                 </div>
-                                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#55655D" }}>
+                                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#065f46" }}>
                                     {secciones.rentabilidad.descripcion}
                                 </p>
                             </div>
@@ -659,21 +725,11 @@ export function RatiosFinancieros() {
                                     return (
                                         <div
                                             key={ratio.id}
-                                            style={{
-                                                padding: "18px",
-                                                borderRadius: "8px",
-                                                border: "1px solid var(--border, #DDE3E0)",
-                                                background: "var(--panel, #FFFFFF)",
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                justifyContent: "space-between",
-                                                gap: "12px",
-                                                boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-                                            }}
+                                            className="card-ratio-item"
                                         >
                                             <div>
                                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
-                                                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "var(--text-h, #1C2321)" }}>
+                                                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "#064e3b" }}>
                                                         {ratio.nombre}
                                                     </h3>
                                                     <span
@@ -697,28 +753,28 @@ export function RatiosFinancieros() {
                                                 </div>
 
                                                 <div style={{ margin: "12px 0 6px 0" }}>
-                                                    <span style={{ fontSize: "27px", fontWeight: 800, color: "var(--text-h, #1C2321)", fontFamily: "ui-monospace, monospace" }}>
+                                                    <span style={{ fontSize: "27px", fontWeight: 800, color: "#064e3b", fontFamily: "ui-monospace, monospace" }}>
                                                         {ratio.formato}
                                                     </span>
-                                                    <span style={{ fontSize: "12px", color: "#64748b", marginLeft: "8px" }}>
+                                                    <span style={{ fontSize: "12px", color: "#047857", marginLeft: "8px" }}>
                                                         (Saludable: {ratio.rangoSaludable})
                                                     </span>
                                                 </div>
 
-                                                <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#334155", lineHeight: 1.5 }}>
+                                                <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#374151", lineHeight: 1.5 }}>
                                                     {ratio.interpretacion}
                                                 </p>
 
                                                 {mostrarFormulas && (
-                                                    <div style={{ background: "var(--bg, #F6F7F8)", padding: "9px 12px", borderRadius: "6px", border: "1px solid var(--border, #DDE3E0)", fontSize: "11.5px", color: "#475569", marginBottom: "10px" }}>
-                                                        <div style={{ fontWeight: 600, color: "var(--accent, #1B4332)" }}>Fórmula: {ratio.formula}</div>
-                                                        <div style={{ color: "#64748b", marginTop: "2px" }}>Sustitución: {ratio.valoresCalculo}</div>
+                                                    <div style={{ background: "#f0fdf4", padding: "9px 12px", borderRadius: "6px", border: "1px solid #d1fae5", fontSize: "11.5px", color: "#065f46", marginBottom: "10px" }}>
+                                                        <div style={{ fontWeight: 600, color: "#047857" }}>Fórmula: {ratio.formula}</div>
+                                                        <div style={{ color: "#065f46", marginTop: "2px" }}>Sustitución: {ratio.valoresCalculo}</div>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div style={{ borderTop: "1px solid #EEF2F0", paddingTop: "10px" }}>
-                                                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent, #1B4332)", textTransform: "uppercase", marginBottom: "4px" }}>
+                                            <div style={{ borderTop: "1px solid #e2f5ea", paddingTop: "10px" }}>
+                                                <div style={{ fontSize: "11px", fontWeight: 700, color: "#047857", textTransform: "uppercase", marginBottom: "4px" }}>
                                                     Evolución Mensual:
                                                 </div>
                                                 <MiniGraficoTendencia datos={ratio.tendencia} color={badge.chartColor} unidad="%" />
@@ -734,23 +790,23 @@ export function RatiosFinancieros() {
                                     style={{
                                         marginTop: "22px",
                                         padding: "18px 20px",
-                                        borderRadius: "8px",
-                                        background: "var(--accent-soft, #E3EFE7)",
-                                        border: "1px solid var(--accent-border, #DDE3E0)"
+                                        borderRadius: "10px",
+                                        background: "#f0fdf4",
+                                        border: "1.5px solid #a7f3d0"
                                     }}
                                 >
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
                                         <div>
-                                            <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "var(--accent, #1B4332)" }}>
+                                            <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 800, color: "#064e3b" }}>
                                                 Análisis DuPont (Desglose del ROE)
                                             </h4>
-                                            <p style={{ margin: "2px 0 0 0", fontSize: "12.5px", color: "#55655D" }}>
+                                            <p style={{ margin: "2px 0 0 0", fontSize: "12.5px", color: "#065f46" }}>
                                                 {secciones.rentabilidad.dupont.explicacion}
                                             </p>
                                         </div>
                                         <div style={{ textAlign: "right" }}>
-                                            <span style={{ fontSize: "12px", color: "#55655D" }}>ROE DuPont Calculado:</span>
-                                            <strong style={{ display: "block", fontSize: "20px", color: "var(--accent, #1B4332)" }}>
+                                            <span style={{ fontSize: "12px", color: "#065f46" }}>ROE DuPont Calculado:</span>
+                                            <strong style={{ display: "block", fontSize: "20px", color: "#047857" }}>
                                                 {Number(secciones.rentabilidad.dupont.roe || 0).toFixed(2)}%
                                             </strong>
                                         </div>
@@ -759,14 +815,14 @@ export function RatiosFinancieros() {
                                     {Array.isArray(secciones.rentabilidad.dupont.componentes) && secciones.rentabilidad.dupont.componentes.length > 0 && (
                                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
                                             {secciones.rentabilidad.dupont.componentes.map((comp, idx) => (
-                                                <div key={idx} style={{ background: "var(--panel, #FFFFFF)", padding: "12px 14px", borderRadius: "6px", border: "1px solid var(--border, #DDE3E0)" }}>
-                                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                                                <div key={idx} style={{ background: "#ffffff", padding: "12px 14px", borderRadius: "8px", border: "1.5px solid #d1fae5" }}>
+                                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46", textTransform: "uppercase" }}>
                                                         {comp.nombre}
                                                     </span>
-                                                    <div style={{ fontSize: "17px", fontWeight: 800, color: "var(--text-h, #1C2321)", margin: "4px 0" }}>
+                                                    <div style={{ fontSize: "17px", fontWeight: 800, color: "#064e3b", margin: "4px 0" }}>
                                                         {comp.formato}
                                                     </div>
-                                                    <span style={{ fontSize: "11.5px", color: "#55655D" }}>
+                                                    <span style={{ fontSize: "11.5px", color: "#047857" }}>
                                                         {comp.detalle}
                                                     </span>
                                                 </div>
@@ -781,21 +837,21 @@ export function RatiosFinancieros() {
                     {/* ========================================================= */}
                     {/* 3. SECCIÓN DE SOLVENCIA                                   */}
                     {/* ========================================================= */}
-                    {(seccionActiva === "todas" || seccionActiva === "solvencia") && secciones.solvencia && (
-                        <div style={{ background: "var(--panel, #FFFFFF)", borderRadius: "10px", border: "1px solid var(--border, #DDE3E0)", padding: "22px", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
-                            <div style={{ marginBottom: "16px", borderBottom: "1px solid #EEF2F0", paddingBottom: "10px" }}>
+                    {seccionActiva === "solvencia" && secciones.solvencia && (
+                        <div style={{ background: "#ffffff", borderRadius: "12px", border: "1.5px solid #d1fae5", padding: "22px", boxShadow: "0 2px 8px rgba(6, 95, 70, 0.03)" }}>
+                            <div style={{ marginBottom: "16px", borderBottom: "1px solid #e2f5ea", paddingBottom: "10px" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <span style={{ background: "var(--accent-soft, #E3EFE7)", color: "var(--accent, #1B4332)", fontWeight: 800, fontSize: "13px", padding: "3px 8px", borderRadius: "5px" }}>
+                                    <span style={{ background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", fontWeight: 800, fontSize: "13px", padding: "3px 8px", borderRadius: "5px" }}>
                                         03
                                     </span>
-                                    <h2 style={{ fontSize: "19px", fontWeight: 800, margin: 0, color: "var(--text-h, #1C2321)" }}>
+                                    <h2 style={{ fontSize: "19px", fontWeight: 800, margin: 0, color: "#064e3b" }}>
                                         {secciones.solvencia.titulo}
                                     </h2>
-                                    <span style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic" }}>
+                                    <span style={{ fontSize: "12px", color: "#047857", fontStyle: "italic" }}>
                                         (Fuente: Balance General + Gastos Financieros)
                                     </span>
                                 </div>
-                                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#55655D" }}>
+                                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#065f46" }}>
                                     {secciones.solvencia.descripcion}
                                 </p>
                             </div>
@@ -806,21 +862,11 @@ export function RatiosFinancieros() {
                                     return (
                                         <div
                                             key={ratio.id}
-                                            style={{
-                                                padding: "18px",
-                                                borderRadius: "8px",
-                                                border: "1px solid var(--border, #DDE3E0)",
-                                                background: "var(--panel, #FFFFFF)",
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                justifyContent: "space-between",
-                                                gap: "12px",
-                                                boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-                                            }}
+                                            className="card-ratio-item"
                                         >
                                             <div>
                                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
-                                                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "var(--text-h, #1C2321)" }}>
+                                                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "#064e3b" }}>
                                                         {ratio.nombre}
                                                     </h3>
                                                     <span
@@ -844,34 +890,34 @@ export function RatiosFinancieros() {
                                                 </div>
 
                                                 <div style={{ margin: "12px 0 6px 0" }}>
-                                                    <span style={{ fontSize: "27px", fontWeight: 800, color: "var(--text-h, #1C2321)", fontFamily: "ui-monospace, monospace" }}>
+                                                    <span style={{ fontSize: "27px", fontWeight: 800, color: "#064e3b", fontFamily: "ui-monospace, monospace" }}>
                                                         {ratio.formato}
                                                     </span>
-                                                    <span style={{ fontSize: "12px", color: "#64748b", marginLeft: "8px" }}>
+                                                    <span style={{ fontSize: "12px", color: "#047857", marginLeft: "8px" }}>
                                                         (Saludable: {ratio.rangoSaludable})
                                                     </span>
                                                 </div>
 
-                                                <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#334155", lineHeight: 1.5 }}>
+                                                <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#374151", lineHeight: 1.5 }}>
                                                     {ratio.interpretacion}
                                                 </p>
 
                                                 {ratio.mensajeNoDisponible && (
-                                                    <div style={{ background: "#FFF9E6", padding: "8px 12px", borderRadius: "6px", border: "1px solid #FED7AA", color: "#9A3412", fontSize: "12px", marginBottom: "10px" }}>
+                                                    <div style={{ background: "#f0fdf4", padding: "8px 12px", borderRadius: "6px", border: "1px solid #a7f3d0", color: "#065f46", fontSize: "12px", marginBottom: "10px" }}>
                                                         {ratio.mensajeNoDisponible}
                                                     </div>
                                                 )}
 
                                                 {mostrarFormulas && (
-                                                    <div style={{ background: "var(--bg, #F6F7F8)", padding: "9px 12px", borderRadius: "6px", border: "1px solid var(--border, #DDE3E0)", fontSize: "11.5px", color: "#475569", marginBottom: "10px" }}>
-                                                        <div style={{ fontWeight: 600, color: "var(--accent, #1B4332)" }}>Fórmula: {ratio.formula}</div>
-                                                        <div style={{ color: "#64748b", marginTop: "2px" }}>Sustitución: {ratio.valoresCalculo}</div>
+                                                    <div style={{ background: "#f0fdf4", padding: "9px 12px", borderRadius: "6px", border: "1px solid #d1fae5", fontSize: "11.5px", color: "#065f46", marginBottom: "10px" }}>
+                                                        <div style={{ fontWeight: 600, color: "#047857" }}>Fórmula: {ratio.formula}</div>
+                                                        <div style={{ color: "#065f46", marginTop: "2px" }}>Sustitución: {ratio.valoresCalculo}</div>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div style={{ borderTop: "1px solid #EEF2F0", paddingTop: "10px" }}>
-                                                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent, #1B4332)", textTransform: "uppercase", marginBottom: "4px" }}>
+                                            <div style={{ borderTop: "1px solid #e2f5ea", paddingTop: "10px" }}>
+                                                <div style={{ fontSize: "11px", fontWeight: 700, color: "#047857", textTransform: "uppercase", marginBottom: "4px" }}>
                                                     Evolución Mensual:
                                                 </div>
                                                 <MiniGraficoTendencia datos={ratio.tendencia} color={badge.chartColor} unidad={ratio.tipo === "porcentaje" ? "%" : "x"} />
@@ -886,21 +932,21 @@ export function RatiosFinancieros() {
                     {/* ========================================================= */}
                     {/* 4. SECCIÓN DE EFICIENCIA OPERATIVA                        */}
                     {/* ========================================================= */}
-                    {(seccionActiva === "todas" || seccionActiva === "eficiencia") && secciones.eficiencia && (
-                        <div style={{ background: "var(--panel, #FFFFFF)", borderRadius: "10px", border: "1px solid var(--border, #DDE3E0)", padding: "22px", boxShadow: "0 1px 4px rgba(0,0,0,0.03)" }}>
-                            <div style={{ marginBottom: "16px", borderBottom: "1px solid #EEF2F0", paddingBottom: "10px" }}>
+                    {seccionActiva === "eficiencia" && secciones.eficiencia && (
+                        <div style={{ background: "#ffffff", borderRadius: "12px", border: "1.5px solid #d1fae5", padding: "22px", boxShadow: "0 2px 8px rgba(6, 95, 70, 0.03)" }}>
+                            <div style={{ marginBottom: "16px", borderBottom: "1px solid #e2f5ea", paddingBottom: "10px" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                    <span style={{ background: "var(--accent-soft, #E3EFE7)", color: "var(--accent, #1B4332)", fontWeight: 800, fontSize: "13px", padding: "3px 8px", borderRadius: "5px" }}>
+                                    <span style={{ background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", fontWeight: 800, fontSize: "13px", padding: "3px 8px", borderRadius: "5px" }}>
                                         04
                                     </span>
-                                    <h2 style={{ fontSize: "19px", fontWeight: 800, margin: 0, color: "var(--text-h, #1C2321)" }}>
+                                    <h2 style={{ fontSize: "19px", fontWeight: 800, margin: 0, color: "#064e3b" }}>
                                         {secciones.eficiencia.titulo}
                                     </h2>
-                                    <span style={{ fontSize: "12px", color: "#64748b", fontStyle: "italic" }}>
+                                    <span style={{ fontSize: "12px", color: "#047857", fontStyle: "italic" }}>
                                         (Fuente: Kardex + Balance General + Estado de Resultados)
                                     </span>
                                 </div>
-                                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#55655D" }}>
+                                <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#065f46" }}>
                                     {secciones.eficiencia.descripcion}
                                 </p>
                             </div>
@@ -911,26 +957,16 @@ export function RatiosFinancieros() {
                                     return (
                                         <div
                                             key={ratio.id}
-                                            style={{
-                                                padding: "18px",
-                                                borderRadius: "8px",
-                                                border: "1px solid var(--border, #DDE3E0)",
-                                                background: "var(--panel, #FFFFFF)",
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                justifyContent: "space-between",
-                                                gap: "12px",
-                                                boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-                                            }}
+                                            className="card-ratio-item"
                                         >
                                             <div>
                                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
                                                     <div>
-                                                        <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "var(--text-h, #1C2321)" }}>
+                                                        <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "#064e3b" }}>
                                                             {ratio.nombre}
                                                         </h3>
                                                         {ratio.notaPromedio && (
-                                                            <span style={{ display: "inline-block", fontSize: "11px", color: "var(--accent, #1B4332)", fontWeight: 600, marginTop: "2px" }}>
+                                                            <span style={{ display: "inline-block", fontSize: "11px", color: "#047857", fontWeight: 600, marginTop: "2px" }}>
                                                                 * {ratio.notaPromedio}
                                                             </span>
                                                         )}
@@ -956,28 +992,28 @@ export function RatiosFinancieros() {
                                                 </div>
 
                                                 <div style={{ margin: "12px 0 6px 0" }}>
-                                                    <span style={{ fontSize: "27px", fontWeight: 800, color: "var(--text-h, #1C2321)", fontFamily: "ui-monospace, monospace" }}>
+                                                    <span style={{ fontSize: "27px", fontWeight: 800, color: "#064e3b", fontFamily: "ui-monospace, monospace" }}>
                                                         {ratio.formato}
                                                     </span>
-                                                    <span style={{ fontSize: "12px", color: "#64748b", marginLeft: "8px" }}>
+                                                    <span style={{ fontSize: "12px", color: "#047857", marginLeft: "8px" }}>
                                                         (Saludable: {ratio.rangoSaludable})
                                                     </span>
                                                 </div>
 
-                                                <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#334155", lineHeight: 1.5 }}>
+                                                <p style={{ margin: "0 0 10px 0", fontSize: "13px", color: "#374151", lineHeight: 1.5 }}>
                                                     {ratio.interpretacion}
                                                 </p>
 
                                                 {mostrarFormulas && (
-                                                    <div style={{ background: "var(--bg, #F6F7F8)", padding: "9px 12px", borderRadius: "6px", border: "1px solid var(--border, #DDE3E0)", fontSize: "11.5px", color: "#475569", marginBottom: "10px" }}>
-                                                        <div style={{ fontWeight: 600, color: "var(--accent, #1B4332)" }}>Fórmula: {ratio.formula}</div>
-                                                        <div style={{ color: "#64748b", marginTop: "2px" }}>Sustitución: {ratio.valoresCalculo}</div>
+                                                    <div style={{ background: "#f0fdf4", padding: "9px 12px", borderRadius: "6px", border: "1px solid #d1fae5", fontSize: "11.5px", color: "#065f46", marginBottom: "10px" }}>
+                                                        <div style={{ fontWeight: 600, color: "#047857" }}>Fórmula: {ratio.formula}</div>
+                                                        <div style={{ color: "#065f46", marginTop: "2px" }}>Sustitución: {ratio.valoresCalculo}</div>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div style={{ borderTop: "1px solid #EEF2F0", paddingTop: "10px" }}>
-                                                <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--accent, #1B4332)", textTransform: "uppercase", marginBottom: "4px" }}>
+                                            <div style={{ borderTop: "1px solid #e2f5ea", paddingTop: "10px" }}>
+                                                <div style={{ fontSize: "11px", fontWeight: 700, color: "#047857", textTransform: "uppercase", marginBottom: "4px" }}>
                                                     Evolución Mensual:
                                                 </div>
                                                 <MiniGraficoTendencia datos={ratio.tendencia} color={badge.chartColor} unidad={ratio.tipo === "dias" ? "días" : "veces"} />
@@ -994,39 +1030,39 @@ export function RatiosFinancieros() {
                                 if (!cce || !d) return null;
 
                                 return (
-                                    <div style={{ marginTop: "22px", padding: "18px 20px", borderRadius: "8px", background: "var(--accent-soft, #E3EFE7)", border: "1px solid var(--accent-border, #DDE3E0)" }}>
-                                        <h4 style={{ margin: "0 0 6px 0", fontSize: "15px", fontWeight: 800, color: "var(--accent, #1B4332)" }}>
+                                    <div style={{ marginTop: "22px", padding: "18px 20px", borderRadius: "10px", background: "#f0fdf4", border: "1.5px solid #a7f3d0" }}>
+                                        <h4 style={{ margin: "0 0 6px 0", fontSize: "15px", fontWeight: 800, color: "#064e3b" }}>
                                             Desglose del Ciclo de Conversión de Efectivo (CCE)
                                         </h4>
-                                        <p style={{ margin: "0 0 14px 0", fontSize: "12.5px", color: "#55655D" }}>
+                                        <p style={{ margin: "0 0 14px 0", fontSize: "12.5px", color: "#065f46" }}>
                                             Mide el tiempo neto que los recursos monetarios de la empresa quedan inmovilizados en el ciclo productivo y comercial:
                                         </p>
 
                                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
-                                            <div style={{ flex: 1, minWidth: "130px", background: "var(--panel, #FFFFFF)", padding: "12px", borderRadius: "6px", border: "1px solid var(--border, #DDE3E0)", textAlign: "center" }}>
-                                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b" }}>+ DÍAS INVENTARIO</span>
-                                                <strong style={{ display: "block", fontSize: "18px", color: "var(--text-h, #1C2321)", marginTop: "2px" }}>{Number(d.diasInventario || 0).toFixed(0)} días</strong>
+                                            <div style={{ flex: 1, minWidth: "130px", background: "#ffffff", padding: "12px", borderRadius: "8px", border: "1.5px solid #d1fae5", textAlign: "center" }}>
+                                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46" }}>+ DÍAS INVENTARIO</span>
+                                                <strong style={{ display: "block", fontSize: "18px", color: "#064e3b", marginTop: "2px" }}>{Number(d.diasInventario || 0).toFixed(0)} días</strong>
                                             </div>
 
-                                            <span style={{ fontSize: "16px", fontWeight: 800, color: "var(--accent, #1B4332)" }}>+</span>
+                                            <span style={{ fontSize: "16px", fontWeight: 800, color: "#047857" }}>+</span>
 
-                                            <div style={{ flex: 1, minWidth: "130px", background: "var(--panel, #FFFFFF)", padding: "12px", borderRadius: "6px", border: "1px solid var(--border, #DDE3E0)", textAlign: "center" }}>
-                                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b" }}>+ PERÍODO COBRO</span>
-                                                <strong style={{ display: "block", fontSize: "18px", color: "var(--text-h, #1C2321)", marginTop: "2px" }}>{Number(d.periodoCobro || 0).toFixed(0)} días</strong>
+                                            <div style={{ flex: 1, minWidth: "130px", background: "#ffffff", padding: "12px", borderRadius: "8px", border: "1.5px solid #d1fae5", textAlign: "center" }}>
+                                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46" }}>+ PERÍODO COBRO</span>
+                                                <strong style={{ display: "block", fontSize: "18px", color: "#064e3b", marginTop: "2px" }}>{Number(d.periodoCobro || 0).toFixed(0)} días</strong>
                                             </div>
 
-                                            <span style={{ fontSize: "16px", fontWeight: 800, color: "var(--accent, #1B4332)" }}>−</span>
+                                            <span style={{ fontSize: "16px", fontWeight: 800, color: "#047857" }}>−</span>
 
-                                            <div style={{ flex: 1, minWidth: "130px", background: "var(--panel, #FFFFFF)", padding: "12px", borderRadius: "6px", border: "1px solid var(--border, #DDE3E0)", textAlign: "center" }}>
-                                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b" }}>− DÍAS PAGO (CXP)</span>
-                                                <strong style={{ display: "block", fontSize: "18px", color: "var(--text-h, #1C2321)", marginTop: "2px" }}>{Number(d.diasPago || 0).toFixed(0)} días</strong>
+                                            <div style={{ flex: 1, minWidth: "130px", background: "#ffffff", padding: "12px", borderRadius: "8px", border: "1.5px solid #d1fae5", textAlign: "center" }}>
+                                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#065f46" }}>− DÍAS PAGO (CXP)</span>
+                                                <strong style={{ display: "block", fontSize: "18px", color: "#064e3b", marginTop: "2px" }}>{Number(d.diasPago || 0).toFixed(0)} días</strong>
                                             </div>
 
-                                            <span style={{ fontSize: "16px", fontWeight: 800, color: "var(--accent, #1B4332)" }}>=</span>
+                                            <span style={{ fontSize: "16px", fontWeight: 800, color: "#047857" }}>=</span>
 
-                                            <div style={{ flex: 1, minWidth: "130px", background: "#EAF5EE", padding: "12px", borderRadius: "6px", border: "1px solid #B7E4C7", textAlign: "center" }}>
-                                                <span style={{ fontSize: "11px", fontWeight: 800, color: "#1B4332" }}>= CICLO NETO</span>
-                                                <strong style={{ display: "block", fontSize: "20px", color: "#1B4332", marginTop: "2px" }}>{Number(cce.valor || 0).toFixed(0)} días</strong>
+                                            <div style={{ flex: 1, minWidth: "130px", background: "#ecfdf5", padding: "12px", borderRadius: "8px", border: "1.5px solid #6ee7b7", textAlign: "center" }}>
+                                                <span style={{ fontSize: "11px", fontWeight: 800, color: "#065f46" }}>= CICLO NETO</span>
+                                                <strong style={{ display: "block", fontSize: "20px", color: "#064e3b", marginTop: "2px" }}>{Number(cce.valor || 0).toFixed(0)} días</strong>
                                             </div>
                                         </div>
                                     </div>
@@ -1058,26 +1094,18 @@ class ErrorBoundaryRatios extends React.Component {
         if (this.state.hasError) {
             return (
                 <section className="bg-section" style={{ maxWidth: "1280px", margin: "0 auto", padding: "30px 20px" }}>
-                    <div style={{ background: "#FFFFFF", padding: "32px", borderRadius: "10px", border: "1px solid #FECACA", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", textAlign: "center" }}>
+                    <div style={{ background: "#ffffff", padding: "32px", borderRadius: "10px", border: "1.5px solid #a7f3d0", boxShadow: "0 2px 10px rgba(6, 95, 70, 0.05)", textAlign: "center" }}>
                         <span style={{ fontSize: "36px" }}>⚠️</span>
-                        <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#991B1B", margin: "12px 0 8px" }}>
+                        <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#065f46", margin: "12px 0 8px" }}>
                             Inconveniente al procesar los ratios financieros
                         </h2>
-                        <p style={{ color: "#475569", fontSize: "14px", maxWidth: "600px", margin: "0 auto 18px" }}>
+                        <p style={{ color: "#065f46", fontSize: "14px", maxWidth: "600px", margin: "0 auto 18px" }}>
                             {this.state.error?.message || "Detalle no disponible"}
                         </p>
                         <button
                             type="button"
                             onClick={() => this.setState({ hasError: false, error: null })}
-                            style={{
-                                background: "#1B4332",
-                                color: "#FFFFFF",
-                                padding: "8px 20px",
-                                borderRadius: "6px",
-                                border: "none",
-                                fontWeight: 700,
-                                cursor: "pointer"
-                            }}
+                            className="btn-ratios-actualizar"
                         >
                             Reintentar carga
                         </button>

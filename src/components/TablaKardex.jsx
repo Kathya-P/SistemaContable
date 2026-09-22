@@ -7,35 +7,58 @@ function coincideCuenta(fila, filtro) {
     const cta = (fila.cuenta || "").toLowerCase().trim();
     const tipo = (fila.tipo || "").toUpperCase();
 
-    if (filtro === "VENTAS") {
-        return cta === "ventas" || tipo === "VENTA" || (cta.includes("venta") && !cta.includes("devoluci"));
+    switch (filtro) {
+        case "INVENTARIO":
+            return (
+                tipo === "INVENTARIO_INICIAL" ||
+                tipo === "INVENTARIO" ||
+                cta.includes("inventario")
+            );
+        case "VENTAS":
+            return (
+                (tipo === "VENTA" || cta === "ventas") &&
+                !cta.includes("devoluci") &&
+                !tipo.includes("DEVOLUCION")
+            );
+        case "COMPRAS":
+            return (
+                (tipo === "COMPRA" || cta === "compras") &&
+                !cta.includes("devoluci") &&
+                !tipo.includes("DEVOLUCION")
+            );
+        case "DEV_COMPRA":
+            return (
+                tipo === "DEVOLUCION_COMPRA" ||
+                (cta.includes("devoluci") && cta.includes("compra"))
+            );
+        case "DEV_VENTA":
+            return (
+                tipo === "DEVOLUCION_VENTA" ||
+                (cta.includes("devoluci") && cta.includes("venta"))
+            );
+        default:
+            return cta === filtro.toLowerCase().trim();
     }
-    if (filtro === "COMPRAS") {
-        return cta === "compras" || tipo === "COMPRA" || (cta.includes("compra") && !cta.includes("devoluci"));
-    }
-    if (filtro === "TODAS_VENTAS") {
-        return cta.includes("venta") || tipo.includes("VENTA");
-    }
-    if (filtro === "TODAS_COMPRAS") {
-        return cta.includes("compra") || tipo.includes("COMPRA");
-    }
-    if (filtro === "INVENTARIO") {
-        return cta.includes("inventario") || tipo.includes("INVENTARIO");
-    }
-
-    return cta === filtro.toLowerCase().trim();
 }
 
 function getFiltroLabel(filtro) {
     switch (filtro) {
-        case "VENTAS": return "Solo Ventas";
-        case "COMPRAS": return "Solo Compras";
-        case "TODAS_VENTAS": return "Ventas y Devoluciones";
-        case "TODAS_COMPRAS": return "Compras y Devoluciones";
         case "INVENTARIO": return "Inventario";
+        case "VENTAS": return "Ventas";
+        case "COMPRAS": return "Compras";
+        case "DEV_COMPRA": return "Dev. sobre compra";
+        case "DEV_VENTA": return "Dev. sobre venta";
         default: return filtro;
     }
 }
+
+const OPCIONES_FILTRO = [
+    { key: "INVENTARIO", label: "Inventario", id: "btn-filtro-cuenta-inventario" },
+    { key: "VENTAS", label: "Ventas", id: "btn-filtro-cuenta-ventas" },
+    { key: "COMPRAS", label: "Compras", id: "btn-filtro-cuenta-compras" },
+    { key: "DEV_COMPRA", label: "Dev. sobre compra", id: "btn-filtro-cuenta-dev-compra" },
+    { key: "DEV_VENTA", label: "Dev. sobre venta", id: "btn-filtro-cuenta-dev-venta" }
+];
 
 export function TablaKardex({
     filas = [],
@@ -43,33 +66,48 @@ export function TablaKardex({
     filtroCuentaProp,
     onCambiarFiltroCuenta
 }) {
-    const [filtroCuentaLocal, setFiltroCuentaLocal] = useState("TODAS");
-    const filtroCuenta = filtroCuentaProp !== undefined ? filtroCuentaProp : filtroCuentaLocal;
-    const setFiltroCuenta = onCambiarFiltroCuenta || setFiltroCuentaLocal;
+    const [filtrosLocales, setFiltrosLocales] = useState([]);
 
-    // Obtener cuentas adicionales únicas que no sean ventas o compras estándar
-    const cuentasExtra = useMemo(() => {
-        const cuentas = new Set();
-        filas.forEach(f => {
-            if (f.cuenta) {
-                const ctaLower = f.cuenta.toLowerCase().trim();
-                if (ctaLower !== "ventas" && ctaLower !== "compras") {
-                    cuentas.add(f.cuenta.trim());
-                }
-            }
-        });
-        return Array.from(cuentas);
-    }, [filas]);
+    // Filtros activos normalizados (soporta multi-selección)
+    const filtrosActivos = useMemo(() => {
+        if (filtroCuentaProp !== undefined) {
+            if (Array.isArray(filtroCuentaProp)) return filtroCuentaProp.filter(f => f && f !== "TODAS");
+            if (filtroCuentaProp === "TODAS" || !filtroCuentaProp) return [];
+            return [filtroCuentaProp];
+        }
+        return filtrosLocales;
+    }, [filtroCuentaProp, filtrosLocales]);
 
-    // Filtrar filas según la cuenta seleccionada
+    // Alternar selección de un filtro (multi-selección y deselección con clic)
+    const handleToggleFiltro = (filtroKey) => {
+        const nuevos = filtrosActivos.includes(filtroKey)
+            ? filtrosActivos.filter(k => k !== filtroKey)
+            : [...filtrosActivos, filtroKey];
+
+        if (onCambiarFiltroCuenta) {
+            onCambiarFiltroCuenta(nuevos);
+        } else {
+            setFiltrosLocales(nuevos);
+        }
+    };
+
+    const handleLimpiarFiltros = () => {
+        if (onCambiarFiltroCuenta) {
+            onCambiarFiltroCuenta([]);
+        } else {
+            setFiltrosLocales([]);
+        }
+    };
+
+    // Filtrar filas: si no hay filtros activos se muestran todas; si hay filtros, coincide con cualquiera de los seleccionados
     const filasFiltradas = useMemo(() => {
-        if (filtroCuenta === "TODAS") return filas;
-        return filas.filter(f => coincideCuenta(f, filtroCuenta));
-    }, [filas, filtroCuenta]);
+        if (filtrosActivos.length === 0) return filas;
+        return filas.filter(f => filtrosActivos.some(k => coincideCuenta(f, k)));
+    }, [filas, filtrosActivos]);
 
     // Totales calculados en función del filtro
     const totalesMostrados = useMemo(() => {
-        if (filtroCuenta === "TODAS") return totales;
+        if (filtrosActivos.length === 0) return totales;
 
         const totalEntradas = filasFiltradas.reduce((acc, f) => acc + (Number(f.entrada) || 0), 0);
         const totalSalidas = filasFiltradas.reduce((acc, f) => acc + (Number(f.salida) || 0), 0);
@@ -87,11 +125,11 @@ export function TablaKardex({
             costo_promedio_final: ultimaFila?.costo_unitario ?? totales.costo_promedio_final,
             saldo_final: ultimaFila?.saldo ?? totales.saldo_final
         };
-    }, [filtroCuenta, filasFiltradas, totales]);
+    }, [filtrosActivos, filasFiltradas, totales]);
 
     return (
         <div>
-            {/* Barra superior de filtro rápido por Cuenta */}
+            {/* Barra superior de filtro rápido por Cuenta con selección múltiple */}
             <div className="kardex-cuenta-filter-bar">
                 <div className="kardex-cuenta-filter-left">
                     <span className="kardex-filter-label">
@@ -104,55 +142,42 @@ export function TablaKardex({
                         <button
                             type="button"
                             id="btn-filtro-cuenta-todas"
-                            className={`kardex-filter-pill ${filtroCuenta === "TODAS" ? "is-active" : ""}`}
-                            onClick={() => setFiltroCuenta("TODAS")}
+                            className={`kardex-filter-pill ${filtrosActivos.length === 0 ? "is-active" : ""}`}
+                            onClick={handleLimpiarFiltros}
+                            title="Ver todos los movimientos"
                         >
                             Todas ({filas.length})
                         </button>
-                        <button
-                            type="button"
-                            id="btn-filtro-cuenta-ventas"
-                            className={`kardex-filter-pill ${filtroCuenta === "VENTAS" ? "is-active" : ""}`}
-                            onClick={() => setFiltroCuenta("VENTAS")}
-                        >
-                            Solo Ventas
-                        </button>
-                        <button
-                            type="button"
-                            id="btn-filtro-cuenta-compras"
-                            className={`kardex-filter-pill ${filtroCuenta === "COMPRAS" ? "is-active" : ""}`}
-                            onClick={() => setFiltroCuenta("COMPRAS")}
-                        >
-                            Solo Compras
-                        </button>
-                        <button
-                            type="button"
-                            id="btn-filtro-cuenta-todas-ventas"
-                            className={`kardex-filter-pill ${filtroCuenta === "TODAS_VENTAS" ? "is-active" : ""}`}
-                            onClick={() => setFiltroCuenta("TODAS_VENTAS")}
-                        >
-                            Ventas + Devoluciones
-                        </button>
-                        <button
-                            type="button"
-                            id="btn-filtro-cuenta-todas-compras"
-                            className={`kardex-filter-pill ${filtroCuenta === "TODAS_COMPRAS" ? "is-active" : ""}`}
-                            onClick={() => setFiltroCuenta("TODAS_COMPRAS")}
-                        >
-                            Compras + Devoluciones
-                        </button>
+                        {OPCIONES_FILTRO.map(opc => {
+                            const isActivo = filtrosActivos.includes(opc.key);
+                            return (
+                                <button
+                                    key={opc.key}
+                                    type="button"
+                                    id={opc.id}
+                                    className={`kardex-filter-pill ${isActivo ? "is-active" : ""}`}
+                                    onClick={() => handleToggleFiltro(opc.key)}
+                                    title={isActivo ? `Clic para quitar filtro de ${opc.label}` : `Clic para agregar filtro de ${opc.label}`}
+                                >
+                                    {opc.label}
+                                    {isActivo && <span className="kardex-pill-check"> ✓</span>}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {filtroCuenta !== "TODAS" && (
+                {filtrosActivos.length > 0 && (
                     <div className="kardex-cuenta-filter-active">
-                        <span>Filtro activo: <strong>{getFiltroLabel(filtroCuenta)}</strong> ({filasFiltradas.length} movs.)</span>
+                        <span>
+                            Filtros activos: <strong>{filtrosActivos.map(getFiltroLabel).join(", ")}</strong> ({filasFiltradas.length} movs.)
+                        </span>
                         <button
                             type="button"
                             id="btn-limpiar-filtro-cuenta"
                             className="btn-limpiar-filtro-cuenta"
-                            onClick={() => setFiltroCuenta("TODAS")}
-                            title="Quitar filtro de cuenta"
+                            onClick={handleLimpiarFiltros}
+                            title="Quitar todos los filtros de cuenta"
                         >
                             ✕ Ver todas
                         </button>
@@ -168,27 +193,7 @@ export function TablaKardex({
                         <tr className="kardex-header-super">
                             <th rowSpan={2} className="col-asiento">ASIENTO</th>
                             <th rowSpan={2} className="col-fecha">FECHA</th>
-                            <th rowSpan={2} className="col-cuenta col-cuenta-filtro">
-                                <div className="cuenta-header-cell">
-                                    <span className="cuenta-header-title">CUENTA</span>
-                                    <select
-                                        id="filtro-cuenta-columna"
-                                        value={filtroCuenta}
-                                        onChange={(e) => setFiltroCuenta(e.target.value)}
-                                        className="select-filtro-cuenta"
-                                        title="Filtrar movimientos por cuenta"
-                                    >
-                                        <option value="TODAS">Todas</option>
-                                        <option value="VENTAS">Solo Ventas</option>
-                                        <option value="COMPRAS">Solo Compras</option>
-                                        <option value="TODAS_VENTAS">Ventas y Dev.</option>
-                                        <option value="TODAS_COMPRAS">Compras y Dev.</option>
-                                        {cuentasExtra.map(c => (
-                                            <option key={c} value={c}>{c}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </th>
+                            <th rowSpan={2} className="col-cuenta">CUENTA</th>
                             <th rowSpan={2} className="col-concepto">CONCEPTO</th>
                             <th colSpan={3} className="col-group col-unidades">UNIDADES</th>
                             <th colSpan={2} className="col-group col-costo">COSTO</th>
@@ -211,12 +216,12 @@ export function TablaKardex({
                             <tr>
                                 <td colSpan={12} className="empty-state" style={{ padding: "32px 16px", textAlign: "center" }}>
                                     <p style={{ margin: "0 0 10px 0", color: "#64748B", fontSize: "13.5px" }}>
-                                        No se encontraron movimientos registrados para el filtro de cuenta (<strong>{getFiltroLabel(filtroCuenta)}</strong>).
+                                        No se encontraron movimientos registrados para los filtros seleccionados (<strong>{filtrosActivos.map(getFiltroLabel).join(", ")}</strong>).
                                     </p>
                                     <button
                                         type="button"
                                         className="kardex-filter-pill is-active"
-                                        onClick={() => setFiltroCuenta("TODAS")}
+                                        onClick={handleLimpiarFiltros}
                                     >
                                         Mostrar todas las cuentas
                                     </button>

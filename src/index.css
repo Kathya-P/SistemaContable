@@ -3306,6 +3306,21 @@ select {
   gap: 24px;
 }
 
+.mayor-total-row td {
+  font-weight: 800;
+  border-top: 2px solid #1B4332;
+  border-bottom: 2px solid #1B4332;
+  background-color: #E8EFEA;
+  color: #1B4332;
+}
+
+.tema-oscuro .mayor-total-row td {
+  border-top-color: #4b5563;
+  border-bottom-color: #4b5563;
+  background-color: rgba(27, 67, 50, 0.25);
+  color: #e2edf0;
+}
+
 .mayor-tabla {
   flex: 1 1 auto;
   min-width: 0;
@@ -4017,3 +4032,405 @@ select {
 .sidebar::-webkit-scrollbar {
   display: none;
 }
+
+/* ============================================================
+   TABLA COMPARATIVA
+   ============================================================ */
+.comparativa-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.comparativa-header {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tema-oscuro .comparativa-header {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.comparativa-selectores-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.comparativa-dropdown-group {
+  flex: 1 1 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comparativa-dropdown-group label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.tema-oscuro .comparativa-dropdown-group label {
+  color: #cbd5e1;
+}
+
+.comparativa-dropdown-group select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tema-oscuro .comparativa-dropdown-group select {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.comparativa-swap-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1b4332;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-end;
+}
+
+.comparativa-swap-btn:hover:not(:disabled) {
+  background: rgba(27, 67, 50, 0.08);
+  border-color: #1b4332;
+}
+
+.comparativa-swap-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tema-oscuro .comparativa-swap-btn {
+  background: #0f172a;
+  border-color: #475569;
+  color: #86efac;
+}
+
+.comparativa-filters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .comparativa-filters-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.comparativa-filter-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.tema-oscuro .comparativa-filter-panel {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.comparativa-filter-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.tema-oscuro .comparativa-filter-title {
+  color: #f1f5f9;
+}
+
+.comparativa-quick-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.comparativa-preset-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.comparativa-preset-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.comparativa-preset-btn.active {
+  background: #1b4332;
+  color: #ffffff;
+  border-color: #1b4332;
+}
+
+.tema-oscuro .comparativa-preset-btn {
+  background: #0f172a;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+.tema-oscuro .comparativa-preset-btn.active {
+  background: #10b981;
+  color: #0f172a;
+  border-color: #10b981;
+}
+
+.comparativa-date-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.comparativa-field {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comparativa-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.comparativa-field input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.tema-oscuro .comparativa-field input {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.comparativa-split-container {
+  display: flex;
+  flex-direction: row;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+}
+
+.tema-oscuro .comparativa-split-container {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.comparativa-columna {
+  flex: 1 1 50%;
+  width: 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.comparativa-columna-izq {
+  border-right: 2px solid #cbd5e1;
+}
+
+.tema-oscuro .comparativa-columna-izq {
+  border-right-color: #334155;
+}
+
+@media (max-width: 768px) {
+  .comparativa-split-container {
+    flex-direction: column;
+  }
+  .comparativa-columna {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .comparativa-columna-izq {
+    border-right: none;
+    border-bottom: 2px solid #cbd5e1;
+  }
+  .tema-oscuro .comparativa-columna-izq {
+    border-bottom-color: #334155;
+  }
+}
+
+.comparativa-columna-header {
+  padding: 10px 16px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #cbd5e1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.tema-oscuro .comparativa-columna-header {
+  background: #1e293b;
+  border-bottom-color: #334155;
+  color: #f1f5f9;
+}
+
+.comparativa-badge-izq {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(27, 67, 50, 0.12);
+  color: #1b4332;
+}
+
+.tema-oscuro .comparativa-badge-izq {
+  background: rgba(134, 239, 172, 0.2);
+  color: #86efac;
+}
+
+.comparativa-badge-der {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+.tema-oscuro .comparativa-badge-der {
+  background: rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
+}
+
+.comparativa-columna-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: auto;
+  max-height: 80vh;
+  padding: 12px;
+}
+
+.comparativa-empty-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  text-align: center;
+  color: #64748b;
+  padding: 30px;
+}
+
+.comparativa-empty-icon {
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.comparativa-empty-panel h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 6px 0;
+}
+
+.tema-oscuro .comparativa-empty-panel h3 {
+  color: #e2e8f0;
+}
+
+.comparativa-empty-panel p {
+  font-size: 13px;
+  max-width: 280px;
+  margin: 0;
+}
+
+/* Condensación de componentes incrustados en la comparativa */
+.comparativa-condensado .view-section,
+.comparativa-condensado .kardex-section,
+.comparativa-condensado .er-section,
+.comparativa-condensado .balance-view {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.comparativa-condensado .section-heading {
+  margin-bottom: 8px !important;
+}
+
+.comparativa-condensado .section-heading h1 {
+  font-size: 17px !important;
+  margin: 0 !important;
+}
+
+.comparativa-condensado .eyebrow {
+  font-size: 10.5px !important;
+  margin-bottom: 2px !important;
+}
+
+.comparativa-condensado .kardex-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+}
+
+.comparativa-condensado .kardex-stat-card {
+  padding: 8px 10px !important;
+}
+
+.comparativa-condensado .kardex-stat-card .stat-value {
+  font-size: 16px !important;
+}
+
+.comparativa-condensado .table-shell {
+  max-height: 60vh;
+}
+
+.comparativa-condensado table th,
+.comparativa-condensado table td {
+  padding: 6px 8px !important;
+  font-size: 12px !important;
+}
+
+.comparativa-condensado .mayor-layout {
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.comparativa-condensado .cuenta-t {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+

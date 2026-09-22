@@ -49,12 +49,17 @@ function construirFilas(e) {
     ];
 }
 
-function EstadoResultados(){
+function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
     const anio = new Date().getFullYear();
-    const [desde, setDesde] = useState(`${anio}-01-01`);
-    const [hasta, setHasta] = useState(`${anio}-12-31`);
+    const [desde, setDesde] = useState(filtroDesde || `${anio}-01-01`);
+    const [hasta, setHasta] = useState(filtroHasta || `${anio}-12-31`);
     const [resultado, setResultado] = useState(null); // { clave, datos, kardex, aviso }
     const [fallo, setFallo] = useState(null);         // { clave, mensaje }
+
+    useEffect(() => {
+        if (filtroDesde) setDesde(filtroDesde);
+        if (filtroHasta) setHasta(filtroHasta);
+    }, [filtroDesde, filtroHasta]);
 
     const clave = `${desde}|${hasta}`;
 
@@ -115,15 +120,19 @@ function EstadoResultados(){
                 </div>
             </div>
 
-            <div className="form-grid er-controls">
-                <label>Desde
-                    <input type="date" value={desde} onChange={evento => setDesde(evento.target.value)} />
-                </label>
-                <label>Hasta
-                    <input type="date" value={hasta} onChange={evento => setHasta(evento.target.value)} />
-                </label>
-            </div>
-<br></br>
+            {!ocultarFiltros && (
+                <>
+                    <div className="form-grid er-controls">
+                        <label>Desde
+                            <input type="date" value={desde} onChange={evento => setDesde(evento.target.value)} />
+                        </label>
+                        <label>Hasta
+                            <input type="date" value={hasta} onChange={evento => setHasta(evento.target.value)} />
+                        </label>
+                    </div>
+                    <br />
+                </>
+            )}
             {errorActual && <p className="message-error">{errorActual}</p>}
             {listo?.aviso && <p className="message-error">{listo.aviso}</p>}
             {cargando && <p>Calculando el estado de resultados...</p>}

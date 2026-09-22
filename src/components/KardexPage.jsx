@@ -6,14 +6,19 @@ import { formatearMoneda } from "../utils/kardexCalculos";
 
 const anioActual = new Date().getFullYear();
 
-export function KardexPage() {
-    const [fechaInicio, setFechaInicio] = useState(`${anioActual}-01-01`);
-    const [fechaFin, setFechaFin] = useState(`${anioActual}-12-31`);
+export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros } = {}) {
+    const [fechaInicio, setFechaInicio] = useState(filtroDesde || `${anioActual}-01-01`);
+    const [fechaFin, setFechaFin] = useState(filtroHasta || `${anioActual}-12-31`);
 
     const [filas, setFilas] = useState([]);
     const [totales, setTotales] = useState({});
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (filtroDesde) setFechaInicio(filtroDesde);
+        if (filtroHasta) setFechaFin(filtroHasta);
+    }, [filtroDesde, filtroHasta]);
 
     const cargarKardex = useCallback(async () => {
         setCargando(true);
@@ -90,17 +95,19 @@ export function KardexPage() {
             </div>
 
             {/* Barra de Filtros por Período */}
-            <div>
-                <FiltersPeriodo
-                    fechaInicio={fechaInicio}
-                    setFechaInicio={setFechaInicio}
-                    fechaFin={fechaFin}
-                    setFechaFin={setFechaFin}
-                    onFiltrar={cargarKardex}
-                    onLimpiar={handleLimpiarFiltros}
-                    cargando={cargando}
-                />
-            </div>
+            {!ocultarFiltros && (
+                <div>
+                    <FiltersPeriodo
+                        fechaInicio={fechaInicio}
+                        setFechaInicio={setFechaInicio}
+                        fechaFin={fechaFin}
+                        setFechaFin={setFechaFin}
+                        onFiltrar={cargarKardex}
+                        onLimpiar={handleLimpiarFiltros}
+                        cargando={cargando}
+                    />
+                </div>
+            )}
 
             {/* Alerta de Error si ocurre */}
             {error && <div className="banner-error">{error}</div>}

@@ -1,5 +1,20 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+
+function ChevronDown({ size = 14, className = "", style = {} }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+            <path d="m6 9 6 6 6-6"/>
+        </svg>
+    );
+}
+
+function ChevronRight({ size = 14, className = "", style = {} }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+            <path d="m9 18 6-6-6-6"/>
+        </svg>
+    );
+}
 
 function formatearDinero(monto) {
     if (monto === null || monto === undefined || isNaN(monto)) return "$0.00";

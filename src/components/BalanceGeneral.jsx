@@ -108,7 +108,7 @@ function formatearFechaCorte(fechaStr) {
     return fechaStr;
 }
 
-export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta: propFechaHasta, fechaCorte: propFechaCorte }) {
+export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta: propFechaHasta, fechaCorte: propFechaCorte, ocultarFiltros }) {
     // Año base para pre-cargar 1 de enero y 31 de diciembre
     const anioActual = new Date().getFullYear();
     const fechaInicialDesde = propFechaDesde || `${anioActual}-01-01`;
@@ -121,6 +121,16 @@ export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta
         desde: fechaInicialDesde,
         hasta: fechaInicialHasta
     });
+
+    useEffect(() => {
+        if (propFechaDesde || propFechaHasta || propFechaCorte) {
+            const d = propFechaDesde || `${anioActual}-01-01`;
+            const h = propFechaCorte || propFechaHasta || `${anioActual}-12-31`;
+            setFechaDesde(d);
+            setFechaHasta(h);
+            setFechasAplicadas({ desde: d, hasta: h });
+        }
+    }, [propFechaDesde, propFechaHasta, propFechaCorte, anioActual]);
 
     // Control de Niveles de agregación contable:
     // Nivel 0: General (Activo, Pasivo, Patrimonio)
@@ -281,106 +291,108 @@ export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta
                 <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px" }}>
                     
                     {/* Filtros de Fecha Re-cargados con 1 de enero y 31 de diciembre */}
-                    <form onSubmit={manejarAplicarFiltros} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <Calendar size={18} style={{ color: "#1b4332" }} />
-                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>Filtros de Fecha:</span>
-                        </div>
+                    {!ocultarFiltros && (
+                        <form onSubmit={manejarAplicarFiltros} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <Calendar size={18} style={{ color: "#1b4332" }} />
+                                <span style={{ fontSize: "13px", fontWeight: 700, color: "#334155" }}>Filtros de Fecha:</span>
+                            </div>
 
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <label style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>Desde:</label>
-                            <input 
-                                type="date" 
-                                value={fechaDesde}
-                                onChange={(e) => setFechaDesde(e.target.value)}
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <label style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>Desde:</label>
+                                <input 
+                                    type="date" 
+                                    value={fechaDesde}
+                                    onChange={(e) => setFechaDesde(e.target.value)}
+                                    style={{
+                                        fontSize: "13px",
+                                        padding: "6px 10px",
+                                        borderRadius: "6px",
+                                        border: "1px solid #cbd5e1",
+                                        background: "#f8fafc",
+                                        color: "#0f172a",
+                                        fontWeight: 500
+                                    }}
+                                />
+                            </div>
+
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <label style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>Hasta (Corte):</label>
+                                <input 
+                                    type="date" 
+                                    value={fechaHasta}
+                                    onChange={(e) => setFechaHasta(e.target.value)}
+                                    style={{
+                                        fontSize: "13px",
+                                        padding: "6px 10px",
+                                        borderRadius: "6px",
+                                        border: "1px solid #cbd5e1",
+                                        background: "#f8fafc",
+                                        color: "#0f172a",
+                                        fontWeight: 500
+                                    }}
+                                />
+                            </div>
+
+                            <button 
+                                type="submit"
+                                disabled={cargando}
                                 style={{
-                                    fontSize: "13px",
-                                    padding: "6px 10px",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    background: "#1b4332",
+                                    color: "#ffffff",
+                                    border: "none",
+                                    padding: "7px 16px",
                                     borderRadius: "6px",
-                                    border: "1px solid #cbd5e1",
-                                    background: "#f8fafc",
-                                    color: "#0f172a",
-                                    fontWeight: 500
-                                }}
-                            />
-                        </div>
-
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <label style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>Hasta (Corte):</label>
-                            <input 
-                                type="date" 
-                                value={fechaHasta}
-                                onChange={(e) => setFechaHasta(e.target.value)}
-                                style={{
                                     fontSize: "13px",
-                                    padding: "6px 10px",
-                                    borderRadius: "6px",
-                                    border: "1px solid #cbd5e1",
-                                    background: "#f8fafc",
-                                    color: "#0f172a",
-                                    fontWeight: 500
-                                }}
-                            />
-                        </div>
-
-                        <button 
-                            type="submit"
-                            disabled={cargando}
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                background: "#1b4332",
-                                color: "#ffffff",
-                                border: "none",
-                                padding: "7px 16px",
-                                borderRadius: "6px",
-                                fontSize: "13px",
-                                fontWeight: 600,
-                                cursor: cargando ? "wait" : "pointer",
-                                transition: "background 0.2s"
-                            }}
-                        >
-                            <RefreshCw size={14} className={cargando ? "animate-spin" : ""} />
-                            {cargando ? "Consultando..." : "Actualizar"}
-                        </button>
-
-                        {/* Botones de Años Rápidos */}
-                        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "4px" }}>
-                            <button
-                                type="button"
-                                onClick={() => aplicarAnio(anioActual)}
-                                style={{
-                                    fontSize: "11px",
-                                    padding: "4px 8px",
-                                    borderRadius: "4px",
-                                    border: fechaHasta.startsWith(String(anioActual)) ? "1px solid #1b4332" : "1px solid #e2e8f0",
-                                    background: fechaHasta.startsWith(String(anioActual)) ? "#ecfdf5" : "#ffffff",
-                                    color: fechaHasta.startsWith(String(anioActual)) ? "#1b4332" : "#475569",
                                     fontWeight: 600,
-                                    cursor: "pointer"
+                                    cursor: cargando ? "wait" : "pointer",
+                                    transition: "background 0.2s"
                                 }}
                             >
-                                {anioActual} (Actual)
+                                <RefreshCw size={14} className={cargando ? "animate-spin" : ""} />
+                                {cargando ? "Consultando..." : "Actualizar"}
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => aplicarAnio(anioActual - 1)}
-                                style={{
-                                    fontSize: "11px",
-                                    padding: "4px 8px",
-                                    borderRadius: "4px",
-                                    border: fechaHasta.startsWith(String(anioActual - 1)) ? "1px solid #1b4332" : "1px solid #e2e8f0",
-                                    background: fechaHasta.startsWith(String(anioActual - 1)) ? "#ecfdf5" : "#ffffff",
-                                    color: fechaHasta.startsWith(String(anioActual - 1)) ? "#1b4332" : "#475569",
-                                    fontWeight: 600,
-                                    cursor: "pointer"
-                                }}
-                            >
-                                {anioActual - 1}
-                            </button>
-                        </div>
-                    </form>
+
+                            {/* Botones de Años Rápidos */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "4px" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => aplicarAnio(anioActual)}
+                                    style={{
+                                        fontSize: "11px",
+                                        padding: "4px 8px",
+                                        borderRadius: "4px",
+                                        border: fechaHasta.startsWith(String(anioActual)) ? "1px solid #1b4332" : "1px solid #e2e8f0",
+                                        background: fechaHasta.startsWith(String(anioActual)) ? "#ecfdf5" : "#ffffff",
+                                        color: fechaHasta.startsWith(String(anioActual)) ? "#1b4332" : "#475569",
+                                        fontWeight: 600,
+                                        cursor: "pointer"
+                                    }}
+                                >
+                                    {anioActual} (Actual)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => aplicarAnio(anioActual - 1)}
+                                    style={{
+                                        fontSize: "11px",
+                                        padding: "4px 8px",
+                                        borderRadius: "4px",
+                                        border: fechaHasta.startsWith(String(anioActual - 1)) ? "1px solid #1b4332" : "1px solid #e2e8f0",
+                                        background: fechaHasta.startsWith(String(anioActual - 1)) ? "#ecfdf5" : "#ffffff",
+                                        color: fechaHasta.startsWith(String(anioActual - 1)) ? "#1b4332" : "#475569",
+                                        fontWeight: 600,
+                                        cursor: "pointer"
+                                    }}
+                                >
+                                    {anioActual - 1}
+                                </button>
+                            </div>
+                        </form>
+                    )}
 
                     {/* Acciones de impresión y vista */}
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

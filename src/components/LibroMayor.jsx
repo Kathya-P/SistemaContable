@@ -112,6 +112,20 @@ function LibroMayor(){
             .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
     }, [cuentas, resolverCuentaMostrada]);
 
+    // Sumatoria de comprobación para las 4 columnas numéricas (Debe, Haber, Saldo deudor, Saldo acreedor)
+    const totalesComprobacion = useMemo(() => {
+        return filasMostradas.reduce(
+            (acum, fila) => {
+                acum.total_debe += Number(fila.total_debe || 0);
+                acum.total_haber += Number(fila.total_haber || 0);
+                acum.saldo_deudor += Number(fila.saldo_deudor || 0);
+                acum.saldo_acreedor += Number(fila.saldo_acreedor || 0);
+                return acum;
+            },
+            { total_debe: 0, total_haber: 0, saldo_deudor: 0, saldo_acreedor: 0 }
+        );
+    }, [filasMostradas]);
+
     // Agrupa cada línea de detalle (de /kardex) por la misma cuenta mostrada, para la Cuenta T.
     const movimientosPorCuenta = useMemo(() => {
         const mapa = new Map();
@@ -200,6 +214,34 @@ function LibroMayor(){
                                         </tr>
                                     ))}
                                 </tbody>
+                                <tfoot>
+                                    {filasMostradas.length > 0 && (
+                                        <tr
+                                            className="mayor-total-row"
+                                            style={{
+                                                fontWeight: "bold",
+                                                borderTop: "2px solid #1B4332",
+                                                backgroundColor: "rgba(27, 67, 50, 0.08)"
+                                            }}
+                                        >
+                                            <td colSpan="2" style={{ fontWeight: 800, padding: "12px 14px" }}>
+                                                Comprobación:
+                                            </td>
+                                            <td style={{ fontWeight: 800, padding: "12px 10px" }}>
+                                                $ {moneda(totalesComprobacion.total_debe)}
+                                            </td>
+                                            <td style={{ fontWeight: 800, padding: "12px 10px" }}>
+                                                $ {moneda(totalesComprobacion.total_haber)}
+                                            </td>
+                                            <td style={{ fontWeight: 800, padding: "12px 10px" }}>
+                                                $ {moneda(totalesComprobacion.saldo_deudor)}
+                                            </td>
+                                            <td style={{ fontWeight: 800, padding: "12px 10px" }}>
+                                                $ {moneda(totalesComprobacion.saldo_acreedor)}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tfoot>
                             </table>
                         </div>
 

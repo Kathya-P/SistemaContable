@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { obtenerLibroDiario } from "../services/libroDiarioService";
 import { supabaseConfigurado } from "../lib/supabase";
 
@@ -43,7 +43,7 @@ function gruposDeAsiento(asiento){
     return [...grupos.values()];
 }
 
-function LibroDiario(){
+function LibroDiario({ filtroDesde, filtroHasta } = {}){
     const [asientos, setAsientos] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
@@ -69,13 +69,24 @@ function LibroDiario(){
         cargarDatos();
     }, []);
 
-    const sumatorias = asientos.reduce((totales, asiento) => {
-        (asiento.detalle_asientos || []).forEach(detalle => {
-            totales.debe += Number(detalle.debe || 0);
-            totales.haber += Number(detalle.haber || 0);
+    const asientosFiltrados = useMemo(() => {
+        return asientos.filter(asiento => {
+            if (!asiento.fecha) return true;
+            if (filtroDesde && asiento.fecha < filtroDesde) return false;
+            if (filtroHasta && asiento.fecha > filtroHasta) return false;
+            return true;
         });
-        return totales;
-    }, { debe: 0, haber: 0 });
+    }, [asientos, filtroDesde, filtroHasta]);
+
+    const sumatorias = useMemo(() => {
+        return asientosFiltrados.reduce((totales, asiento) => {
+            (asiento.detalle_asientos || []).forEach(detalle => {
+                totales.debe += Number(detalle.debe || 0);
+                totales.haber += Number(detalle.haber || 0);
+            });
+            return totales;
+        }, { debe: 0, haber: 0 });
+    }, [asientosFiltrados]);
     const diarioCuadrado = Math.abs(sumatorias.debe - sumatorias.haber) < 0.005;
 
     if(cargando){
@@ -111,8 +122,8 @@ function LibroDiario(){
                         </tr>
                     </thead>
                     <tbody>
-                        {asientos.length === 0 && <tr><td colSpan="6" className="empty-state">No hay asientos registrados.</td></tr>}
-                        {asientos.map(asiento => {
+                        {asientosFiltrados.length === 0 && <tr><td colSpan="6" className="empty-state">No hay asientos registrados en este período.</td></tr>}
+                        {asientosFiltrados.map(asiento => {
                             const grupos = gruposDeAsiento(asiento);
                             const totalDebe = (asiento.detalle_asientos || []).reduce((total, detalle) => total + Number(detalle.debe || 0), 0);
                             const totalHaber = (asiento.detalle_asientos || []).reduce((total, detalle) => total + Number(detalle.haber || 0), 0);

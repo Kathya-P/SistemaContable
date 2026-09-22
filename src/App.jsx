@@ -10,6 +10,7 @@ import BalanceGeneral from "./components/BalanceGeneral";
 import RatiosFinancieros from "./components/RatiosFinancieros";
 import Login from "./components/Login";
 import NuevoAsiento from "./components/NuevoAsiento";
+import AuditoriaPage from "./components/AuditoriaPage";
 import Sidebar from "./components/Sidebar";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
 import { solicitarApi } from "./services/api";
@@ -41,7 +42,10 @@ const menuLateral = [
     },
     {
         id: "administracion", nombre: "Administración", icono: "administracion",
-        items: [{ clave: "usuarios", nombre: "Usuarios" }]
+        items: [
+            { clave: "usuarios", nombre: "Usuarios" },
+            { clave: "auditoria", nombre: "Auditoría" }
+        ]
     }
 ];
 
@@ -55,7 +59,8 @@ const permisoDeVista = {
     estadoResultados: "puede_ver_reportes",
     balanceGeneral: "puede_ver_reportes",
     ratiosFinancieros: "puede_ver_reportes",
-    usuarios: "puede_gestionar_usuarios"
+    usuarios: "puede_gestionar_usuarios",
+    auditoria: "puede_gestionar_usuarios"
 };
 
 const PERMISOS_PREDETERMINADOS = {
@@ -279,6 +284,7 @@ function App(){
         if(vista === "balanceGeneral") return <BalanceGeneral empresa={{ id: usuario.empresa_id }} />;
         if(vista === "ratiosFinancieros") return <RatiosFinancieros />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
+        if(vista === "auditoria") return <AuditoriaPage usuario={usuario} />;
         return <Inicio cambiarVista={setVista} />;
     }
 

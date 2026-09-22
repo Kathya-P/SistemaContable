@@ -416,11 +416,10 @@ async function calcularResumenAuditoria({ supabaseClient, empresa_id, usaBaseDeD
     const accionesPorDia = Array.from(diasMapa.values());
 
     const accionesPorTipo = [
-        { tipo: "crear", etiqueta: "Creación", cantidad: tiposConteo.crear, color: "#10b981" },
-        { tipo: "editar", etiqueta: "Edición", cantidad: tiposConteo.editar, color: "#3b82f6" },
-        { tipo: "eliminar", etiqueta: "Eliminación", cantidad: tiposConteo.eliminar, color: "#ef4444" },
-        { tipo: "ver", etiqueta: "Visualización", cantidad: tiposConteo.ver, color: "#8b5cf6" },
-        { tipo: "descargar", etiqueta: "Descarga", cantidad: tiposConteo.descargar, color: "#f59e0b" }
+        { tipo: "crear", etiqueta: "Creación", cantidad: tiposConteo.crear, color: "#047857" },
+        { tipo: "editar", etiqueta: "Edición", cantidad: tiposConteo.editar, color: "#059669" },
+        { tipo: "eliminar", etiqueta: "Eliminación", cantidad: tiposConteo.eliminar, color: "#10b981" },
+        { tipo: "descargar", etiqueta: "Descarga", cantidad: tiposConteo.descargar, color: "#34d399" }
     ].map(item => ({
         ...item,
         porcentaje: totalAcciones > 0 ? Number(((item.cantidad / totalAcciones) * 100).toFixed(1)) : 0

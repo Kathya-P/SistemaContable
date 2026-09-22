@@ -6,7 +6,8 @@ import LibroDiario from "./components/LibroDiario";
 import LibroMayor from "./components/LibroMayor";
 import KardexPage from "./components/KardexPage"; 
 import Estadoresultados from "./components/Estadoresultados"; 
-import { BalanceGeneral } from "./components/BalanceGeneral";
+import BalanceGeneral from "./components/BalanceGeneral";
+import RatiosFinancieros from "./components/RatiosFinancieros";
 import Login from "./components/Login";
 import NuevoAsiento from "./components/NuevoAsiento";
 import Sidebar from "./components/Sidebar";
@@ -34,7 +35,8 @@ const menuLateral = [
         id: "reportes", nombre: "Reportes", icono: "reportes",
         items: [
             { clave: "estadoResultados", nombre: "Estado de Resultados" },
-            { clave: "balanceGeneral", nombre: "Balance General" }
+            { clave: "balanceGeneral", nombre: "Balance General" },
+            { clave: "ratiosFinancieros", nombre: "Ratios Financieros" }
         ]
     },
     {
@@ -52,7 +54,15 @@ const permisoDeVista = {
     cuentasT: "puede_ver_reportes",
     estadoResultados: "puede_ver_reportes",
     balanceGeneral: "puede_ver_reportes",
+    ratiosFinancieros: "puede_ver_reportes",
     usuarios: "puede_gestionar_usuarios"
+};
+
+const PERMISOS_PREDETERMINADOS = {
+    puede_ver_catalogo: true,
+    puede_crear_asientos: true,
+    puede_ver_reportes: true,
+    puede_gestionar_usuarios: false
 };
 
 function Inicio({ cambiarVista }){
@@ -97,11 +107,22 @@ function App(){
     const [vista, setVista] = useState("inicio");
     const [temaOscuro, setTemaOscuro] = useState(() => localStorage.getItem("tema") === "oscuro");
     const [menuColapsado, setMenuColapsado] = useState(() => localStorage.getItem("menu") === "colapsado");
-    const [sesion, setSesion] = useState(null);
+    const [sesion, setSesion] = useState(() =>
+        !supabaseConfigurado ? { user: { id: "demo-user", email: "admin@contacabal.com" } } : null
+    );
     const [cargandoSesion, setCargandoSesion] = useState(supabaseConfigurado);
-    const [usuario, setUsuario] = useState(null);
+    const [usuario, setUsuario] = useState(() =>
+        !supabaseConfigurado ? { id: 1, nombre: "Contador Principal", rol: "ADMIN", empresa_id: 1, estado: true } : null
+    );
     const [errorUsuario, setErrorUsuario] = useState("");
-    const [permisos, setPermisos] = useState({});
+    const [permisos, setPermisos] = useState(() =>
+        !supabaseConfigurado ? {
+            puede_ver_catalogo: true,
+            puede_crear_asientos: true,
+            puede_ver_reportes: true,
+            puede_gestionar_usuarios: true
+        } : {}
+    );
 
     useEffect(() => {
         if(!supabaseConfigurado){
@@ -168,13 +189,23 @@ function App(){
 
         let cancelado = false;
 
+        if(!supabaseConfigurado){
+            setPermisos(PERMISOS_PREDETERMINADOS);
+            return undefined;
+        }
+
         solicitarApi("/permisos")
             .then(datos => {
-                if(!cancelado){
-                    setPermisos(datos || {});
+                if(!cancelado && datos && Object.keys(datos).length > 0){
+                    setPermisos(datos);
                 }
             })
-            .catch(error => console.error("No se pudieron cargar los permisos:", error));
+            .catch(error => {
+                console.error("No se pudieron cargar los permisos:", error);
+                if(!cancelado){
+                    setPermisos(PERMISOS_PREDETERMINADOS);
+                }
+            });
 
         return () => {
             cancelado = true;
@@ -198,8 +229,11 @@ function App(){
     }
 
     async function cerrarSesion() {
-        await supabase.auth.signOut();
+        if(supabase){
+            await supabase.auth.signOut();
+        }
         setUsuario(null);
+        setSesion(null);
         setPermisos({});
         setVista("inicio");
     }
@@ -208,11 +242,7 @@ function App(){
         return <main className="login-page"><p>Cargando sesión...</p></main>;
     }
 
-    if(!supabaseConfigurado){
-        return <main className="login-page"><p className="message-error">Falta configurar la conexión con Supabase.</p></main>;
-    }
-
-    if(!sesion){
+    if(supabaseConfigurado && !sesion){
         return <Login />;
     }
 
@@ -228,7 +258,7 @@ function App(){
     const puede = permiso => {
         if (!permiso) return true;
         if (!usuario) return false;
-        if (usuario.rol === "ADMIN" || usuario.rol === "CONTADOR") return true;
+        if (usuario.rol === "ADMIN" || usuario.rol === "CONTADOR" || usuario.rol === "admin") return true;
         if (permisos && permisos[permiso] === true) return true;
         if (permiso === "puede_ver_reportes" || permiso === "puede_ver_catalogo") return true;
         return false;
@@ -247,6 +277,7 @@ function App(){
         if(vista === "kardex") return <KardexPage />;
         if(vista === "estadoResultados") return <Estadoresultados />;
         if(vista === "balanceGeneral") return <BalanceGeneral empresa={{ id: usuario.empresa_id }} />;
+        if(vista === "ratiosFinancieros") return <RatiosFinancieros />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
         return <Inicio cambiarVista={setVista} />;
     }

@@ -64,65 +64,64 @@ function IconoAccion({ tipo, size = 16 }) {
     }
 }
 
-// Configuración de estilos y etiquetas por tipo de acción
+// Configuración de estilos y etiquetas por tipo de acción (Gama de verdes armónicos)
 const CONFIG_ACCIONES = {
     crear: {
         etiqueta: "Crear",
         claseBadge: "badge-crear",
-        colorTexto: "#10b981",
-        colorFondo: "rgba(16, 185, 129, 0.12)",
-        colorBorde: "rgba(16, 185, 129, 0.28)"
+        colorTexto: "#065f46",
+        colorFondo: "#ecfdf5",
+        colorBorde: "#a7f3d0"
     },
     editar: {
         etiqueta: "Editar",
         claseBadge: "badge-editar",
-        colorTexto: "#3b82f6",
-        colorFondo: "rgba(59, 130, 246, 0.12)",
-        colorBorde: "rgba(59, 130, 246, 0.28)"
+        colorTexto: "#047857",
+        colorFondo: "#f0fdf4",
+        colorBorde: "#86efac"
     },
     eliminar: {
         etiqueta: "Eliminar",
         claseBadge: "badge-eliminar",
-        colorTexto: "#ef4444",
-        colorFondo: "rgba(239, 68, 68, 0.12)",
-        colorBorde: "rgba(239, 68, 68, 0.28)"
+        colorTexto: "#14532d",
+        colorFondo: "#dcfce7",
+        colorBorde: "#4ade80"
     },
     descargar: {
         etiqueta: "Descargar",
         claseBadge: "badge-descargar",
-        colorTexto: "#f59e0b",
-        colorFondo: "rgba(245, 158, 11, 0.12)",
-        colorBorde: "rgba(245, 158, 11, 0.28)"
+        colorTexto: "#166534",
+        colorFondo: "#f7fee7",
+        colorBorde: "#bef264"
     },
     ver: {
         etiqueta: "Ver",
         claseBadge: "badge-ver",
-        colorTexto: "#8b5cf6",
-        colorFondo: "rgba(139, 92, 246, 0.12)",
-        colorBorde: "rgba(139, 92, 246, 0.28)"
+        colorTexto: "#065f46",
+        colorFondo: "#f0fdf4",
+        colorBorde: "#a7f3d0"
     }
 };
 
 const CONFIG_RESULTADOS = {
     exitoso: {
         etiqueta: "Exitoso",
-        colorTexto: "#10b981",
-        colorFondo: "rgba(16, 185, 129, 0.12)"
+        colorTexto: "#065f46",
+        colorFondo: "#d1fae5"
     },
     error: {
         etiqueta: "Error",
-        colorTexto: "#ef4444",
-        colorFondo: "rgba(239, 68, 68, 0.12)"
+        colorTexto: "#14532d",
+        colorFondo: "#e2ece2"
     },
     "denegado por permisos": {
         etiqueta: "Denegado",
-        colorTexto: "#f97316",
-        colorFondo: "rgba(249, 115, 22, 0.12)"
+        colorTexto: "#1e3a1e",
+        colorFondo: "#d9e5d9"
     }
 };
 
 export default function AuditoriaPage({ usuario }) {
-    // Fechas rápidas por defecto: últimos 30 días
     const formatearFechaIso = (d) => {
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -130,17 +129,17 @@ export default function AuditoriaPage({ usuario }) {
         return `${yyyy}-${mm}-${dd}`;
     };
 
-    const hoy = new Date();
-    const hace30 = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const anioActual = new Date().getFullYear();
 
-    const [fechaDesde, setFechaDesde] = useState(() => formatearFechaIso(hace30));
-    const [fechaHasta, setFechaHasta] = useState(() => formatearFechaIso(hoy));
+    const [fechaDesde, setFechaDesde] = useState(`${anioActual}-01-01`);
+    const [fechaHasta, setFechaHasta] = useState(`${anioActual}-12-31`);
+    const [rangoActivo, setRangoActivo] = useState("anio");
     const [filtroUsuario, setFiltroUsuario] = useState("todos");
     const [filtroAccion, setFiltroAccion] = useState("todos");
     const [filtroEntidad, setFiltroEntidad] = useState("todas");
     const [filtroResultado, setFiltroResultado] = useState("todos");
     const [busqueda, setBusqueda] = useState("");
-    const [incluirMisAcciones, setIncluirMisAcciones] = useState(false);
+    const [incluirMisAcciones, setIncluirMisAcciones] = useState(true);
 
     const [pagina, setPagina] = useState(1);
     const [ordenCampo, setOrdenCampo] = useState("fecha_hora");
@@ -233,6 +232,10 @@ export default function AuditoriaPage({ usuario }) {
         let fin = new Date();
 
         switch (tipo) {
+            case "anio":
+                inicio = new Date(ahora.getFullYear(), 0, 1);
+                fin = new Date(ahora.getFullYear(), 11, 31);
+                break;
             case "hoy":
                 inicio = ahora;
                 fin = ahora;
@@ -264,6 +267,7 @@ export default function AuditoriaPage({ usuario }) {
                 break;
         }
 
+        setRangoActivo(tipo);
         setFechaDesde(formatearFechaIso(inicio));
         setFechaHasta(formatearFechaIso(fin));
         setPagina(1);
@@ -289,13 +293,13 @@ export default function AuditoriaPage({ usuario }) {
     };
 
     const limpiarFiltros = () => {
-        aplicarRangoRapido("30dias");
+        aplicarRangoRapido("anio");
         setFiltroUsuario("todos");
         setFiltroAccion("todos");
         setFiltroEntidad("todas");
         setFiltroResultado("todos");
         setBusqueda("");
-        setIncluirMisAcciones(false);
+        setIncluirMisAcciones(true);
         setPagina(1);
     };
 
@@ -365,6 +369,179 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
 
     return (
         <section className="view-section auditoria-page">
+            <style>{`
+                .auditoria-page {
+                    --verde-primario: #059669;
+                    --verde-oscuro: #064e3b;
+                    --verde-bosque: #047857;
+                    --verde-suave: #ecfdf5;
+                    --verde-borde: #a7f3d0;
+                    --verde-fondo-card: #f0fdf4;
+                }
+
+                .auditoria-page .btn-actualizar {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background-color: #f0fdf4;
+                    border: 1.5px solid #a7f3d0;
+                    color: #065f46;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .auditoria-page .btn-actualizar:hover:not(:disabled) {
+                    background-color: #dcfce7;
+                    border-color: #34d399;
+                }
+
+                .auditoria-page .btn-exportar {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background-color: #059669;
+                    border: 1.5px solid #047857;
+                    color: #ffffff;
+                    font-weight: 600;
+                    padding: 8px 18px;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25);
+                }
+                .auditoria-page .btn-exportar:hover:not(:disabled) {
+                    background-color: #047857;
+                    box-shadow: 0 4px 8px rgba(5, 150, 105, 0.35);
+                }
+
+                .auditoria-page .chip-rango {
+                    background: #ffffff;
+                    border: 1.5px solid #d1fae5;
+                    color: #374151;
+                    padding: 6px 14px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
+                .auditoria-page .chip-rango:hover {
+                    background: #f0fdf4;
+                    border-color: #6ee7b7;
+                    color: #065f46;
+                }
+                .auditoria-page .chip-rango.is-active {
+                    background: #059669;
+                    color: #ffffff;
+                    border-color: #047857;
+                    font-weight: 600;
+                    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.25);
+                }
+
+                .auditoria-page .btn-limpiar {
+                    background-color: #f0fdf4;
+                    border: 1.5px solid #a7f3d0;
+                    color: #065f46;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .auditoria-page .btn-limpiar:hover {
+                    background-color: #dcfce7;
+                    border-color: #6ee7b7;
+                }
+
+                .auditoria-page .btn-detalles {
+                    background-color: #f0fdf4;
+                    border: 1.5px solid #a7f3d0;
+                    color: #065f46;
+                    font-weight: 600;
+                    padding: 5px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
+                .auditoria-page .btn-detalles:hover {
+                    background-color: #dcfce7;
+                    border-color: #34d399;
+                }
+
+                .auditoria-page .btn-paginacion {
+                    background-color: #f0fdf4;
+                    border: 1.5px solid #a7f3d0;
+                    color: #065f46;
+                    font-weight: 600;
+                    padding: 6px 14px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
+                .auditoria-page .btn-paginacion:hover:not(:disabled) {
+                    background-color: #dcfce7;
+                    border-color: #34d399;
+                }
+                .auditoria-page .btn-paginacion:disabled {
+                    opacity: 0.45;
+                    cursor: not-allowed;
+                }
+
+                .auditoria-page .input-auditoria {
+                    padding: 9px 12px;
+                    border: 1.5px solid #a7f3d0;
+                    background-color: #ffffff;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    color: #1f2937;
+                    outline: none;
+                    transition: border-color 0.2s, box-shadow 0.2s;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .auditoria-page .input-auditoria:focus {
+                    border-color: #059669;
+                    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.18);
+                }
+
+                .auditoria-page .select-auditoria {
+                    padding: 9px 34px 9px 12px;
+                    border: 1.5px solid #a7f3d0;
+                    background-color: #ffffff;
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23059669'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+                    background-repeat: no-repeat;
+                    background-position: right 10px center;
+                    background-size: 16px;
+                    appearance: none;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    color: #1f2937;
+                    outline: none;
+                    cursor: pointer;
+                    transition: border-color 0.2s, box-shadow 0.2s;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .auditoria-page .select-auditoria:focus {
+                    border-color: #059669;
+                    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.18);
+                }
+
+                .auditoria-page .checkbox-auditoria {
+                    accent-color: #059669;
+                    width: 17px;
+                    height: 17px;
+                    cursor: pointer;
+                }
+            `}</style>
+
             {/* Cabecera Principal */}
             <div className="section-heading">
                 <div>
@@ -376,7 +553,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                 </div>
                 <div className="heading-actions" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                     <button
-                        className="button-secondary"
+                        className="btn-actualizar"
                         onClick={cargarLogs}
                         title="Actualizar registros"
                         disabled={cargando}
@@ -384,11 +561,10 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         ↻ Actualizar
                     </button>
                     <button
-                        className="button-primary"
+                        className="btn-exportar"
                         onClick={handleExportar}
                         title="Exportar a archivo CSV para Excel"
                         disabled={!logs.length}
-                        style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                     >
                         <IconoAccion tipo="descargar" size={16} />
                         Exportar CSV
@@ -403,8 +579,8 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         padding: "12px 16px",
                         marginBottom: "16px",
                         borderRadius: "8px",
-                        background: "rgba(245, 158, 11, 0.1)",
-                        border: "1px solid rgba(245, 158, 11, 0.3)",
+                        background: "#f0fdf4",
+                        border: "1.5px solid #a7f3d0",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -415,14 +591,14 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <span style={{ fontSize: "20px" }}>ℹ️</span>
                         <div>
-                            <strong style={{ color: "#d97706" }}>Búfer en Memoria Activo:</strong>
-                            <span style={{ marginLeft: "6px", fontSize: "14px" }}>
+                            <strong style={{ color: "#065f46" }}>Búfer en Memoria Activo:</strong>
+                            <span style={{ marginLeft: "6px", fontSize: "14px", color: "#166534" }}>
                                 La tabla <code>logs_auditoria</code> aún no existe en tu base de datos Supabase. El sistema está registrando las acciones en el búfer de alta disponibilidad en memoria.
                             </span>
                         </div>
                     </div>
                     <button
-                        className="button-secondary"
+                        className="btn-actualizar"
                         style={{ fontSize: "13px", padding: "6px 12px" }}
                         onClick={() => setModalSqlAbierto(true)}
                     >
@@ -431,45 +607,45 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                 </div>
             )}
 
-            {/* Tarjetas de Métricas Rápidas */}
+            {/* Tarjetas de Métricas Rápidas (Exclusivamente tonos de verde) */}
             {resumen && resumen.totales && (
                 <div
                     className="metricas-auditoria-grid"
                     style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
                         gap: "12px",
                         marginBottom: "20px"
                     }}
                 >
-                    <div className="card-metrica" style={{ padding: "14px", borderRadius: "8px", border: "1px solid var(--border-color, #e5e7eb)", background: "var(--card-bg, #fff)" }}>
-                        <span style={{ fontSize: "13px", color: "var(--text-muted, #6b7280)", display: "block" }}>Total Acciones (30d)</span>
-                        <strong style={{ fontSize: "22px", color: "var(--text-main, #111827)" }}>{resumen.totales.totalAcciones || 0}</strong>
+                    <div style={{ padding: "15px", borderRadius: "10px", border: "1.5px solid #a7f3d0", background: "#f0fdf4" }}>
+                        <span style={{ fontSize: "13px", color: "#065f46", fontWeight: "600", display: "block", marginBottom: "4px" }}>Total Acciones (30d)</span>
+                        <strong style={{ fontSize: "24px", color: "#064e3b" }}>{resumen.totales.totalAcciones || 0}</strong>
                     </div>
-                    <div className="card-metrica" style={{ padding: "14px", borderRadius: "8px", border: "1px solid rgba(16, 185, 129, 0.25)", background: "rgba(16, 185, 129, 0.05)" }}>
-                        <span style={{ fontSize: "13px", color: "#059669", display: "block" }}>Creaciones</span>
-                        <strong style={{ fontSize: "22px", color: "#10b981" }}>{resumen.totales.crear || 0}</strong>
+                    <div style={{ padding: "15px", borderRadius: "10px", border: "1.5px solid #6ee7b7", background: "#ecfdf5" }}>
+                        <span style={{ fontSize: "13px", color: "#047857", fontWeight: "600", display: "block", marginBottom: "4px" }}>Creaciones</span>
+                        <strong style={{ fontSize: "24px", color: "#059669" }}>{resumen.totales.crear || 0}</strong>
                     </div>
-                    <div className="card-metrica" style={{ padding: "14px", borderRadius: "8px", border: "1px solid rgba(59, 130, 246, 0.25)", background: "rgba(59, 130, 246, 0.05)" }}>
-                        <span style={{ fontSize: "13px", color: "#2563eb", display: "block" }}>Ediciones</span>
-                        <strong style={{ fontSize: "22px", color: "#3b82f6" }}>{resumen.totales.editar || 0}</strong>
+                    <div style={{ padding: "15px", borderRadius: "10px", border: "1.5px solid #86efac", background: "#f0fdf4" }}>
+                        <span style={{ fontSize: "13px", color: "#15803d", fontWeight: "600", display: "block", marginBottom: "4px" }}>Ediciones</span>
+                        <strong style={{ fontSize: "24px", color: "#16a34a" }}>{resumen.totales.editar || 0}</strong>
                     </div>
-                    <div className="card-metrica" style={{ padding: "14px", borderRadius: "8px", border: "1px solid rgba(239, 68, 68, 0.25)", background: "rgba(239, 68, 68, 0.05)" }}>
-                        <span style={{ fontSize: "13px", color: "#dc2626", display: "block" }}>Eliminaciones</span>
-                        <strong style={{ fontSize: "22px", color: "#ef4444" }}>{resumen.totales.eliminar || 0}</strong>
+                    <div style={{ padding: "15px", borderRadius: "10px", border: "1.5px solid #a7f3d0", background: "#dcfce7" }}>
+                        <span style={{ fontSize: "13px", color: "#14532d", fontWeight: "600", display: "block", marginBottom: "4px" }}>Eliminaciones</span>
+                        <strong style={{ fontSize: "24px", color: "#15803d" }}>{resumen.totales.eliminar || 0}</strong>
                     </div>
-                    <div className="card-metrica" style={{ padding: "14px", borderRadius: "8px", border: "1px solid rgba(245, 158, 11, 0.25)", background: "rgba(245, 158, 11, 0.05)" }}>
-                        <span style={{ fontSize: "13px", color: "#d97706", display: "block" }}>Descargas / Ver</span>
-                        <strong style={{ fontSize: "22px", color: "#f59e0b" }}>{(resumen.totales.descargar || 0) + (resumen.totales.ver || 0)}</strong>
+                    <div style={{ padding: "15px", borderRadius: "10px", border: "1.5px solid #bef264", background: "#f7fee7" }}>
+                        <span style={{ fontSize: "13px", color: "#3f6212", fontWeight: "600", display: "block", marginBottom: "4px" }}>Descargas</span>
+                        <strong style={{ fontSize: "24px", color: "#4d7c0f" }}>{resumen.totales.descargar || 0}</strong>
                     </div>
-                    <div className="card-metrica" style={{ padding: "14px", borderRadius: "8px", border: "1px solid rgba(220, 38, 38, 0.25)", background: "rgba(220, 38, 38, 0.05)" }}>
-                        <span style={{ fontSize: "13px", color: "#dc2626", display: "block" }}>Errores / Denegados</span>
-                        <strong style={{ fontSize: "22px", color: "#dc2626" }}>{(resumen.totales.totalErrores || 0) + (resumen.totales.totalDenegados || 0)}</strong>
+                    <div style={{ padding: "15px", borderRadius: "10px", border: "1.5px solid #a7f3d0", background: "#eef7ee" }}>
+                        <span style={{ fontSize: "13px", color: "#2d4a2d", fontWeight: "600", display: "block", marginBottom: "4px" }}>Errores / Denegados</span>
+                        <strong style={{ fontSize: "24px", color: "#1e3a1e" }}>{(resumen.totales.totalErrores || 0) + (resumen.totales.totalDenegados || 0)}</strong>
                     </div>
                 </div>
             )}
 
-            {/* Mini Gráficos Resumen (Acciones por día y % por tipo) */}
+            {/* Mini Gráficos Resumen (Acciones por día y % por tipo en verdes) */}
             {resumen && resumen.accionesPorDia && (
                 <div
                     className="graficos-auditoria-container"
@@ -480,25 +656,25 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         marginBottom: "20px"
                     }}
                 >
-                    {/* Gráfico 1: Barras - Acciones por día */}
+                    {/* Gráfico 1: Barras en verde - Acciones por día */}
                     <div
                         style={{
-                            background: "var(--card-bg, #ffffff)",
-                            border: "1px solid var(--border-color, #e5e7eb)",
+                            background: "#ffffff",
+                            border: "1.5px solid #d1fae5",
                             borderRadius: "10px",
                             padding: "16px"
                         }}
                     >
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", alignItems: "center" }}>
-                            <strong style={{ fontSize: "14px" }}>Acciones por día (últimos 30 días)</strong>
-                            <span style={{ fontSize: "12px", color: "var(--text-muted, #6b7280)" }}>
+                            <strong style={{ fontSize: "14px", color: "#065f46" }}>Acciones por día (últimos 30 días)</strong>
+                            <span style={{ fontSize: "12px", color: "#047857", fontWeight: "500" }}>
                                 {resumen.totales.totalAcciones} eventos
                             </span>
                         </div>
                         <div style={{ height: "120px", display: "flex", alignItems: "flex-end", gap: "3px", paddingTop: "10px" }}>
                             {(() => {
                                 const maxVal = Math.max(...resumen.accionesPorDia.map(d => d.total), 1);
-                                return resumen.accionesPorDia.map((d, i) => {
+                                return resumen.accionesPorDia.map((d) => {
                                     const alturaPct = Math.max(8, (d.total / maxVal) * 100);
                                     return (
                                         <div
@@ -517,7 +693,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                                 style={{
                                                     width: "100%",
                                                     height: `${alturaPct}%`,
-                                                    background: d.total > 0 ? "linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)" : "rgba(156, 163, 175, 0.2)",
+                                                    background: d.total > 0 ? "linear-gradient(180deg, #10b981 0%, #047857 100%)" : "rgba(16, 185, 129, 0.15)",
                                                     borderRadius: "3px 3px 0 0",
                                                     transition: "height 0.3s ease"
                                                 }}
@@ -527,35 +703,35 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                 });
                             })()}
                         </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "11px", color: "var(--text-muted, #6b7280)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", fontSize: "11px", color: "#047857" }}>
                             <span>Hace 30 días</span>
                             <span>Hoy</span>
                         </div>
                     </div>
 
-                    {/* Gráfico 2: Distribución de acciones por tipo */}
+                    {/* Gráfico 2: Distribución de acciones por tipo (Solo verdes, sin 'ver') */}
                     <div
                         style={{
-                            background: "var(--card-bg, #ffffff)",
-                            border: "1px solid var(--border-color, #e5e7eb)",
+                            background: "#ffffff",
+                            border: "1.5px solid #d1fae5",
                             borderRadius: "10px",
                             padding: "16px"
                         }}
                     >
-                        <strong style={{ fontSize: "14px", display: "block", marginBottom: "14px" }}>
+                        <strong style={{ fontSize: "14px", color: "#065f46", display: "block", marginBottom: "14px" }}>
                             % de acciones por tipo
                         </strong>
                         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                            {resumen.accionesPorTipo.map(item => (
+                            {resumen.accionesPorTipo.filter(item => item.tipo !== "ver").map(item => (
                                 <div key={item.tipo}>
                                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-                                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                        <span style={{ display: "flex", alignItems: "center", gap: "6px", color: "#1f2937" }}>
                                             <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: item.color }} />
                                             {item.etiqueta}
                                         </span>
-                                        <strong>{item.cantidad} ({item.porcentaje}%)</strong>
+                                        <strong style={{ color: "#065f46" }}>{item.cantidad} ({item.porcentaje}%)</strong>
                                     </div>
-                                    <div style={{ width: "100%", height: "6px", background: "rgba(156, 163, 175, 0.2)", borderRadius: "3px", overflow: "hidden" }}>
+                                    <div style={{ width: "100%", height: "6px", background: "rgba(16, 185, 129, 0.12)", borderRadius: "3px", overflow: "hidden" }}>
                                         <div
                                             style={{
                                                 width: `${item.porcentaje}%`,
@@ -577,22 +753,23 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
             <div
                 className="filtros-auditoria-panel"
                 style={{
-                    background: "var(--card-bg, #ffffff)",
-                    border: "1px solid var(--border-color, #e5e7eb)",
+                    background: "#ffffff",
+                    border: "1.5px solid #d1fae5",
                     borderRadius: "10px",
                     padding: "16px",
                     marginBottom: "20px"
                 }}
             >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
-                    <strong style={{ fontSize: "14px" }}>Filtros de Búsqueda</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+                    <strong style={{ fontSize: "14px", color: "#065f46" }}>Filtros de Búsqueda</strong>
                     <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                        <button className="button-chip" onClick={() => aplicarRangoRapido("hoy")}>Hoy</button>
-                        <button className="button-chip" onClick={() => aplicarRangoRapido("semana")}>Esta semana</button>
-                        <button className="button-chip" onClick={() => aplicarRangoRapido("mes")}>Este mes</button>
-                        <button className="button-chip is-active" onClick={() => aplicarRangoRapido("30dias")}>Últimos 30 días</button>
-                        <button className="button-chip" onClick={() => aplicarRangoRapido("3meses")}>Últimos 3 meses</button>
-                        <button className="button-chip" onClick={() => aplicarRangoRapido("todo")}>Todo</button>
+                        <button className={`chip-rango ${rangoActivo === "anio" ? "is-active" : ""}`} onClick={() => aplicarRangoRapido("anio")}>Año actual</button>
+                        <button className={`chip-rango ${rangoActivo === "hoy" ? "is-active" : ""}`} onClick={() => aplicarRangoRapido("hoy")}>Hoy</button>
+                        <button className={`chip-rango ${rangoActivo === "semana" ? "is-active" : ""}`} onClick={() => aplicarRangoRapido("semana")}>Esta semana</button>
+                        <button className={`chip-rango ${rangoActivo === "mes" ? "is-active" : ""}`} onClick={() => aplicarRangoRapido("mes")}>Este mes</button>
+                        <button className={`chip-rango ${rangoActivo === "30dias" ? "is-active" : ""}`} onClick={() => aplicarRangoRapido("30dias")}>Últimos 30 días</button>
+                        <button className={`chip-rango ${rangoActivo === "3meses" ? "is-active" : ""}`} onClick={() => aplicarRangoRapido("3meses")}>Últimos 3 meses</button>
+                        <button className={`chip-rango ${rangoActivo === "todo" ? "is-active" : ""}`} onClick={() => aplicarRangoRapido("todo")}>Todo</button>
                     </div>
                 </div>
 
@@ -601,35 +778,35 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         display: "grid",
                         gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                         gap: "12px",
-                        marginBottom: "12px"
+                        marginBottom: "14px"
                     }}
                 >
-                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "5px", color: "#065f46", fontWeight: "600" }}>
                         Fecha Inicio
                         <input
                             type="date"
                             value={fechaDesde}
-                            onChange={e => { setFechaDesde(e.target.value); setPagina(1); }}
-                            className="input-field"
+                            onChange={e => { setFechaDesde(e.target.value); setRangoActivo(""); setPagina(1); }}
+                            className="input-auditoria"
                         />
                     </label>
 
-                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "5px", color: "#065f46", fontWeight: "600" }}>
                         Fecha Fin
                         <input
                             type="date"
                             value={fechaHasta}
-                            onChange={e => { setFechaHasta(e.target.value); setPagina(1); }}
-                            className="input-field"
+                            onChange={e => { setFechaHasta(e.target.value); setRangoActivo(""); setPagina(1); }}
+                            className="input-auditoria"
                         />
                     </label>
 
-                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "5px", color: "#065f46", fontWeight: "600" }}>
                         Usuario
                         <select
                             value={filtroUsuario}
                             onChange={e => { setFiltroUsuario(e.target.value); setPagina(1); }}
-                            className="input-field"
+                            className="select-auditoria"
                         >
                             <option value="todos">Todos los usuarios</option>
                             {usuariosLista.map(u => (
@@ -640,28 +817,27 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         </select>
                     </label>
 
-                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "5px", color: "#065f46", fontWeight: "600" }}>
                         Tipo de Acción
                         <select
                             value={filtroAccion}
                             onChange={e => { setFiltroAccion(e.target.value); setPagina(1); }}
-                            className="input-field"
+                            className="select-auditoria"
                         >
                             <option value="todos">Todas las acciones</option>
                             <option value="crear">Crear</option>
                             <option value="editar">Editar</option>
                             <option value="eliminar">Eliminar</option>
                             <option value="descargar">Descargar</option>
-                            <option value="ver">Ver</option>
                         </select>
                     </label>
 
-                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "5px", color: "#065f46", fontWeight: "600" }}>
                         Entidad Afectada
                         <select
                             value={filtroEntidad}
                             onChange={e => { setFiltroEntidad(e.target.value); setPagina(1); }}
-                            className="input-field"
+                            className="select-auditoria"
                         >
                             <option value="todas">Todas las entidades</option>
                             <option value="Asiento">Asiento</option>
@@ -669,17 +845,15 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                             <option value="Cuenta">Cuenta (Catálogo)</option>
                             <option value="Reporte">Reporte</option>
                             <option value="Configuracion">Configuración</option>
-                            <option value="Cliente">Cliente</option>
-                            <option value="Proveedor">Proveedor</option>
                         </select>
                     </label>
 
-                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <label style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "5px", color: "#065f46", fontWeight: "600" }}>
                         Resultado
                         <select
                             value={filtroResultado}
                             onChange={e => { setFiltroResultado(e.target.value); setPagina(1); }}
-                            className="input-field"
+                            className="select-auditoria"
                         >
                             <option value="todos">Todos los resultados</option>
                             <option value="exitoso">Exitoso</option>
@@ -696,14 +870,14 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                             placeholder="Buscar en descripción, usuario o ID..."
                             value={busqueda}
                             onChange={e => setBusqueda(e.target.value)}
-                            className="input-field"
-                            style={{ width: "100%" }}
+                            className="input-auditoria"
                         />
                     </div>
 
-                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", cursor: "pointer", userSelect: "none" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", cursor: "pointer", userSelect: "none", color: "#065f46", fontWeight: "500" }}>
                         <input
                             type="checkbox"
+                            className="checkbox-auditoria"
                             checked={incluirMisAcciones}
                             onChange={e => { setIncluirMisAcciones(e.target.checked); setPagina(1); }}
                         />
@@ -711,8 +885,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                     </label>
 
                     <button
-                        className="button-secondary"
-                        style={{ fontSize: "13px", padding: "6px 14px" }}
+                        className="btn-limpiar"
                         onClick={limpiarFiltros}
                     >
                         Limpiar filtros
@@ -724,64 +897,64 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
             {error && <p className="message-error" style={{ marginBottom: "16px" }}>{error}</p>}
 
             {/* Tabla Principal de Auditoría */}
-            <div className="table-shell" style={{ overflowX: "auto" }}>
+            <div className="table-shell" style={{ overflowX: "auto", border: "1.5px solid #d1fae5", borderRadius: "10px" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                     <thead>
-                        <tr style={{ background: "var(--table-header-bg, #f9fafb)", borderBottom: "1px solid var(--border-color, #e5e7eb)" }}>
+                        <tr style={{ background: "#f0fdf4", borderBottom: "1.5px solid #a7f3d0" }}>
                             <th
                                 onClick={() => alternarOrden("fecha_hora")}
-                                style={{ cursor: "pointer", padding: "10px 12px", textAlign: "left", whiteSpace: "nowrap" }}
+                                style={{ cursor: "pointer", padding: "11px 12px", textAlign: "left", whiteSpace: "nowrap", color: "#065f46" }}
                             >
                                 Fecha / Hora {ordenCampo === "fecha_hora" && (ordenDir === "asc" ? "▲" : "▼")}
                             </th>
                             <th
                                 onClick={() => alternarOrden("usuario_nombre")}
-                                style={{ cursor: "pointer", padding: "10px 12px", textAlign: "left", whiteSpace: "nowrap" }}
+                                style={{ cursor: "pointer", padding: "11px 12px", textAlign: "left", whiteSpace: "nowrap", color: "#065f46" }}
                             >
                                 Usuario {ordenCampo === "usuario_nombre" && (ordenDir === "asc" ? "▲" : "▼")}
                             </th>
                             <th
                                 onClick={() => alternarOrden("tipo_accion")}
-                                style={{ cursor: "pointer", padding: "10px 12px", textAlign: "center", whiteSpace: "nowrap" }}
+                                style={{ cursor: "pointer", padding: "11px 12px", textAlign: "center", whiteSpace: "nowrap", color: "#065f46" }}
                             >
                                 Acción {ordenCampo === "tipo_accion" && (ordenDir === "asc" ? "▲" : "▼")}
                             </th>
                             <th
                                 onClick={() => alternarOrden("entidad_afectada")}
-                                style={{ cursor: "pointer", padding: "10px 12px", textAlign: "left", whiteSpace: "nowrap" }}
+                                style={{ cursor: "pointer", padding: "11px 12px", textAlign: "left", whiteSpace: "nowrap", color: "#065f46" }}
                             >
                                 Entidad {ordenCampo === "entidad_afectada" && (ordenDir === "asc" ? "▲" : "▼")}
                             </th>
-                            <th style={{ padding: "10px 12px", textAlign: "left" }}>ID</th>
-                            <th style={{ padding: "10px 12px", textAlign: "left" }}>Descripción</th>
-                            <th style={{ padding: "10px 12px", textAlign: "center", whiteSpace: "nowrap" }}>Resultado</th>
-                            <th style={{ padding: "10px 12px", textAlign: "center" }}>Detalles</th>
+                            <th style={{ padding: "11px 12px", textAlign: "left", color: "#065f46" }}>ID</th>
+                            <th style={{ padding: "11px 12px", textAlign: "left", color: "#065f46" }}>Descripción</th>
+                            <th style={{ padding: "11px 12px", textAlign: "center", whiteSpace: "nowrap", color: "#065f46" }}>Resultado</th>
+                            <th style={{ padding: "11px 12px", textAlign: "center", color: "#065f46" }}>Detalles</th>
                         </tr>
                     </thead>
                     <tbody>
                         {cargando ? (
                             <tr>
-                                <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "var(--text-muted, #6b7280)" }}>
+                                <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "#047857" }}>
                                     Cargando registros de auditoría...
                                 </td>
                             </tr>
                         ) : logs.length === 0 ? (
                             <tr>
-                                <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "var(--text-muted, #6b7280)" }}>
+                                <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "#065f46" }}>
                                     No se encontraron eventos de auditoría con los filtros aplicados.
                                 </td>
                             </tr>
                         ) : (
                             logs.map(log => {
-                                const cfgAccion = CONFIG_ACCIONES[log.tipo_accion] || CONFIG_ACCIONES.ver;
+                                const cfgAccion = CONFIG_ACCIONES[log.tipo_accion] || CONFIG_ACCIONES.crear;
                                 const cfgResultado = CONFIG_RESULTADOS[log.resultado] || CONFIG_RESULTADOS.exitoso;
 
                                 return (
                                     <tr
                                         key={log.id}
-                                        style={{ borderBottom: "1px solid var(--border-color, #e5e7eb)" }}
+                                        style={{ borderBottom: "1px solid #e5e7eb" }}
                                     >
-                                        <td style={{ padding: "10px 12px", whiteSpace: "nowrap", color: "var(--text-muted, #6b7280)" }}>
+                                        <td style={{ padding: "10px 12px", whiteSpace: "nowrap", color: "#374151" }}>
                                             {log.fecha_hora ? new Date(log.fecha_hora).toLocaleString("es-ES", {
                                                 year: "numeric",
                                                 month: "2-digit",
@@ -791,7 +964,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                                 second: "2-digit"
                                             }) : "-"}
                                         </td>
-                                        <td style={{ padding: "10px 12px", fontWeight: "500" }}>
+                                        <td style={{ padding: "10px 12px", fontWeight: "600", color: "#1f2937" }}>
                                             {log.usuario_nombre}
                                         </td>
                                         <td style={{ padding: "10px 12px", textAlign: "center" }}>
@@ -800,13 +973,13 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                                     display: "inline-flex",
                                                     alignItems: "center",
                                                     gap: "5px",
-                                                    padding: "3px 8px",
+                                                    padding: "3px 9px",
                                                     borderRadius: "12px",
                                                     fontSize: "12px",
                                                     fontWeight: "600",
                                                     color: cfgAccion.colorTexto,
                                                     background: cfgAccion.colorFondo,
-                                                    border: `1px solid ${cfgAccion.colorBorde}`
+                                                    border: `1.5px solid ${cfgAccion.colorBorde}`
                                                 }}
                                             >
                                                 <IconoAccion tipo={log.tipo_accion} size={14} />
@@ -816,32 +989,34 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                         <td style={{ padding: "10px 12px" }}>
                                             <span
                                                 style={{
-                                                    padding: "2px 8px",
-                                                    borderRadius: "4px",
+                                                    padding: "3px 8px",
+                                                    borderRadius: "5px",
                                                     fontSize: "11px",
                                                     fontWeight: "600",
-                                                    background: "var(--badge-bg, rgba(156, 163, 175, 0.15))",
-                                                    color: "var(--text-main, #374151)"
+                                                    background: "#ecfdf5",
+                                                    border: "1px solid #a7f3d0",
+                                                    color: "#065f46"
                                                 }}
                                             >
                                                 {log.entidad_afectada}
                                             </span>
                                         </td>
-                                        <td style={{ padding: "10px 12px", fontFamily: "monospace", color: "var(--text-muted, #6b7280)" }}>
+                                        <td style={{ padding: "10px 12px", fontFamily: "monospace", color: "#4b5563" }}>
                                             {log.entidad_id || "-"}
                                         </td>
-                                        <td style={{ padding: "10px 12px", maxWidth: "320px", wordBreak: "break-word" }}>
+                                        <td style={{ padding: "10px 12px", maxWidth: "320px", wordBreak: "break-word", color: "#1f2937" }}>
                                             {log.descripcion}
                                         </td>
                                         <td style={{ padding: "10px 12px", textAlign: "center" }}>
                                             <span
                                                 style={{
-                                                    padding: "3px 8px",
+                                                    padding: "3px 9px",
                                                     borderRadius: "12px",
                                                     fontSize: "11px",
                                                     fontWeight: "600",
                                                     color: cfgResultado.colorTexto,
-                                                    background: cfgResultado.colorFondo
+                                                    background: cfgResultado.colorFondo,
+                                                    border: "1px solid #a7f3d0"
                                                 }}
                                             >
                                                 {cfgResultado.etiqueta}
@@ -849,8 +1024,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                         </td>
                                         <td style={{ padding: "10px 12px", textAlign: "center" }}>
                                             <button
-                                                className="button-secondary"
-                                                style={{ padding: "4px 8px", fontSize: "12px" }}
+                                                className="btn-detalles"
                                                 onClick={() => setLogSeleccionado(log)}
                                                 title="Ver detalle completo y diferencias de datos"
                                             >
@@ -876,25 +1050,23 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                     gap: "10px"
                 }}
             >
-                <span style={{ fontSize: "13px", color: "var(--text-muted, #6b7280)" }}>
+                <span style={{ fontSize: "13px", color: "#065f46", fontWeight: "500" }}>
                     Mostrando {logs.length > 0 ? (pagina - 1) * 50 + 1 : 0} - {Math.min(pagina * 50, totalRegistros)} de {totalRegistros} eventos
                 </span>
 
                 <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                     <button
-                        className="button-secondary"
-                        style={{ padding: "4px 10px", fontSize: "12px" }}
+                        className="btn-paginacion"
                         disabled={pagina <= 1 || cargando}
                         onClick={() => setPagina(p => Math.max(1, p - 1))}
                     >
                         ◀ Anterior
                     </button>
-                    <span style={{ fontSize: "13px", padding: "0 8px" }}>
+                    <span style={{ fontSize: "13px", padding: "0 8px", color: "#065f46" }}>
                         Página <strong>{pagina}</strong> de <strong>{totalPaginas}</strong>
                     </span>
                     <button
-                        className="button-secondary"
-                        style={{ padding: "4px 10px", fontSize: "12px" }}
+                        className="btn-paginacion"
                         disabled={pagina >= totalPaginas || cargando}
                         onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
                     >
@@ -1015,21 +1187,21 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         )}
 
                         {/* Pestañas de Vista de Datos */}
-                        <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid var(--border-color, #e5e7eb)", marginBottom: "14px" }}>
+                        <div style={{ display: "flex", gap: "8px", borderBottom: "1.5px solid #d1fae5", marginBottom: "14px", paddingBottom: "4px" }}>
                             <button
-                                className={`button-chip ${tabModal === "comparacion" ? "is-active" : ""}`}
+                                className={`chip-rango ${tabModal === "comparacion" ? "is-active" : ""}`}
                                 onClick={() => setTabModal("comparacion")}
                             >
                                 Comparación / Diferencias ({diferencias.length})
                             </button>
                             <button
-                                className={`button-chip ${tabModal === "anteriores" ? "is-active" : ""}`}
+                                className={`chip-rango ${tabModal === "anteriores" ? "is-active" : ""}`}
                                 onClick={() => setTabModal("anteriores")}
                             >
                                 Datos Anteriores
                             </button>
                             <button
-                                className={`button-chip ${tabModal === "nuevos" ? "is-active" : ""}`}
+                                className={`chip-rango ${tabModal === "nuevos" ? "is-active" : ""}`}
                                 onClick={() => setTabModal("nuevos")}
                             >
                                 Datos Nuevos
@@ -1040,8 +1212,8 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         {tabModal === "comparacion" && (
                             <div>
                                 {diferencias.length === 0 ? (
-                                    <p style={{ color: "var(--text-muted, #6b7280)", fontSize: "13px", textAlign: "center", padding: "20px" }}>
-                                        No se detectaron diferencias clave o es un registro de creación/visualización pura.
+                                    <p style={{ color: "#065f46", fontSize: "13px", textAlign: "center", padding: "20px" }}>
+                                        No se detectaron diferencias clave o es un registro de creación pura.
                                     </p>
                                 ) : (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1050,28 +1222,28 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                                 key={diff.campo}
                                                 style={{
                                                     padding: "10px",
-                                                    borderRadius: "6px",
-                                                    background: "var(--bg-secondary, #f9fafb)",
-                                                    border: "1px solid var(--border-color, #e5e7eb)",
+                                                    borderRadius: "8px",
+                                                    background: "#f0fdf4",
+                                                    border: "1.5px solid #a7f3d0",
                                                     fontSize: "12px"
                                                 }}
                                             >
                                                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                                                    <strong style={{ color: "#2563eb" }}>Campo: {diff.campo}</strong>
-                                                    <span style={{ fontSize: "11px", color: diff.modificado ? "#f59e0b" : diff.creado ? "#10b981" : "#ef4444" }}>
+                                                    <strong style={{ color: "#065f46" }}>Campo: {diff.campo}</strong>
+                                                    <span style={{ fontSize: "11px", fontWeight: "600", color: diff.modificado ? "#047857" : diff.creado ? "#059669" : "#14532d" }}>
                                                         {diff.modificado ? "Modificado" : diff.creado ? "Creado" : "Eliminado"}
                                                     </span>
                                                 </div>
                                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                                                    <div style={{ background: "rgba(239, 68, 68, 0.08)", padding: "8px", borderRadius: "4px", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
-                                                        <span style={{ fontSize: "11px", color: "#dc2626", display: "block" }}>Antes:</span>
-                                                        <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                                                    <div style={{ background: "rgba(20, 83, 45, 0.06)", padding: "8px", borderRadius: "6px", border: "1px solid rgba(20, 83, 45, 0.2)" }}>
+                                                        <span style={{ fontSize: "11px", color: "#14532d", fontWeight: "600", display: "block", marginBottom: "3px" }}>Antes:</span>
+                                                        <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#1f2937" }}>
                                                             {JSON.stringify(diff.antes, null, 2)}
                                                         </pre>
                                                     </div>
-                                                    <div style={{ background: "rgba(16, 185, 129, 0.08)", padding: "8px", borderRadius: "4px", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
-                                                        <span style={{ fontSize: "11px", color: "#059669", display: "block" }}>Después:</span>
-                                                        <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                                                    <div style={{ background: "rgba(16, 185, 129, 0.1)", padding: "8px", borderRadius: "6px", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
+                                                        <span style={{ fontSize: "11px", color: "#047857", fontWeight: "600", display: "block", marginBottom: "3px" }}>Después:</span>
+                                                        <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#064e3b" }}>
                                                             {JSON.stringify(diff.despues, null, 2)}
                                                         </pre>
                                                     </div>
@@ -1084,8 +1256,8 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         )}
 
                         {tabModal === "anteriores" && (
-                            <div style={{ background: "var(--bg-secondary, #f9fafb)", padding: "12px", borderRadius: "6px" }}>
-                                <pre style={{ margin: 0, fontSize: "12px", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                            <div style={{ background: "#f0fdf4", border: "1.5px solid #a7f3d0", padding: "12px", borderRadius: "8px" }}>
+                                <pre style={{ margin: 0, fontSize: "12px", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#1f2937" }}>
                                     {logSeleccionado.datos_anteriores
                                         ? JSON.stringify(logSeleccionado.datos_anteriores, null, 2)
                                         : "No aplican datos anteriores para esta acción."}
@@ -1094,8 +1266,8 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         )}
 
                         {tabModal === "nuevos" && (
-                            <div style={{ background: "var(--bg-secondary, #f9fafb)", padding: "12px", borderRadius: "6px" }}>
-                                <pre style={{ margin: 0, fontSize: "12px", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                            <div style={{ background: "#f0fdf4", border: "1.5px solid #a7f3d0", padding: "12px", borderRadius: "8px" }}>
+                                <pre style={{ margin: 0, fontSize: "12px", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#064e3b" }}>
                                     {logSeleccionado.datos_nuevos
                                         ? JSON.stringify(logSeleccionado.datos_nuevos, null, 2)
                                         : "No aplican datos nuevos para esta acción."}
@@ -1104,7 +1276,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         )}
 
                         <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
-                            <button className="button-primary" onClick={() => setLogSeleccionado(null)}>
+                            <button className="btn-exportar" onClick={() => setLogSeleccionado(null)}>
                                 Cerrar
                             </button>
                         </div>
@@ -1140,46 +1312,47 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                             width: "100%",
                             padding: "24px",
                             boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
-                            border: "1px solid var(--border-color, #e5e7eb)"
+                            border: "1.5px solid #a7f3d0"
                         }}
                         onClick={e => e.stopPropagation()}
                     >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                            <h2 style={{ fontSize: "18px", margin: 0 }}>Script SQL para Crear Logs_Auditoria en Supabase</h2>
+                            <h2 style={{ fontSize: "18px", margin: 0, color: "#064e3b" }}>Script SQL para Crear Logs_Auditoria en Supabase</h2>
                             <button
                                 onClick={() => setModalSqlAbierto(false)}
-                                style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer" }}
+                                style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#065f46" }}
                             >
                                 ✕
                             </button>
                         </div>
-                        <p style={{ fontSize: "13px", color: "var(--text-muted, #6b7280)", marginBottom: "12px" }}>
+                        <p style={{ fontSize: "13px", color: "#065f46", marginBottom: "12px" }}>
                             Copia y pega este script en el <strong>SQL Editor</strong> de tu panel de Supabase para que los registros se almacenen permanentemente en la base de datos PostgreSQL:
                         </p>
                         <div
                             style={{
-                                background: "#1e293b",
-                                color: "#f8fafc",
+                                background: "#06281e",
+                                color: "#ecfdf5",
                                 padding: "12px",
-                                borderRadius: "6px",
+                                borderRadius: "8px",
                                 maxHeight: "250px",
                                 overflowY: "auto",
                                 fontSize: "12px",
                                 fontFamily: "monospace",
-                                marginBottom: "16px"
+                                marginBottom: "16px",
+                                border: "1px solid #047857"
                             }}
                         >
                             <pre style={{ margin: 0 }}>{sqlScript}</pre>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <button
-                                className="button-primary"
+                                className="btn-exportar"
                                 onClick={copiarSql}
                                 style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                             >
                                 {copiadoSql ? "✓ ¡Copiado al portapapeles!" : "📋 Copiar Código SQL"}
                             </button>
-                            <button className="button-secondary" onClick={() => setModalSqlAbierto(false)}>
+                            <button className="btn-actualizar" onClick={() => setModalSqlAbierto(false)}>
                                 Cerrar
                             </button>
                         </div>

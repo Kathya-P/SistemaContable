@@ -304,7 +304,7 @@ export function TablaKardex({
                         <tfoot>
                             <tr className="kardex-totals-row-excel">
                                 <th colSpan={4} className="totales-label">
-                                    {filtroCuenta !== "TODAS"
+                                    {filtrosActivos.length > 0
                                         ? `TOTALES FILTRADOS (${filasFiltradas.length})`
                                         : "TOTALES ACUMULADOS"}
                                 </th>

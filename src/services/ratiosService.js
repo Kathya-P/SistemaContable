@@ -11,10 +11,10 @@ import { obtenerDatosKardex } from "./kardexService";
 export async function obtenerRatiosFinancieros({ desde, hasta, inventarioFinal = null }) {
     let inv = inventarioFinal;
 
-    // Si no se proporcionó inventario final, intentar consultar del Kardex dinámico
+    // Si no se proporcionó inventario final, intentar consultar del Kardex dinámico hasta la fecha de corte
     if (inv === null || inv === undefined || inv <= 0) {
         try {
-            const kardex = await obtenerDatosKardex({ fechaInicio: desde, fechaFin: hasta });
+            const kardex = await obtenerDatosKardex({ fechaFin: hasta || "" });
             const saldo = Number(kardex?.totales?.saldo_final ?? 0);
             if (saldo > 0) {
                 inv = saldo;

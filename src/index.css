@@ -2595,9 +2595,17 @@ select {
 
 .kardex-section {
   width: 100%;
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+.app-content:has(.kardex-section) {
+  width: calc(100% - 32px);
+  max-width: 100%;
+  padding-top: 28px;
+  padding-bottom: 48px;
 }
 
 .heading-actions {
@@ -2711,30 +2719,163 @@ select {
 
 .kardex-shell {
   width: 100%;
+  max-width: 100%;
   background: #FFFFFF;
   border: 1px solid #DDE3E0;
   border-radius: 8px;
   box-shadow: 0 4px 18px rgba(28, 35, 33, 0.04);
   margin-bottom: 24px;
-
-  /* Evita mostrar scrollbar horizontal */
-  scrollbar-width: none;
+  overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .kardex-shell::-webkit-scrollbar {
-  height: 0;
+  height: 5px;
+}
+
+.kardex-shell::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
 }
 
 .kardex-table-excel {
   width: 100%;
-  min-width: 1200px;
+  min-width: 0;
+  max-width: 100%;
+  table-layout: auto;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 13.5px;
+  font-size: 12px;
   background: #FFFFFF;
   border: 1px solid #D8E0DC;
   border-radius: 8px;
-  overflow: hidden;
+}
+
+/* ==========================================================================
+   FILTRO DE CUENTA
+   ========================================================================== */
+
+.kardex-cuenta-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: #F0FDF4;
+  border: 1px solid #A7F3D0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.kardex-cuenta-filter-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kardex-filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #065F46;
+  display: inline-flex;
+  align-items: center;
+}
+
+.kardex-pills-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.kardex-filter-pill {
+  background: #FFFFFF;
+  border: 1px solid #A7F3D0;
+  color: #065F46;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kardex-filter-pill:hover {
+  background: #ECFDF5;
+  border-color: #059669;
+  color: #064E3B;
+}
+
+.kardex-filter-pill.is-active {
+  background: #064E3B;
+  border-color: #064E3B;
+  color: #FFFFFF;
+  box-shadow: 0 1px 4px rgba(6, 78, 59, 0.2);
+}
+
+.kardex-cuenta-filter-active {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: #047857;
+}
+
+.btn-limpiar-filtro-cuenta {
+  background: #ECFDF5;
+  border: 1px solid #6EE7B7;
+  color: #065F46;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-limpiar-filtro-cuenta:hover {
+  background: #D1FAE5;
+  color: #064E3B;
+}
+
+.col-cuenta-filtro {
+  vertical-align: middle;
+}
+
+.cuenta-header-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.cuenta-header-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #3C5045;
+}
+
+.select-filtro-cuenta {
+  background: #FFFFFF;
+  border: 1.5px solid #059669;
+  border-radius: 5px;
+  color: #064E3B;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 4px;
+  cursor: pointer;
+  outline: none;
+  max-width: 125px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(6, 95, 70, 0.08);
+}
+
+.select-filtro-cuenta:hover,
+.select-filtro-cuenta:focus {
+  border-color: #047857;
+  background-color: #F0FDF4;
 }
 
 .brand,
@@ -2754,13 +2895,13 @@ select {
 .kardex-header-super th {
   background: #F0F3F1;
   color: #3C5045;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   text-align: center;
-  padding: 10px 12px;
+  padding: 6px 4px;
   border-bottom: 1px solid #D5DED9;
   border-right: 1px solid #E0E6E2;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 
@@ -2785,14 +2926,15 @@ select {
 .kardex-header-sub th {
   background: #F5F7F6;
   color: #56665E;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-align: center;
-  padding: 8px 10px;
+  padding: 5px 3px;
   border-bottom: 2px solid #AEBDB4;
   border-right: 1px solid #E1E6E3;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -2804,11 +2946,11 @@ select {
 }
 
 .kardex-data-row td {
-  padding: 9px 12px;
+  padding: 6px 4px;
   border-bottom: 1px solid #E4E9E6;
   border-right: 1px solid #F0F3F1;
   color: #33413A;
-  font-size: 13px;
+  font-size: 11.5px;
   vertical-align: middle;
 }
 
@@ -2823,6 +2965,8 @@ select {
 .cell-asiento {
   text-align: center;
   white-space: nowrap;
+  padding: 5px 3px;
+  width: 50px;
 }
 
 .cell-fecha {
@@ -2830,25 +2974,31 @@ select {
   white-space: nowrap;
   font-weight: 500;
   color: #5F6D66;
+  font-size: 11px;
+  padding: 5px 4px;
+  width: 80px;
 }
 
 .cell-cuenta {
   text-align: left;
   white-space: nowrap;
+  padding: 5px 4px;
+  width: 130px;
 }
 
 .cell-concepto {
   text-align: left;
-  max-width: 280px;
   color: #46564E;
+  padding: 5px 6px;
+  min-width: 120px;
 }
 
 .concepto-texto {
   display: block;
-  font-size: 12.5px;
-  line-height: 1.35;
-  color: #69766F;
-  word-break: break-word;
+  font-size: 11px;
+  line-height: 1.25;
+  color: #5F6D66;
+  word-break: normal;
 }
 
 .cell-num,
@@ -2856,7 +3006,9 @@ select {
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-family: var(--mono, monospace);
-  font-size: 13px;
+  font-size: 11px;
+  padding: 5px 4px;
+  white-space: nowrap;
 }
 
 .highlight-col {
@@ -2876,7 +3028,7 @@ select {
   border: 0;
   background: transparent;
   color: #526158;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0;
   white-space: nowrap;
@@ -2905,9 +3057,9 @@ select {
   color: #526158;
   background: #F3F5F4;
   border: 1px solid #D8E0DC;
-  padding: 2px 7px;
-  border-radius: 5px;
-  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2919,24 +3071,57 @@ select {
   background: #EEF2F0;
   color: #405448;
   font-weight: 700;
-  font-size: 12px;
-  padding: 12px;
+  font-size: 10.5px;
+  padding: 7px 4px;
   border-top: 2px solid #AEBDB4;
   border-right: 1px solid #DDE4E0;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
 }
 
 .kardex-totals-row-excel .totales-label {
   text-align: left;
   font-weight: 800;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
   color: #3B5044;
 }
 
 .kardex-totals-row-excel .highlight-cell {
   background: #E3EBE6;
   color: #40584A;
+}
+
+/* Estilos de modo oscuro para el filtro */
+.tema-oscuro .select-filtro-cuenta {
+  background: #18221E;
+  border-color: #059669;
+  color: #A7F3D0;
+}
+
+.tema-oscuro .kardex-cuenta-filter-bar {
+  background: #14261E;
+  border-color: #2D4C3A;
+}
+
+.tema-oscuro .kardex-filter-label {
+  color: #6EE7B7;
+}
+
+.tema-oscuro .kardex-filter-pill {
+  background: #1B2C24;
+  border-color: #2D4C3A;
+  color: #A7F3D0;
+}
+
+.tema-oscuro .kardex-filter-pill.is-active {
+  background: #059669;
+  border-color: #059669;
+  color: #FFFFFF;
+}
+
+.tema-oscuro .cuenta-header-title {
+  color: #CBD6D0;
 }
 
 /* ==========================================================================

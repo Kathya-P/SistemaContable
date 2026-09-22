@@ -45,14 +45,81 @@ export function calcularRatios({
     const utilidadNeta = Number(estadoResultados.utilidadAntesImpuestos || 0);
 
     // Magnitudes de saldo acumulado a la fecha fin (Balance General a 'hasta')
-    const activoCirculante = Number(balanceFin.activo?.corriente?.total || 0);
-    const activoTotal = Number(balanceFin.activo?.total || 0);
-    const pasivoCirculante = Number(balanceFin.pasivo?.corriente?.total || 0);
-    const pasivoTotal = Number(balanceFin.pasivo?.total || 0);
-    const patrimonioTotal = Number(balanceFin.capital?.total || 0);
+    let activoCirculante = Number(balanceFin?.activo?.corriente?.total || 0);
+    let activoTotal = Number(balanceFin?.activo?.total || 0);
+    let pasivoCirculante = Number(balanceFin?.pasivo?.corriente?.total || 0);
+    let pasivoTotal = Number(balanceFin?.pasivo?.total || 0);
+    let patrimonioTotal = Number(balanceFin?.capital?.total || 0);
+
+    // Salvaguarda robusta: si el balance general arrojó 0 o no calculó totales,
+    // se calculan directamente desde el libro mayor acumulado y la utilidad neta:
+    if (activoTotal <= 0 || pasivoTotal <= 0 || patrimonioTotal <= 0 || activoCirculante <= 0) {
+        const efectivo = saldoPrefijo(mayorAcumuladoFin, "1101", "debe");
+        const cxc = saldoPrefijo(mayorAcumuladoFin, "1102", "debe") + saldoPrefijo(mayorAcumuladoFin, "1104", "debe");
+        const invFinalCent = centavos(inventarioFinal > 0 ? inventarioFinal : (balanceFin?.inventario?.inventarioFinal || dolares(saldoPrefijo(mayorAcumuladoFin, "1103", "debe"))));
+        const ivaCredito = saldoPrefijo(mayorAcumuladoFin, "1105", "debe");
+        const ivaDebito = saldoPrefijo(mayorAcumuladoFin, "2102", "haber");
+        const ivaRemanente = Math.max(0, ivaCredito - ivaDebito);
+        const ivaPagar = Math.max(0, ivaDebito - ivaCredito);
+
+        let otrosActivosCorrientes = 0;
+        for (const f of mayorAcumuladoFin || []) {
+            const cod = String(f.codigo || "");
+            if (cod.startsWith("11") && !cod.startsWith("1101") && !cod.startsWith("1102") && !cod.startsWith("1103") && !cod.startsWith("1104") && !cod.startsWith("1105")) {
+                otrosActivosCorrientes += centavos(f.total_debe) - centavos(f.total_haber);
+            }
+        }
+        const calcActivoCirculante = dolares(efectivo + cxc + invFinalCent + ivaRemanente + otrosActivosCorrientes);
+
+        const ppe = saldoPrefijo(mayorAcumuladoFin, "1201", "debe");
+        const depAcum = saldoPrefijo(mayorAcumuladoFin, "1202", "haber");
+        let otrosActivosNoCorrientes = 0;
+        for (const f of mayorAcumuladoFin || []) {
+            const cod = String(f.codigo || "");
+            if ((cod.startsWith("12") || cod.startsWith("13")) && !cod.startsWith("1201") && !cod.startsWith("1202")) {
+                otrosActivosNoCorrientes += centavos(f.total_debe) - centavos(f.total_haber);
+            }
+        }
+        const calcActivoNoCorriente = dolares((ppe - depAcum) + otrosActivosNoCorrientes);
+        const calcActivoTotal = calcActivoCirculante + calcActivoNoCorriente;
+
+        const proveedores = saldoPrefijo(mayorAcumuladoFin, "2101", "haber");
+        const prestamosCorto = saldoPrefijo(mayorAcumuladoFin, "2103", "haber");
+        const otrosImpuestos = saldoPrefijo(mayorAcumuladoFin, "2104", "haber");
+        let otrosPasivosCorrientes = 0;
+        for (const f of mayorAcumuladoFin || []) {
+            const cod = String(f.codigo || "");
+            if (cod.startsWith("21") && !cod.startsWith("2101") && !cod.startsWith("2102") && !cod.startsWith("2103") && !cod.startsWith("2104")) {
+                otrosPasivosCorrientes += centavos(f.total_haber) - centavos(f.total_debe);
+            }
+        }
+        const calcPasivoCirculante = dolares(proveedores + prestamosCorto + otrosImpuestos + ivaPagar + otrosPasivosCorrientes);
+
+        const prestamosLargo = saldoPrefijo(mayorAcumuladoFin, "2201", "haber");
+        let otrosPasivosNoCorrientes = 0;
+        for (const f of mayorAcumuladoFin || []) {
+            const cod = String(f.codigo || "");
+            if ((cod.startsWith("22") || cod.startsWith("23")) && !cod.startsWith("2201")) {
+                otrosPasivosNoCorrientes += centavos(f.total_haber) - centavos(f.total_debe);
+            }
+        }
+        const calcPasivoNoCorriente = dolares(prestamosLargo + otrosPasivosNoCorrientes);
+        const calcPasivoTotal = calcPasivoCirculante + calcPasivoNoCorriente;
+
+        const capitalSocial = saldoPrefijo(mayorAcumuladoFin, "3101", "haber") || saldoPrefijo(mayorAcumuladoFin, "31", "haber");
+        const reservaLegal = saldoPrefijo(mayorAcumuladoFin, "3102", "haber");
+        const utilidadesRetenidas = saldoPrefijo(mayorAcumuladoFin, "3104", "haber");
+        const calcPatrimonioTotal = dolares(capitalSocial + reservaLegal + utilidadesRetenidas + centavos(utilidadNeta));
+
+        if (activoCirculante <= 0 && calcActivoCirculante > 0) activoCirculante = calcActivoCirculante;
+        if (activoTotal <= 0 && calcActivoTotal > 0) activoTotal = calcActivoTotal;
+        if (pasivoCirculante <= 0 && calcPasivoCirculante > 0) pasivoCirculante = calcPasivoCirculante;
+        if (pasivoTotal <= 0 && calcPasivoTotal > 0) pasivoTotal = calcPasivoTotal;
+        if (patrimonioTotal <= 0 && calcPatrimonioTotal > 0) patrimonioTotal = calcPatrimonioTotal;
+    }
 
     // Saldos finales de cuentas clave
-    const invFinalVal = Number(inventarioFinal || balanceFin.inventario?.inventarioFinal || dolares(saldoPrefijo(mayorAcumuladoFin, "1103", "debe")) || 0);
+    const invFinalVal = Number(inventarioFinal > 0 ? inventarioFinal : (balanceFin?.inventario?.inventarioFinal || dolares(saldoPrefijo(mayorAcumuladoFin, "1103", "debe")) || 0));
     // Cuenta 1102: Cuentas por cobrar (110201 Clientes)
     const cxcFinal = dolares(saldoPrefijo(mayorAcumuladoFin, "1102", "debe"));
     // Cuenta 2101: Cuentas por pagar (210101 Proveedores)
@@ -66,11 +133,13 @@ export function calcularRatios({
     const cxpInicial = dolares(saldoPrefijo(mayorAcumuladoInicio, "2101", "haber"));
 
     // Promedios contables del período: (saldo inicial + saldo final) / 2
+    // Inventario Promedio: ej. ($6,000.00 inicial + $6,486.73 final) / 2 = $6,243.37
     const inventarioPromedio = (invInicialVal > 0 || invFinalVal > 0)
         ? (invInicialVal + invFinalVal) / 2
         : 1;
 
-    // CxC Promedio: (saldo inicial + saldo final) / 2
+    // CxC Promedio: ej. ($0 inicial + $5,900.00 final) / 2 = $2,950.00
+    // Siempre que se disponga de saldo de balance, se promedia entre 2
     const cxcPromedio = (cxcFinal > 0 || cxcInicial > 0)
         ? (cxcInicial + cxcFinal) / 2
         : (cxcFinal || 1);
@@ -83,34 +152,44 @@ export function calcularRatios({
     // ==========================================
     // 1. LIQUIDEZ (fuente: Balance General)
     // ==========================================
+
+    // Razón corriente = Activo circulante / Pasivo circulante
     const razonCorriente = pasivoCirculante > 0 ? activoCirculante / pasivoCirculante : (activoCirculante > 0 ? 999 : 0);
     const estadoRazonCorriente = razonCorriente >= 1.5 ? "saludable" : (razonCorriente >= 1.0 ? "alerta" : "critico");
 
+    // Prueba ácida = (Activo circulante - Inventario) / Pasivo circulante
     const pruebaAcida = pasivoCirculante > 0 ? (activoCirculante - invFinalVal) / pasivoCirculante : (activoCirculante - invFinalVal > 0 ? 999 : 0);
     const estadoPruebaAcida = pruebaAcida >= 1.0 ? "saludable" : (pruebaAcida >= 0.8 ? "alerta" : "critico");
 
+    // Capital de trabajo neto = Activo circulante - Pasivo circulante (en monto $)
     const capitalTrabajoNeto = activoCirculante - pasivoCirculante;
     const estadoCapitalTrabajo = capitalTrabajoNeto > 0 ? "saludable" : "critico";
 
     // ==========================================
     // 2. RENTABILIDAD (fuente: Estado de Resultados + Balance General)
     // ==========================================
+
+    // Margen bruto = (Ventas - Costo de ventas) / Ventas * 100
     const margenBruto = ventas > 0 ? ((ventas - costoVentas) / ventas) * 100 : 0;
     const estadoMargenBruto = margenBruto >= 25 ? "saludable" : (margenBruto >= 15 ? "alerta" : "critico");
 
+    // Margen operativo = Utilidad operativa / Ventas * 100
     const margenOperativo = ventas > 0 ? (utilidadOperativa / ventas) * 100 : 0;
     const estadoMargenOperativo = margenOperativo >= 15 ? "saludable" : (margenOperativo >= 5 ? "alerta" : "critico");
 
+    // Margen neto = Utilidad neta / Ventas * 100
     const margenNeto = ventas > 0 ? (utilidadNeta / ventas) * 100 : 0;
     const estadoMargenNeto = margenNeto >= 10 ? "saludable" : (margenNeto >= 3 ? "alerta" : "critico");
 
+    // ROA = Utilidad neta / Activo total * 100
     const roa = activoTotal > 0 ? (utilidadNeta / activoTotal) * 100 : 0;
     const estadoRoa = roa >= 5 ? "saludable" : (roa >= 2 ? "alerta" : "critico");
 
+    // ROE = Utilidad neta / Patrimonio total * 100
     const roe = patrimonioTotal > 0 ? (utilidadNeta / patrimonioTotal) * 100 : 0;
     const estadoRoe = roe >= 12 ? "saludable" : (roe >= 6 ? "alerta" : "critico");
 
-    // DuPont
+    // DuPont (desglose de ROE) = Margen neto (decimal) * Rotación de activos * Multiplicador apalancamiento
     const dupontMargenNeto = ventas > 0 ? (utilidadNeta / ventas) : 0;
     const dupontRotacionActivos = activoTotal > 0 ? (ventas / activoTotal) : 0;
     const dupontMultiplicadorApalancamiento = patrimonioTotal > 0 ? (activoTotal / patrimonioTotal) : 1;
@@ -119,12 +198,16 @@ export function calcularRatios({
     // ==========================================
     // 3. SOLVENCIA (fuente: Balance General + Estado de Resultados)
     // ==========================================
+
+    // Razón de deuda total = Pasivo total / Activo total
     const razonDeudaTotal = activoTotal > 0 ? pasivoTotal / activoTotal : 0;
     const estadoDeudaTotal = razonDeudaTotal <= 0.50 ? "saludable" : (razonDeudaTotal <= 0.70 ? "alerta" : "critico");
 
+    // Deuda / patrimonio = Pasivo total / Patrimonio total
     const deudaPatrimonio = patrimonioTotal > 0 ? pasivoTotal / patrimonioTotal : 0;
     const estadoDeudaPatrimonio = deudaPatrimonio <= 1.0 ? "saludable" : (deudaPatrimonio <= 1.5 ? "alerta" : "critico");
 
+    // Cobertura de intereses = Utilidad operativa / Gastos financieros
     const tieneCuentaGastosFinancieros = gastosFinancieros > 0;
     const coberturaIntereses = tieneCuentaGastosFinancieros ? (utilidadOperativa / gastosFinancieros) : null;
     const estadoCoberturaIntereses = coberturaIntereses === null ? "neutro" : (coberturaIntereses >= 3.0 ? "saludable" : (coberturaIntereses >= 1.5 ? "alerta" : "critico"));
@@ -132,39 +215,69 @@ export function calcularRatios({
     // ==========================================
     // 4. EFICIENCIA (fuente: Kardex + Balance General + Estado de Resultados)
     // ==========================================
+
+    // Rotación de inventario = Costo de ventas / Inventario promedio
     const rotacionInventario = inventarioPromedio > 0 ? costoVentas / inventarioPromedio : 0;
     const estadoRotacionInventario = rotacionInventario >= 4.0 ? "saludable" : (rotacionInventario >= 2.0 ? "alerta" : "critico");
 
+    // Días de inventario = 365 / Rotación de inventario
     const diasInventario = rotacionInventario > 0 ? 365 / rotacionInventario : 0;
     const estadoDiasInventario = diasInventario <= 60 && diasInventario > 0 ? "saludable" : (diasInventario <= 120 ? "alerta" : "critico");
 
+    // Rotación de cuentas por cobrar = Ventas a crédito (o totales) / Cuentas por cobrar promedio
     const rotacionCuentasCobrar = cxcPromedio > 0 ? ventas / cxcPromedio : 0;
     const estadoRotacionCxc = rotacionCuentasCobrar >= 6.0 ? "saludable" : (rotacionCuentasCobrar >= 3.0 ? "alerta" : "critico");
 
+    // Período promedio de cobro = 365 / Rotación de cuentas por cobrar
     const periodoPromedioCobro = rotacionCuentasCobrar > 0 ? 365 / rotacionCuentasCobrar : 0;
     const estadoPeriodoCobro = periodoPromedioCobro <= 45 && periodoPromedioCobro > 0 ? "saludable" : (periodoPromedioCobro <= 90 ? "alerta" : "critico");
 
+    // Rotación de activos totales = Ventas / Activo total
     const rotacionActivosTotales = activoTotal > 0 ? ventas / activoTotal : 0;
     const estadoRotacionActivos = rotacionActivosTotales >= 1.2 ? "saludable" : (rotacionActivosTotales >= 0.7 ? "alerta" : "critico");
 
+    // Días de cuentas por pagar = 365 / (Compras o Costo / Cuentas por pagar promedio)
     const baseCompras = compras > 0 ? compras : costoVentas;
     const rotacionCuentasPagar = (cxpPromedio > 0 && baseCompras > 0) ? baseCompras / cxpPromedio : 0;
     const diasCuentasPagar = rotacionCuentasPagar > 0 ? 365 / rotacionCuentasPagar : 0;
 
+    // Ciclo de conversión de efectivo = Días de inventario + Período promedio de cobro - Días de cuentas por pagar
     const cicloConversionEfectivo = diasInventario + periodoPromedioCobro - diasCuentasPagar;
     const estadoCicloEfectivo = cicloConversionEfectivo <= 45 && cicloConversionEfectivo > 0 ? "saludable" : (cicloConversionEfectivo <= 90 ? "alerta" : "critico");
 
     return {
         rango: { desde, hasta },
         promediosInfo: {
-            inventario: { inicial: invInicialVal, final: invFinalVal, promedio: inventarioPromedio },
-            cuentasCobrar: { inicial: cxcInicial, final: cxcFinal, promedio: cxcPromedio },
-            cuentasPagar: { inicial: cxpInicial, final: cxpFinal, promedio: cxpPromedio }
+            inventario: {
+                inicial: invInicialVal,
+                final: invFinalVal,
+                promedio: inventarioPromedio
+            },
+            cuentasCobrar: {
+                inicial: cxcInicial,
+                final: cxcFinal,
+                promedio: cxcPromedio
+            },
+            cuentasPagar: {
+                inicial: cxpInicial,
+                final: cxpFinal,
+                promedio: cxpPromedio
+            }
         },
         valoresBase: {
-            ventas, compras, costoVentas, utilidadBruta, utilidadOperativa,
-            gastosFinancieros, utilidadNeta, activoCirculante, activoTotal,
-            pasivoCirculante, pasivoTotal, patrimonioTotal, inventarioFinal: invFinalVal
+            ventas,
+            compras,
+            costoVentas,
+            utilidadBruta,
+            utilidadOperativa,
+            gastosFinancieros,
+            utilidadNeta,
+            activoCirculante,
+            activoTotal,
+            pasivoCirculante,
+            pasivoTotal,
+            patrimonioTotal,
+            inventarioFinal: invFinalVal
         },
         secciones: {
             liquidez: {

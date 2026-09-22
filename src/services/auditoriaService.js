@@ -12,7 +12,7 @@ export async function obtenerLogsAuditoria({
     entidad_afectada = "todas",
     resultado = "todos",
     buscar = "",
-    incluir_mis_acciones = false,
+    incluir_mis_acciones = true,
     pagina = 1,
     limite = 50,
     orden_campo = "fecha_hora",

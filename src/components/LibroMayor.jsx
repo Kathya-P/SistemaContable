@@ -14,15 +14,20 @@ function moneda(valor){
     });
 }
 
-function LibroMayor(){
-    const [desde, setDesde] = useState(`${new Date().getFullYear()}-01-01`);
-    const [hasta, setHasta] = useState(hoy());
+function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
+    const [desde, setDesde] = useState(filtroDesde || `${new Date().getFullYear()}-01-01`);
+    const [hasta, setHasta] = useState(filtroHasta || hoy());
     const [cuentas, setCuentas] = useState([]);
     const [asientos, setAsientos] = useState([]);
     const [catalogo, setCatalogo] = useState([]);
     const [filaSeleccionada, setFilaSeleccionada] = useState(null);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (filtroDesde) setDesde(filtroDesde);
+        if (filtroHasta) setHasta(filtroHasta);
+    }, [filtroDesde, filtroHasta]);
 
     const cargarMayor = useCallback(async () => {
         setCargando(true);
@@ -168,15 +173,17 @@ function LibroMayor(){
                 </div>
             </div>
 
-            <div className="report-filters">
-                <label>Desde
-                    <input type="date" value={desde} onChange={evento => setDesde(evento.target.value)} />
-                </label>
-                <label>Hasta
-                    <input type="date" value={hasta} onChange={evento => setHasta(evento.target.value)} />
-                </label>
-                <button type="button" className="button-primary" onClick={cargarMayor}>Actualizar</button>
-            </div>
+            {!ocultarFiltros && (
+                <div className="report-filters">
+                    <label>Desde
+                        <input type="date" value={desde} onChange={evento => setDesde(evento.target.value)} />
+                    </label>
+                    <label>Hasta
+                        <input type="date" value={hasta} onChange={evento => setHasta(evento.target.value)} />
+                    </label>
+                    <button type="button" className="button-primary" onClick={cargarMayor}>Actualizar</button>
+                </div>
+            )}
 
             {cargando && <p>Cargando Libro Mayor...</p>}
             {error && <p className="message-error">{error}</p>}

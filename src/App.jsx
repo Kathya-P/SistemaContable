@@ -8,6 +8,7 @@ import KardexPage from "./components/KardexPage";
 import Estadoresultados from "./components/Estadoresultados"; 
 import BalanceGeneral from "./components/BalanceGeneral";
 import RatiosFinancieros from "./components/RatiosFinancieros";
+import TablaComparativa from "./components/TablaComparativa";
 import Login from "./components/Login";
 import NuevoAsiento from "./components/NuevoAsiento";
 import AuditoriaPage from "./components/AuditoriaPage";
@@ -36,7 +37,13 @@ const menuLateral = [
         id: "reportes", nombre: "Reportes", icono: "reportes",
         items: [
             { clave: "estadoResultados", nombre: "Estado de Resultados" },
-            { clave: "balanceGeneral", nombre: "Balance General" },
+            { clave: "balanceGeneral", nombre: "Balance General" }
+        ]
+    },
+    {
+        id: "herramientas", nombre: "Herramientas", icono: "herramientas",
+        items: [
+            { clave: "tablaComparativa", nombre: "Tabla Comparativa" },
             { clave: "ratiosFinancieros", nombre: "Ratios Financieros" }
         ]
     },
@@ -59,6 +66,7 @@ const permisoDeVista = {
     estadoResultados: "puede_ver_reportes",
     balanceGeneral: "puede_ver_reportes",
     ratiosFinancieros: "puede_ver_reportes",
+    tablaComparativa: "puede_ver_reportes",
     usuarios: "puede_gestionar_usuarios",
     auditoria: "puede_gestionar_usuarios"
 };
@@ -147,7 +155,7 @@ function App(){
     }, []);
 
     useEffect(() => {
-        if(!sesion){
+        if(!sesion || sesion.esDemo){
             return undefined;
         }
 
@@ -234,8 +242,9 @@ function App(){
     }
 
     async function cerrarSesion() {
+        localStorage.removeItem("conta_demo_user_id");
         if(supabase){
-            await supabase.auth.signOut();
+            try { await supabase.auth.signOut(); } catch {}
         }
         setUsuario(null);
         setSesion(null);
@@ -248,7 +257,22 @@ function App(){
     }
 
     if(supabaseConfigurado && !sesion){
-        return <Login />;
+        return (
+            <Login 
+                onAccesoRapido={(u) => {
+                    localStorage.setItem("conta_demo_user_id", String(u.id));
+                    setSesion({ esDemo: true, user: { id: `demo-${u.id}`, email: u.correo } });
+                    setUsuario(u);
+                    setPermisos({
+                        puede_ver_catalogo: true,
+                        puede_crear_asientos: true,
+                        puede_ver_reportes: true,
+                        puede_gestionar_usuarios: u.rol === "ADMIN"
+                    });
+                    setVista("balanceGeneral");
+                }} 
+            />
+        );
     }
 
     if(errorUsuario){
@@ -283,6 +307,7 @@ function App(){
         if(vista === "estadoResultados") return <Estadoresultados />;
         if(vista === "balanceGeneral") return <BalanceGeneral empresa={{ id: usuario.empresa_id }} />;
         if(vista === "ratiosFinancieros") return <RatiosFinancieros />;
+        if(vista === "tablaComparativa") return <TablaComparativa usuario={usuario} />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
         if(vista === "auditoria") return <AuditoriaPage usuario={usuario} />;
         return <Inicio cambiarVista={setVista} />;

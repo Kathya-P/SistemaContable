@@ -303,23 +303,23 @@ function Dashboard({ cambiarVista }) {
 					</div>
 
 					<div className="dashboard-tools">
-						<button type="button">
+						<button type="button" onClick={() => cambiarVista("kardex")}>
 							Kardex <span>→</span>
 						</button>
 
-						<button type="button">
+						<button type="button" onClick={() => cambiarVista("estadoResultados")}>
 							Estado de resultados <span>→</span>
 						</button>
 
-						<button type="button">
+						<button type="button" onClick={() => cambiarVista("ratiosFinancieros")}>
 							Ratios financieros <span>→</span>
 						</button>
 
-						<button type="button">
+						<button type="button" onClick={() => cambiarVista("balanceGeneral")}>
 							Balance General <span>→</span>
 						</button>
 
-						<button type="button">
+						<button type="button" onClick={() => cambiarVista("auditoria")}>
 							Trazabilidad y auditoría <span>→</span>
 						</button>
 					</div>

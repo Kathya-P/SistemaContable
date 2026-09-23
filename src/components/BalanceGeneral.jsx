@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
+import { exportarBalanceGeneralPDF } from "../services/exportationService";
+import ExportarPdfButton from "./ExportarPdfButton";
 
 // Iconos SVG integrados sin dependencias externas (compatibilidad total para Vercel y despliegues sin lucide-react)
 function Calendar({ size = 18, className = "", style = {} }) {
@@ -21,16 +23,6 @@ function RefreshCw({ size = 14, className = "", style = {} }) {
             <path d="M21 3v5h-5"/>
             <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
             <path d="M8 16H3v5"/>
-        </svg>
-    );
-}
-
-function Printer({ size = 15, className = "", style = {} }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
-            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-            <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/>
-            <rect width="12" height="8" x="6" y="14" rx="1"/>
         </svg>
     );
 }
@@ -266,6 +258,14 @@ export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta
     const capital = balance?.capital;
     const totalPasivoCapital = balance?.totalPasivoCapital ?? (Number(pasivo?.total || 0) + Number(capital?.total || 0));
 
+    function manejarExportacionPDF() {
+        exportarBalanceGeneralPDF({
+            balance,
+            desde: fechasAplicadas.desde,
+            hasta: fechasAplicadas.hasta
+        });
+    }
+
     // Determina si una cuenta debe mostrar sus subcuentas
     const debeMostrarSubcuentas = (codigo) => {
         if (nivel === 3) return true; // En nivel 3 siempre se muestran
@@ -396,26 +396,7 @@ export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta
 
                     {/* Acciones de impresión y vista */}
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <button
-                            type="button"
-                            onClick={() => window.print()}
-                            style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                padding: "6px 12px",
-                                borderRadius: "6px",
-                                border: "1px solid #cbd5e1",
-                                background: "#ffffff",
-                                color: "#334155",
-                                fontSize: "12.5px",
-                                fontWeight: 600,
-                                cursor: "pointer"
-                            }}
-                        >
-                            <Printer size={15} />
-                            Imprimir / PDF
-                        </button>
+                        <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Balance General" disabled={cargando || !balance} />
                     </div>
                 </div>
 

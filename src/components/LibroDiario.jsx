@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { obtenerLibroDiario } from "../services/libroDiarioService";
+import { exportarLibroDiarioPDF } from "../services/exportationService";
 import { supabaseConfigurado } from "../lib/supabase";
+import ExportarPdfButton from "./ExportarPdfButton";
 
 
 function moneda(valor){
@@ -89,6 +91,14 @@ function LibroDiario({ filtroDesde, filtroHasta } = {}){
     }, [asientosFiltrados]);
     const diarioCuadrado = Math.abs(sumatorias.debe - sumatorias.haber) < 0.005;
 
+    function manejarExportacionPDF() {
+        exportarLibroDiarioPDF({
+            asientos: asientosFiltrados,
+            desde: filtroDesde,
+            hasta: filtroHasta
+        });
+    }
+
     if(cargando){
         return <h2>Cargando libro diario...</h2>;
     }
@@ -104,6 +114,7 @@ function LibroDiario({ filtroDesde, filtroHasta } = {}){
                     <p className="eyebrow">Registro cronológico</p>
                     <h1>Libro Diario</h1>
                 </div>
+                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Libro Diario" disabled={!asientosFiltrados.length} />
                 <div className={diarioCuadrado ? "balance-status is-balanced" : "balance-status is-unbalanced"}>
                     {diarioCuadrado ? "Partida doble cuadrada" : "Revisar diferencias"}
                 </div>

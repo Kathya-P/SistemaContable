@@ -5,6 +5,9 @@ import KardexPage from "./KardexPage";
 import Estadoresultados from "./Estadoresultados";
 import BalanceGeneral from "./BalanceGeneral";
 import CatalogoCuentas from "./CatalogoCuentas";
+import { exportarTablaComparativaPDF } from "../services/exportationService";
+import { registrarAccionAuditoria } from "../services/auditoriaService";
+import ExportarPdfButton from "./ExportarPdfButton";
 
 // Opciones disponibles para comparar
 const OPCIONES_VISTAS = [
@@ -196,6 +199,21 @@ export default function TablaComparativa({ usuario }) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        registrarAccionAuditoria({
+            tipo_accion: "descargar",
+            entidad_afectada: "Reporte",
+            descripcion: `Descargó reporte de Tabla Comparativa en CSV (${infoIzq} vs ${infoDer})`
+        });
+    }
+
+    function handleExportarPDF() {
+        exportarTablaComparativaPDF({
+            vistaIzquierda: nombreVistaIzq,
+            vistaDerecha: nombreVistaDer,
+            rangoIzquierda: `${formatearFecha(filtrosAplicados.izq.desde)} al ${formatearFecha(filtrosAplicados.izq.hasta)}`,
+            rangoDerecha: `${formatearFecha(filtrosAplicados.der.desde)} al ${formatearFecha(filtrosAplicados.der.hasta)}`,
+            usuario: usuario?.email
+        });
     }
 
     // Helper para renderizar la vista seleccionada dentro de cada columna
@@ -288,18 +306,21 @@ export default function TablaComparativa({ usuario }) {
                 </div>
                 {/* Botón de exportación */}
                 {puedeComparar && (
-                    <button
-                        type="button"
-                        onClick={handleExportarCSV}
-                        className="button-secondary"
-                        style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-                        title="Exportar archivo CSV con los parámetros de la comparación"
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                        </svg>
-                        Exportar comparación
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <ExportarPdfButton onExport={handleExportarPDF} reporte="Tabla Comparativa" disabled={!puedeComparar} />
+                        <button
+                            type="button"
+                            onClick={handleExportarCSV}
+                            className="button-secondary"
+                            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                            title="Exportar archivo CSV con los parámetros de la comparación"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                            </svg>
+                            Exportar comparación
+                        </button>
+                    </div>
                 )}
             </div>
 

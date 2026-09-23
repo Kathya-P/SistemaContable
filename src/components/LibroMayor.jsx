@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { solicitarApi } from "../services/api";
 import { obtenerCuentas } from "../services/cuentasService";
+import { exportarLibroMayorPDF } from "../services/exportationService";
 import CuentaT from "./CuentaT";
+import ExportarPdfButton from "./ExportarPdfButton";
 
 function hoy(){
     return new Date().toISOString().slice(0, 10);
@@ -150,7 +152,9 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
                     numero_partida: asiento.numero_partida,
                     fecha: asiento.fecha,
                     debe: Number(detalle.debe || 0),
-                    haber: Number(detalle.haber || 0)
+                    haber: Number(detalle.haber || 0),
+                    cuenta_codigo: cuentaDetalle.codigo,
+                    cuenta_nombre: cuentaDetalle.nombre
                 });
             }
         }
@@ -164,6 +168,16 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
 
     const cuentaTSeleccionada = filaSeleccionada ? movimientosPorCuenta.get(String(filaSeleccionada)) : null;
 
+    function manejarExportacionPDF() {
+        exportarLibroMayorPDF({
+            filas: filasMostradas,
+            totalesComprobacion,
+            movimientosPorCuenta,
+            desde,
+            hasta
+        });
+    }
+
     return(
         <section className="view-section">
             <div className="section-heading">
@@ -171,6 +185,7 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
                     <p className="eyebrow">Mayorización automática</p>
                     <h1>Libro Mayor</h1>
                 </div>
+                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Libro Mayor" disabled={cargando || !!error || !filasMostradas.length} />
             </div>
 
             {!ocultarFiltros && (

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { obtenerCuentas } from "../services/cuentasService";
 import { obtenerLibroDiario } from "../services/libroDiarioService";
+import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
+import { obtenerDatosKardex } from "../services/kardexService";
+import { solicitarApi } from "../services/api";
 import { supabaseConfigurado } from "../lib/supabase";
 
 function moneda(valor) {
@@ -85,6 +88,8 @@ function calcularResumen(asientos, cuentas) {
 function Dashboard({ cambiarVista }) {
 	const [asientos, setAsientos] = useState([]);
 	const [cuentas, setCuentas] = useState([]);
+	const [balance, setBalance] = useState(null);
+	const [estadoResultados, setEstadoResultados] = useState(null);
 	const [cargando, setCargando] = useState(true);
 	const [error, setError] = useState("");
 
@@ -99,14 +104,27 @@ function Dashboard({ cambiarVista }) {
 			}
 
 			try {
-				const [asientosCargados, cuentasCargadas] =
+				const anioActual = new Date().getFullYear();
+				const desde = `${anioActual}-01-01`;
+				const hasta = `${anioActual}-12-31`;
+
+				const [asientosCargados, cuentasCargadas, balanceCargado, kardex] =
 					await Promise.all([
 						obtenerLibroDiario(),
-						obtenerCuentas()
+						obtenerCuentas(),
+						obtenerBalanceGeneral({ desde, hasta }),
+						obtenerDatosKardex({ fechaInicio: desde, fechaFin: hasta })
 					]);
+
+				const inventarioFinal = Number(kardex?.totales?.saldo_final || 0);
+				const estadoCargado = await solicitarApi(
+					`/estado-resultados?desde=${desde}&hasta=${hasta}&inventario_final=${inventarioFinal}`
+				);
 
 				setAsientos(asientosCargados);
 				setCuentas(cuentasCargadas);
+				setBalance(balanceCargado);
+				setEstadoResultados(estadoCargado?.estado || null);
 			} catch (errorCarga) {
 				console.error(
 					"Error cargando el dashboard:",
@@ -129,11 +147,16 @@ function Dashboard({ cambiarVista }) {
 		return calcularResumen(asientos, cuentas);
 	}, [asientos, cuentas]);
 
+	const activos = balance?.activo?.total ?? resumen.activos;
+	const pasivos = balance?.pasivo?.total ?? resumen.pasivos;
+	const ingresos = estadoResultados?.ventasNetas ?? resumen.ingresos;
+	const costos = estadoResultados?.costoVentas ?? resumen.gastos;
+
 	const movimientos = asientos.slice(-3).reverse();
 
 	const maxResultado = Math.max(
-		resumen.ingresos,
-		resumen.gastos,
+		ingresos,
+		costos,
 		1
 	);
 
@@ -178,28 +201,28 @@ function Dashboard({ cambiarVista }) {
 				<article className="dashboard-stat">
 					<span>Activos</span>
 					<strong>
-						$ {moneda(resumen.activos)}
+						$ {moneda(activos)}
 					</strong>
 				</article>
 
 				<article className="dashboard-stat">
 					<span>Pasivos</span>
 					<strong>
-						$ {moneda(resumen.pasivos)}
+						$ {moneda(pasivos)}
 					</strong>
 				</article>
 
 				<article className="dashboard-stat">
-					<span>Ingresos</span>
+					<span>Ingresos netos</span>
 					<strong>
-						$ {moneda(resumen.ingresos)}
+						$ {moneda(ingresos)}
 					</strong>
 				</article>
 
 				<article className="dashboard-stat">
-					<span>Gastos</span>
+					<span>Costo de ventas</span>
 					<strong>
-						$ {moneda(resumen.gastos)}
+						$ {moneda(costos)}
 					</strong>
 				</article>
 			</div>
@@ -212,7 +235,7 @@ function Dashboard({ cambiarVista }) {
 								Actividad financiera
 							</span>
 
-							<h2>Ingresos vs. gastos</h2>
+							<h2>Ingresos vs. costo de ventas</h2>
 						</div>
 
 						<span className="dashboard-period">
@@ -222,7 +245,7 @@ function Dashboard({ cambiarVista }) {
 
 					<div
 						className="dashboard-chart"
-						aria-label="Comparación entre ingresos y gastos"
+						aria-label="Comparación entre ingresos y costo de ventas"
 					>
 						<div className="chart-scale">
 							<span>
@@ -238,7 +261,7 @@ function Dashboard({ cambiarVista }) {
 									className="chart-bar chart-income"
 									style={{
 										height: `${Math.max(
-											(resumen.ingresos /
+												(ingresos /
 												maxResultado) *
 												100,
 											3
@@ -246,7 +269,7 @@ function Dashboard({ cambiarVista }) {
 									}}
 								></div>
 
-								<span>Ingresos</span>
+									<span>Ingresos netos</span>
 							</div>
 
 							<div className="chart-column">
@@ -254,7 +277,7 @@ function Dashboard({ cambiarVista }) {
 									className="chart-bar chart-expense"
 									style={{
 										height: `${Math.max(
-											(resumen.gastos /
+												(costos /
 												maxResultado) *
 												100,
 											3
@@ -262,7 +285,7 @@ function Dashboard({ cambiarVista }) {
 									}}
 								></div>
 
-								<span>Gastos</span>
+									<span>Costo de ventas</span>
 							</div>
 						</div>
 					</div>

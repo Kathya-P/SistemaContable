@@ -4,6 +4,8 @@ import { obtenerLibroDiario } from "../services/libroDiarioService";
 import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { solicitarApi } from "../services/api";
+import ExportarPdfButton from "./ExportarPdfButton";
+import { exportarDashboardPDF } from "../services/exportationService";
 import { supabaseConfigurado } from "../lib/supabase";
 
 function moneda(valor) {
@@ -160,6 +162,17 @@ function Dashboard({ cambiarVista }) {
 		1
 	);
 
+		function manejarExportacionPDF() {
+			exportarDashboardPDF({
+				activos,
+				pasivos,
+				ingresos,
+				costos,
+				movimientos,
+				periodo: `Año ${new Date().getFullYear()}`
+			});
+		}
+
 	if (cargando) {
 		return (
 			<section className="dashboard-page">
@@ -189,6 +202,7 @@ function Dashboard({ cambiarVista }) {
 				>
 					+ Nuevo asiento
 				</button>
+				<ExportarPdfButton onExport={manejarExportacionPDF} reporte="Dashboard ejecutivo" />
 			</div>
 
 			{error && (

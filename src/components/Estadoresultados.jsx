@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { solicitarApi } from "../services/api";
 import { obtenerDatosKardex } from "../services/kardexService";
+import { exportarEstadoResultadosPDF } from "../services/exportationService";
+import ExportarPdfButton from "./ExportarPdfButton";
 
 // como en la hoja: cero = "$ -" y negativos = "-$ 1,000.00"
 function moneda(valor) {
@@ -111,6 +113,15 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
         ? centavos(costoKardex) === centavos(listo.datos.estado.costoVentas)
         : null;
 
+    function manejarExportacionPDF() {
+        exportarEstadoResultadosPDF({
+            filas,
+            empresa: listo?.datos?.empresa,
+            desde: listo?.datos?.desde || desde,
+            hasta: listo?.datos?.hasta || hasta
+        });
+    }
+
     return(
         <section className="view-section er-section">
             <div className="section-heading">
@@ -118,6 +129,7 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
                     <p className="eyebrow">Estados financieros</p>
                     <h1>Estado de Resultados</h1>
                 </div>
+                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Estado de Resultados" disabled={!listo} />
             </div>
 
             {!ocultarFiltros && (

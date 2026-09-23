@@ -3,6 +3,8 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { FiltersPeriodo } from "./FiltersPeriodo";
 import { TablaKardex } from "./TablaKardex";
 import { formatearMoneda } from "../utils/kardexCalculos";
+import { exportarKardexPDF } from "../services/exportationService";
+import ExportarPdfButton from "./ExportarPdfButton";
 
 const anioActual = new Date().getFullYear();
 
@@ -49,6 +51,10 @@ export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros } = {}) {
         setFechaFin(`${anioActual}-12-31`);
     }
 
+    function manejarExportacionPDF() {
+        exportarKardexPDF({ filas, totales, desde: fechaInicio, hasta: fechaFin });
+    }
+
     return (
         <section className="view-section kardex-section">
             {/* Cabecera */}
@@ -57,6 +63,7 @@ export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros } = {}) {
                     <p className="eyebrow">Control de Inventarios · Valuación Ponderada</p>
                     <h1>Kardex de Inventario</h1>
                 </div>
+                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Kardex" disabled={cargando || !!error || !filas.length} />
             </div>
 
             {/* Tarjetas de Indicadores Clave */}

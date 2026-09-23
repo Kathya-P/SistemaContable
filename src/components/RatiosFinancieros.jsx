@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { obtenerRatiosFinancieros } from "../services/ratiosService";
 import { obtenerDatosKardex } from "../services/kardexService";
+import { exportarRatiosPDF } from "../services/exportationService";
+import ExportarPdfButton from "./ExportarPdfButton";
 
 // Helper para formatear fechas a YYYY-MM-DD
 function fechaIso(date) {
@@ -242,6 +244,15 @@ export function RatiosFinancieros() {
     const secciones = datosRatios?.secciones || {};
     const promedios = datosRatios?.promediosInfo || {};
 
+    function manejarExportacionPDF() {
+        exportarRatiosPDF({
+            secciones,
+            desde,
+            hasta,
+            opcionRapida
+        });
+    }
+
     return (
         <section className="bg-section ratios-container" style={{ maxWidth: "1280px", margin: "0 auto", padding: "24px 20px" }}>
             <style>{`
@@ -411,13 +422,7 @@ export function RatiosFinancieros() {
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                        <button
-                            type="button"
-                            onClick={() => window.print()}
-                            className="btn-ratios-accion"
-                        >
-                            <span>🖨️</span> Imprimir reporte
-                        </button>
+                        <ExportarPdfButton className="btn-ratios-accion" onExport={manejarExportacionPDF} reporte="Ratios Financieros" disabled={cargando || !datosRatios} />
 
                         <button
                             type="button"

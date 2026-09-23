@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { solicitarApi } from "../services/api";
+import { exportarUsuariosPDF } from "../services/exportationService";
+import ExportarPdfButton from "./ExportarPdfButton";
 
 const ROLES = ["ADMIN", "CONTADOR", "AUXILIAR"];
 const formularioVacio = { nombre: "", correo: "", correo2: "", password: "", rol: "CONTADOR" };
@@ -82,6 +84,10 @@ useEffect(() => {
         }
     }
 
+    function manejarExportacionPDF() {
+        exportarUsuariosPDF({ usuarios });
+    }
+
     return(
         <section className="view-section">
             <div className="section-heading">
@@ -89,6 +95,7 @@ useEffect(() => {
                     <p className="eyebrow">Administración</p>
                     <h1>Usuarios de la empresa</h1>
                 </div>
+                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Usuarios" disabled={!usuarios.length} />
             </div>
 
             <form onSubmit={crearUsuario} className="entry-form">

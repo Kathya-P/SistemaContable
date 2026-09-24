@@ -45,7 +45,8 @@ const supabase = new Proxy({}, {
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const ROLES_VALIDOS = ["ADMIN", "CONTADOR", "AUXILIAR"];
 
@@ -154,11 +155,12 @@ function exigirEmpresaDelUsuario(usuario, empresaId) {
     }
 }
 
-async function cargarCuentas(ids) {
+async function cargarCuentas(ids, empresaId) {
     const { data, error } = await supabase
         .from("cuentas")
         .select("id, codigo, nombre, nivel, cuenta_padre_id")
-        .in("id", ids);
+        .in("id", ids)
+        .eq("empresa_id", empresaId);
 
     if (error) {
         throw error;
@@ -178,21 +180,116 @@ apiRouter.get("/health", (_req, res) => {
     });
 });
 
+const TIPOS_VALIDOS_CATALOGO = ["ACTIVO", "PASIVO", "PATRIMONIO", "INGRESO", "GASTO", "ORDEN", "CONTINGENTE", "COSTO"];
+const NIVELES_VALIDOS_CATALOGO = ["GRUPO", "SUBGRUPO", "CUENTA", "SUBCUENTA"];
+const CATALOGO_PREDETERMINADO = [
+    { codigo: "1", nombre: "ACTIVO", tipo: "ACTIVO", nivel: "GRUPO", padre: null },
+    { codigo: "11", nombre: "ACTIVO CORRIENTE", tipo: "ACTIVO", nivel: "SUBGRUPO", padre: "1" },
+    { codigo: "1101", nombre: "Efectivo y equivalente", tipo: "ACTIVO", nivel: "CUENTA", padre: "11" },
+    { codigo: "110101", nombre: "Caja", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1101" },
+    { codigo: "110102", nombre: "Bancos", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1101" },
+    { codigo: "1102", nombre: "Cuentas por cobrar", tipo: "ACTIVO", nivel: "CUENTA", padre: "11" },
+    { codigo: "110201", nombre: "Clientes", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1102" },
+    { codigo: "1103", nombre: "Inventario de mercadería", tipo: "ACTIVO", nivel: "CUENTA", padre: "11" },
+    { codigo: "1104", nombre: "Pagos anticipados", tipo: "ACTIVO", nivel: "CUENTA", padre: "11" },
+    { codigo: "110401", nombre: "Papelería y útiles pagados anticipadamente", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1104" },
+    { codigo: "110402", nombre: "Alquileres pagados anticipadamente", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1104" },
+    { codigo: "1105", nombre: "IVA crédito fiscal", tipo: "ACTIVO", nivel: "CUENTA", padre: "11" },
+    { codigo: "12", nombre: "ACTIVO NO CORRIENTE", tipo: "ACTIVO", nivel: "SUBGRUPO", padre: "1" },
+    { codigo: "1201", nombre: "Propiedad, planta y equipo", tipo: "ACTIVO", nivel: "CUENTA", padre: "12" },
+    { codigo: "120101", nombre: "Mobiliario y equipo de oficina", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1201" },
+    { codigo: "120102", nombre: "Equipo de oficina", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1201" },
+    { codigo: "120103", nombre: "Equipo de cómputo", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1201" },
+    { codigo: "120104", nombre: "Equipo de transporte", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1201" },
+    { codigo: "120105", nombre: "Edificios", tipo: "ACTIVO", nivel: "SUBCUENTA", padre: "1201" },
+
+    { codigo: "2", nombre: "PASIVO", tipo: "PASIVO", nivel: "GRUPO", padre: null },
+    { codigo: "21", nombre: "PASIVO CORRIENTE", tipo: "PASIVO", nivel: "SUBGRUPO", padre: "2" },
+    { codigo: "2101", nombre: "Cuentas por pagar", tipo: "PASIVO", nivel: "CUENTA", padre: "21" },
+    { codigo: "210101", nombre: "Proveedores", tipo: "PASIVO", nivel: "SUBCUENTA", padre: "2101" },
+    { codigo: "210102", nombre: "Acreedores varios", tipo: "PASIVO", nivel: "SUBCUENTA", padre: "2101" },
+    { codigo: "2102", nombre: "IVA débito fiscal", tipo: "PASIVO", nivel: "CUENTA", padre: "21" },
+    { codigo: "2103", nombre: "Préstamos bancarios", tipo: "PASIVO", nivel: "CUENTA", padre: "21" },
+
+    { codigo: "3", nombre: "CAPITAL CONTABLE", tipo: "PATRIMONIO", nivel: "GRUPO", padre: null },
+    { codigo: "31", nombre: "CAPITAL", tipo: "PATRIMONIO", nivel: "SUBGRUPO", padre: "3" },
+    { codigo: "3101", nombre: "Capital social", tipo: "PATRIMONIO", nivel: "CUENTA", padre: "31" },
+
+    { codigo: "4", nombre: "COSTOS Y GASTOS", tipo: "GASTO", nivel: "GRUPO", padre: null },
+    { codigo: "41", nombre: "COSTOS", tipo: "GASTO", nivel: "SUBGRUPO", padre: "4" },
+    { codigo: "4101", nombre: "Compras", tipo: "GASTO", nivel: "CUENTA", padre: "41" },
+    { codigo: "4102", nombre: "Devolución sobre compras", tipo: "GASTO", nivel: "CUENTA", padre: "41" },
+    { codigo: "42", nombre: "GASTOS DE OPERACIÓN", tipo: "GASTO", nivel: "SUBGRUPO", padre: "4" },
+    { codigo: "4201", nombre: "Gastos administrativos", tipo: "GASTO", nivel: "CUENTA", padre: "42" },
+    { codigo: "420101", nombre: "Papelería y otros - administración", tipo: "GASTO", nivel: "SUBCUENTA", padre: "4201" },
+    { codigo: "4202", nombre: "Gastos de venta", tipo: "GASTO", nivel: "CUENTA", padre: "42" },
+    { codigo: "420201", nombre: "Papelería y otros - venta", tipo: "GASTO", nivel: "SUBCUENTA", padre: "4202" },
+    { codigo: "4203", nombre: "Gastos financieros", tipo: "GASTO", nivel: "CUENTA", padre: "42" },
+    { codigo: "420301", nombre: "Comisiones bancarias", tipo: "GASTO", nivel: "SUBCUENTA", padre: "4203" },
+
+    { codigo: "5", nombre: "INGRESOS", tipo: "INGRESO", nivel: "GRUPO", padre: null },
+    { codigo: "51", nombre: "INGRESOS OPERACIONALES", tipo: "INGRESO", nivel: "SUBGRUPO", padre: "5" },
+    { codigo: "5101", nombre: "Ventas", tipo: "INGRESO", nivel: "CUENTA", padre: "51" },
+    { codigo: "5102", nombre: "Devolución sobre ventas", tipo: "INGRESO", nivel: "CUENTA", padre: "51" }
+];
+function derivarNaturaleza(tipo) {
+    const t = String(tipo || "").toUpperCase();
+    if (t === "ACTIVO" || t === "GASTO" || t === "COSTO") return "DEUDORA";
+    if (t === "PASIVO" || t === "PATRIMONIO" || t === "INGRESO") return "ACREEDORA";
+    if (t === "ORDEN" || t === "CONTINGENTE") return "DEUDORA";
+    return "DEUDORA";
+}
+
 apiRouter.get("/cuentas", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_ver_catalogo");
 
-        const { data, error } = await supabase
+        const { data: cuentas, error } = await supabase
             .from("cuentas")
             .select("*")
+            .eq("empresa_id", usuario.empresa_id)
             .order("codigo");
 
         if (error) {
             throw error;
         }
 
-        return res.json(data || []);
+        // Obtener qué cuentas tienen movimientos registrados en detalle_asientos
+        let cuentasConMovimiento = new Set();
+        try {
+            const { data: movimientos } = await supabase
+                .from("detalle_asientos")
+                .select("cuenta_id");
+            if (movimientos) {
+                cuentasConMovimiento = new Set(movimientos.map(m => String(m.cuenta_id)));
+            }
+        } catch {}
+
+        const cuentasEnriquecidas = (cuentas || []).map(cuenta => ({
+            ...cuenta,
+            tiene_movimientos: cuentasConMovimiento.has(String(cuenta.id)),
+            naturaleza: derivarNaturaleza(cuenta.tipo)
+        }));
+
+        return res.json(cuentasEnriquecidas);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.get("/cuentas/movimientos", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_ver_catalogo");
+
+        const { data: movimientos, error } = await supabase
+            .from("detalle_asientos")
+            .select("cuenta_id");
+
+        if (error) throw error;
+        const ids = [...new Set((movimientos || []).map(m => String(m.cuenta_id)))];
+        return res.json(ids);
     } catch (error) {
         return responderError(res, error);
     }
@@ -203,22 +300,77 @@ apiRouter.post("/cuentas", async (req, res) => {
     try {
         exigirClaveDeEscritura();
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_crear_asientos"); // O permiso de administración de catálogo
+        await exigirPermiso(usuario, "puede_crear_asientos");
 
-        const { codigo, nombre, tipo, nivel, cuenta_padre_id, permite_movimientos } = req.body || {};
-        if (!codigo) throw new Error("El código de la cuenta es obligatorio.");
-        if (!nombre) throw new Error("El nombre de la cuenta es obligatorio.");
+        const { codigo, nombre, tipo, nivel, cuenta_padre_id, permite_movimientos, estado } = req.body || {};
+        
+        const codigoTrim = String(codigo || "").trim();
+        const nombreTrim = String(nombre || "").trim();
+        const tipoUpper = String(tipo || "").trim().toUpperCase();
+        const nivelUpper = String(nivel || "").trim().toUpperCase();
+
+        if (!codigoTrim) throw new Error("El código de la cuenta es obligatorio.");
+        if (!nombreTrim) throw new Error("El nombre de la cuenta es obligatorio.");
+        if (!TIPOS_VALIDOS_CATALOGO.includes(tipoUpper)) {
+            throw new Error(`Tipo no válido. Debe ser: ${TIPOS_VALIDOS_CATALOGO.join(", ")}.`);
+        }
+        if (!NIVELES_VALIDOS_CATALOGO.includes(nivelUpper)) {
+            throw new Error(`Nivel no válido. Debe ser: ${NIVELES_VALIDOS_CATALOGO.join(", ")}.`);
+        }
+
+        // Regla: permite_movimientos solo válido en CUENTA o SUBCUENTA
+        let movPermitido = Boolean(permite_movimientos);
+        if (nivelUpper === "GRUPO" || nivelUpper === "SUBGRUPO") {
+            if (movPermitido) {
+                throw new Error("Las cuentas de nivel GRUPO y SUBGRUPO son agrupadoras y no pueden permitir movimientos directos.");
+            }
+            movPermitido = false;
+        }
+
+        // Regla: cuenta padre existente y del mismo tipo
+        let padreId = cuenta_padre_id ? Number(cuenta_padre_id) : null;
+        if (padreId) {
+            const { data: padre, error: errorPadre } = await supabase
+                .from("cuentas")
+                .select("id, codigo, nombre, tipo")
+                .eq("id", padreId)
+                .maybeSingle();
+
+            if (errorPadre || !padre) {
+                throw new Error("La cuenta padre especificada no existe.");
+            }
+            if (String(padre.tipo).toUpperCase() !== tipoUpper) {
+                throw new Error(`La cuenta padre (${padre.codigo}) es de tipo ${padre.tipo}, pero la cuenta nueva es ${tipoUpper}. Deben coincidir en tipo.`);
+            }
+        } else if (nivelUpper === "SUBCUENTA") {
+            throw new Error("Una subcuenta debe tener obligatoriamente una cuenta padre asociada.");
+        }
+
+        const { data: existeCodigo } = await supabase
+            .from("cuentas")
+            .select("id")
+            .eq("codigo", codigoTrim)
+            .eq("empresa_id", usuario.empresa_id)
+            .maybeSingle();
+
+        if (existeCodigo) {
+            throw new Error(`El código ${codigoTrim} ya está registrado en el catálogo.`);
+        }
+
+        const nuevoRegistro = {
+            codigo: codigoTrim,
+            nombre: nombreTrim,
+            tipo: tipoUpper,
+            nivel: nivelUpper,
+            cuenta_padre_id: padreId,
+            permite_movimientos: movPermitido,
+            estado: estado !== false,
+            empresa_id: usuario.empresa_id
+        };
 
         const { data, error } = await supabase
             .from("cuentas")
-            .insert([{
-                codigo: String(codigo).trim(),
-                nombre: String(nombre).trim(),
-                tipo: tipo || "ACTIVO",
-                nivel: nivel || 1,
-                cuenta_padre_id: cuenta_padre_id || null,
-                permite_movimientos: permite_movimientos !== false
-            }])
+            .insert([nuevoRegistro])
             .select()
             .single();
 
@@ -233,13 +385,17 @@ apiRouter.post("/cuentas", async (req, res) => {
             tipo_accion: "crear",
             entidad_afectada: "Cuenta",
             entidad_id: data.codigo || data.id,
-            descripcion: `Creó cuenta ${data.codigo} - ${data.nombre}`,
+            descripcion: `Creó cuenta ${data.codigo} - ${data.nombre} (${data.tipo} - ${data.nivel})`,
             datos_nuevos: data,
             resultado: "exitoso",
             req
         }).catch(() => {});
 
-        return res.status(201).json(data);
+        return res.status(201).json({
+            ...data,
+            tiene_movimientos: false,
+            naturaleza: derivarNaturaleza(data.tipo)
+        });
     } catch (error) {
         return responderError(res, error);
     }
@@ -252,16 +408,136 @@ apiRouter.patch("/cuentas/:id", async (req, res) => {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_crear_asientos");
 
-        const { data: anterior } = await supabase
+        const cuentaId = req.params.id;
+
+        const { data: anterior, error: errorAnterior } = await supabase
             .from("cuentas")
             .select("*")
-            .eq("id", req.params.id)
+            .eq("id", cuentaId)
+            .eq("empresa_id", usuario.empresa_id)
             .maybeSingle();
+
+        if (errorAnterior || !anterior) {
+            const err = new Error("Cuenta contable no encontrada.");
+            err.statusCode = 404;
+            throw err;
+        }
+
+        // Comprobar si la cuenta tiene movimientos en detalle_asientos
+        const { count: movimientosCount } = await supabase
+            .from("detalle_asientos")
+            .select("id", { count: "exact", head: true })
+            .eq("cuenta_id", cuentaId);
+
+        const tieneMovimientos = Boolean(movimientosCount && movimientosCount > 0);
+
+        const cambios = {};
+
+        // Si ya tiene movimientos: no permitir cambiar tipo ni código ni nivel; solo permitir inactivar (estado = false) o cambiar nombre
+        if (tieneMovimientos) {
+            if (req.body.tipo !== undefined && String(req.body.tipo).toUpperCase() !== String(anterior.tipo).toUpperCase()) {
+                throw new Error("No se puede cambiar el tipo de una cuenta que ya tiene movimientos contables registrados.");
+            }
+            if (req.body.codigo !== undefined && String(req.body.codigo).trim() !== String(anterior.codigo).trim()) {
+                throw new Error("No se puede cambiar el código de una cuenta que ya tiene movimientos contables registrados.");
+            }
+            if (req.body.nivel !== undefined && String(req.body.nivel).toUpperCase() !== String(anterior.nivel).toUpperCase()) {
+                throw new Error("No se puede cambiar el nivel de una cuenta que ya tiene movimientos contables registrados.");
+            }
+
+            if (req.body.nombre !== undefined) {
+                cambios.nombre = String(req.body.nombre).trim();
+            }
+            if (req.body.estado !== undefined) {
+                cambios.estado = Boolean(req.body.estado);
+            }
+            if (req.body.permite_movimientos !== undefined && (anterior.nivel === "CUENTA" || anterior.nivel === "SUBCUENTA")) {
+                cambios.permite_movimientos = Boolean(req.body.permite_movimientos);
+            }
+                } else {
+            // Editar libremente si NO tiene movimientos
+            if (req.body.nombre !== undefined) {
+                const nombreTrim = String(req.body.nombre).trim();
+                if (!nombreTrim) throw new Error("El nombre de la cuenta no puede estar vacío.");
+                cambios.nombre = nombreTrim;
+            }
+
+            if (req.body.codigo !== undefined) {
+                const codigoTrim = String(req.body.codigo).trim();
+                if (!codigoTrim) throw new Error("El código de la cuenta no puede estar vacío.");
+                if (codigoTrim !== anterior.codigo) {
+                    const { data: existeCodigo } = await supabase
+                        .from("cuentas")
+                        .select("id")
+                        .eq("codigo", codigoTrim)
+                        .eq("empresa_id", usuario.empresa_id)
+                        .maybeSingle();
+                    if (existeCodigo) {
+                        throw new Error(`El código ${codigoTrim} ya está en uso por otra cuenta.`);
+                    }
+                }
+                cambios.codigo = codigoTrim;
+            }
+
+            let tipoFinal = anterior.tipo;
+            if (req.body.tipo !== undefined) {
+                const tipoUpper = String(req.body.tipo).trim().toUpperCase();
+                if (!TIPOS_VALIDOS_CATALOGO.includes(tipoUpper)) {
+                    throw new Error(`Tipo no válido: ${tipoUpper}.`);
+                }
+                tipoFinal = tipoUpper;
+                cambios.tipo = tipoUpper;
+            }
+
+            let nivelFinal = anterior.nivel;
+            if (req.body.nivel !== undefined) {
+                const nivelUpper = String(req.body.nivel).trim().toUpperCase();
+                if (!NIVELES_VALIDOS_CATALOGO.includes(nivelUpper)) {
+                    throw new Error(`Nivel no válido: ${nivelUpper}.`);
+                }
+                nivelFinal = nivelUpper;
+                cambios.nivel = nivelUpper;
+            }
+
+            if (req.body.cuenta_padre_id !== undefined) {
+                const padreId = req.body.cuenta_padre_id ? Number(req.body.cuenta_padre_id) : null;
+                if (padreId) {
+                    if (String(padreId) === String(cuentaId)) {
+                        throw new Error("Una cuenta no puede ser su propio padre.");
+                    }
+                    const { data: padre } = await supabase
+                        .from("cuentas")
+                        .select("id, codigo, tipo")
+                        .eq("id", padreId)
+                        .eq("empresa_id", usuario.empresa_id)
+                        .maybeSingle();
+
+                    if (!padre) throw new Error("La cuenta padre no existe.");
+                    if (String(padre.tipo).toUpperCase() !== String(tipoFinal).toUpperCase()) {
+                        throw new Error(`La cuenta padre es de tipo ${padre.tipo}, debe coincidir con ${tipoFinal}.`);
+                    }
+                } else if (nivelFinal === "SUBCUENTA") {
+                    throw new Error("Una subcuenta requiere obligatoriamente una cuenta padre.");
+                }
+                cambios.cuenta_padre_id = padreId;
+            }
+
+            if (req.body.permite_movimientos !== undefined) {
+                if (Boolean(req.body.permite_movimientos) && (nivelFinal === "GRUPO" || nivelFinal === "SUBGRUPO")) {
+                    throw new Error("Las cuentas de nivel GRUPO y SUBGRUPO no pueden permitir movimientos directos.");
+                }
+                cambios.permite_movimientos = (nivelFinal === "GRUPO" || nivelFinal === "SUBGRUPO") ? false : Boolean(req.body.permite_movimientos);
+            }
+
+            if (req.body.estado !== undefined) {
+                cambios.estado = Boolean(req.body.estado);
+            }
+        }
 
         const { data, error } = await supabase
             .from("cuentas")
-            .update(req.body)
-            .eq("id", req.params.id)
+            .update(cambios)
+            .eq("id", cuentaId)
             .select()
             .single();
 
@@ -283,7 +559,11 @@ apiRouter.patch("/cuentas/:id", async (req, res) => {
             req
         }).catch(() => {});
 
-        return res.json(data);
+        return res.json({
+            ...data,
+            tiene_movimientos: tieneMovimientos,
+            naturaleza: derivarNaturaleza(data.tipo)
+        });
     } catch (error) {
         return responderError(res, error);
     }
@@ -296,10 +576,12 @@ apiRouter.delete("/cuentas/:id", async (req, res) => {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_crear_asientos");
 
+        const cuentaId = req.params.id;
         const { data: anterior } = await supabase
             .from("cuentas")
             .select("*")
-            .eq("id", req.params.id)
+            .eq("id", cuentaId)
+            .eq("empresa_id", usuario.empresa_id)
             .maybeSingle();
 
         if (!anterior) {
@@ -308,10 +590,30 @@ apiRouter.delete("/cuentas/:id", async (req, res) => {
             throw err;
         }
 
+        // Regla: Si ya tiene movimientos, NO eliminar; solo permitir inactivar
+        const { count: movimientosCount } = await supabase
+            .from("detalle_asientos")
+            .select("id", { count: "exact", head: true })
+            .eq("cuenta_id", cuentaId);
+
+        if (movimientosCount && movimientosCount > 0) {
+            throw new Error("No se puede eliminar la cuenta porque ya registra movimientos en asientos contables. Solo puedes inactivarla.");
+        }
+
+        // Verificar subcuentas dependientes
+        const { count: subcuentasCount } = await supabase
+            .from("cuentas")
+            .select("id", { count: "exact", head: true })
+            .eq("cuenta_padre_id", cuentaId);
+
+        if (subcuentasCount && subcuentasCount > 0) {
+            throw new Error(`No se puede eliminar la cuenta porque tiene ${subcuentasCount} subcuenta(s) dependiente(s). Reasigna o elimina las subcuentas primero.`);
+        }
+
         const { error } = await supabase
             .from("cuentas")
             .delete()
-            .eq("id", req.params.id);
+            .eq("id", cuentaId);
 
         if (error) throw error;
 
@@ -331,6 +633,231 @@ apiRouter.delete("/cuentas/:id", async (req, res) => {
         }).catch(() => {});
 
         return res.json({ mensaje: "Cuenta eliminada con éxito." });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Importación en bloque del catálogo (agregar o reemplazar)
+apiRouter.post("/cuentas/importar", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
+        const { cuentas = [], modo = "agregar" } = req.body || {};
+        if (!Array.isArray(cuentas) || cuentas.length === 0) {
+            throw new Error("No se recibieron cuentas para importar.");
+        }
+
+        if (modo === "reemplazar") {
+            const { data: asientosEmpresa } = await supabase
+                .from("asientos")
+                .select("id")
+                .eq("empresa_id", usuario.empresa_id);
+
+            const idsAsientos = (asientosEmpresa || []).map(a => a.id);
+            let totalMovimientos = 0;
+            if (idsAsientos.length > 0) {
+                const { count } = await supabase
+                    .from("detalle_asientos")
+                    .select("id", { count: "exact", head: true })
+                    .in("asiento_id", idsAsientos);
+                totalMovimientos = count || 0;
+            }
+
+            if (totalMovimientos > 0) {
+                throw new Error("No se puede reemplazar el catálogo completo porque ya existen asientos contables registrados con movimientos. Elige la opción 'Agregar al existente'.");
+            }
+
+            await supabase.from("cuentas").delete().eq("empresa_id", usuario.empresa_id);
+        }
+
+        // Mapa de cuentas existentes para resolver cuentas padre
+        const { data: existentes } = await supabase
+    .from("cuentas")
+    .select("id, codigo, tipo")
+    .eq("empresa_id", usuario.empresa_id);
+        const mapaCodigos = new Map((existentes || []).map(c => [String(c.codigo).trim().toUpperCase(), { id: c.id, tipo: c.tipo }]));
+
+        // Orden jerárquico para insertar padres antes de subcuentas
+        const jerarquia = { GRUPO: 1, SUBGRUPO: 2, CUENTA: 3, SUBCUENTA: 4 };
+        const ordenadas = [...cuentas].sort((a, b) => {
+            const nivelA = jerarquia[String(a.nivel || "").toUpperCase()] || 5;
+            const nivelB = jerarquia[String(b.nivel || "").toUpperCase()] || 5;
+            return nivelA - nivelB;
+        });
+
+        const insertadas = [];
+        for (const fila of ordenadas) {
+            const codigo = String(fila.codigo || "").trim();
+            const codigoUpper = codigo.toUpperCase();
+            const nombre = String(fila.nombre || "").trim();
+            const tipo = String(fila.tipo || "").trim().toUpperCase();
+            const nivel = String(fila.nivel || "").trim().toUpperCase();
+            const padreCodigo = fila.cuenta_padre_codigo ? String(fila.cuenta_padre_codigo).trim().toUpperCase() : null;
+
+            // Si ya existe en base de datos en modo agregar, actualizar datos básicos y continuar
+            if (mapaCodigos.has(codigoUpper)) {
+                const idExistente = mapaCodigos.get(codigoUpper).id;
+                await supabase
+                    .from("cuentas")
+                    .update({
+                        nombre,
+                        estado: fila.estado !== false
+                    })
+                    .eq("id", idExistente);
+                continue;
+            }
+
+            let cuentaPadreId = null;
+            if (padreCodigo && mapaCodigos.has(padreCodigo)) {
+                cuentaPadreId = mapaCodigos.get(padreCodigo).id;
+            } else if (nivel !== "GRUPO") {
+                // Resolución automática de padre por prefijo contable
+                for (let len = codigoUpper.length - 1; len >= 1; len--) {
+                    const prefijo = codigoUpper.slice(0, len);
+                    if (mapaCodigos.has(prefijo)) {
+                        cuentaPadreId = mapaCodigos.get(prefijo).id;
+                        break;
+                    }
+                }
+            }
+
+            const permiteMov = (nivel === "GRUPO" || nivel === "SUBGRUPO") ? false : Boolean(fila.permite_movimientos);
+
+            const registro = {
+                codigo,
+                nombre,
+                tipo,
+                nivel,
+                cuenta_padre_id: cuentaPadreId,
+                permite_movimientos: permiteMov,
+                estado: fila.estado !== false,
+                empresa_id: usuario.empresa_id
+            };
+
+            const { data: creada, error: errCrear } = await supabase
+                .from("cuentas")
+                .insert([registro])
+                .select()
+                .single();
+
+            if (errCrear) throw errCrear;
+
+            mapaCodigos.set(codigoUpper, { id: creada.id, tipo: creada.tipo });
+            insertadas.push(creada);
+        }
+
+        // Auditoría
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "crear",
+            entidad_afectada: "Cuenta",
+            entidad_id: `Importación (${modo})`,
+            descripcion: `Importó ${insertadas.length} cuentas al catálogo en modo "${modo}"`,
+            datos_nuevos: { cantidad: insertadas.length, modo },
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.status(201).json({
+            mensaje: `Catálogo importado exitosamente (${insertadas.length} cuentas creadas).`,
+            total: insertadas.length
+        });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+// Cargar el catálogo predeterminado del sistema para la empresa del usuario
+apiRouter.post("/cuentas/catalogo-predeterminado", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
+        const { data: existentesCount } = await supabase
+            .from("cuentas")
+            .select("id", { count: "exact", head: true })
+            .eq("empresa_id", usuario.empresa_id);
+
+        if (existentesCount && existentesCount > 0 && req.body?.forzar !== true) {
+            const error = new Error("Tu empresa ya tiene cuentas en el catálogo. Si querés cargar el predeterminado de todas formas, confirmá la acción.");
+            error.statusCode = 409;
+            throw error;
+        }
+
+        const mapaCodigos = new Map();
+        const insertadas = [];
+
+        // Insertar en orden jerárquico: grupo, subgrupo, cuenta, subcuenta
+        const jerarquia = { GRUPO: 1, SUBGRUPO: 2, CUENTA: 3, SUBCUENTA: 4 };
+        const ordenadas = [...CATALOGO_PREDETERMINADO].sort((a, b) => jerarquia[a.nivel] - jerarquia[b.nivel]);
+
+        // Determinar cuáles son "hoja" (sin hijos) para permite_movimientos
+        const tienesHijos = new Set(CATALOGO_PREDETERMINADO.map(c => c.padre).filter(Boolean));
+
+        // Cargar cuentas existentes de la empresa para no duplicar códigos
+const { data: existentesPrevias } = await supabase
+    .from("cuentas")
+    .select("id, codigo")
+    .eq("empresa_id", usuario.empresa_id);
+const codigosExistentes = new Map((existentesPrevias || []).map(c => [String(c.codigo).trim(), c.id]));
+
+for (const fila of ordenadas) {
+    const esHoja = !tienesHijos.has(fila.codigo);
+    const permiteMov = (fila.nivel === "CUENTA" || fila.nivel === "SUBCUENTA") && esHoja;
+
+    // Si el código ya existe para esta empresa, lo saltamos (no lo duplicamos)
+    if (codigosExistentes.has(fila.codigo)) {
+        mapaCodigos.set(fila.codigo, codigosExistentes.get(fila.codigo));
+        continue;
+    }
+
+    const registro = {
+        codigo: fila.codigo,
+        nombre: fila.nombre,
+        tipo: fila.tipo,
+        nivel: fila.nivel,
+        cuenta_padre_id: fila.padre ? mapaCodigos.get(fila.padre) : null,
+        permite_movimientos: permiteMov,
+        estado: true,
+        empresa_id: usuario.empresa_id
+    };
+
+    const { data: creada, error } = await supabase
+        .from("cuentas")
+        .insert([registro])
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    mapaCodigos.set(fila.codigo, creada.id);
+    insertadas.push(creada);
+}
+
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "crear",
+            entidad_afectada: "Cuenta",
+            entidad_id: "Catálogo predeterminado",
+            descripcion: `Cargó el catálogo de cuentas predeterminado (${insertadas.length} cuentas)`,
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.status(201).json({
+            mensaje: `Catálogo predeterminado cargado (${insertadas.length} cuentas).`,
+            total: insertadas.length
+        });
     } catch (error) {
         return responderError(res, error);
     }
@@ -881,7 +1408,7 @@ apiRouter.post("/asientos/validar", async (req, res) => {
 
         const detalles = req.body?.detalles || [];
         const ids = [...new Set(detalles.map(detalle => detalle.cuenta_id).filter(Boolean))];
-        const cuentas = await cargarCuentas(ids);
+        const cuentas = await cargarCuentas(ids, usuario.empresa_id);
         return res.json(validarPartidaDoble(detalles, cuentas));
     } catch (error) {
         return responderError(res, error);
@@ -1037,8 +1564,9 @@ apiRouter.get("/libro-diario", async (req, res) => {
         await exigirPermiso(usuario, "puede_ver_reportes");
 
         const { data: cuentas, error: errorCuentas } = await supabase
-            .from("cuentas")
-            .select("id, codigo, nombre, cuenta_padre_id");
+        .from("cuentas")
+        .select("id, codigo, nombre, cuenta_padre_id")
+        .eq("empresa_id", usuario.empresa_id);
 
         if (errorCuentas) {
             throw errorCuentas;
@@ -1287,8 +1815,9 @@ apiRouter.get("/libro-mayor/movimientos", async (req, res) => {
         }
 
         const { data: catalogo, error: errorCatalogo } = await supabase
-            .from("cuentas")
-            .select("id, codigo, nombre, nivel, cuenta_padre_id");
+    .from("cuentas")
+    .select("id, codigo, nombre, nivel, cuenta_padre_id")
+    .eq("empresa_id", usuario.empresa_id);
 
         if (errorCatalogo) throw errorCatalogo;
 
@@ -1419,9 +1948,10 @@ apiRouter.get("/balance-general", async (req, res) => {
 
         // Obtener catálogo de cuentas para nombres y niveles oficiales
         const { data: catalogo } = await supabase
-            .from("cuentas")
-            .select("id, codigo, nombre, nivel, cuenta_padre_id, permite_movimientos")
-            .order("codigo");
+        .from("cuentas")
+        .select("id, codigo, nombre, nivel, cuenta_padre_id, permite_movimientos")
+        .eq("empresa_id", usuario.empresa_id)
+        .order("codigo");
 
         // Cuentas del período para el Estado de Resultados (utilidad del ejercicio)
         let mayorPeriodo = [];

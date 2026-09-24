@@ -45,7 +45,7 @@ function gruposDeAsiento(asiento){
     return [...grupos.values()];
 }
 
-function LibroDiario({ filtroDesde, filtroHasta } = {}){
+function LibroDiario({ filtroDesde, filtroHasta, empresaNombre = "Empresa" } = {}){
     const [asientos, setAsientos] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
@@ -95,12 +95,13 @@ function LibroDiario({ filtroDesde, filtroHasta } = {}){
         exportarLibroDiarioPDF({
             asientos: asientosFiltrados,
             desde: filtroDesde,
-            hasta: filtroHasta
+            hasta: filtroHasta,
+            empresa: empresaNombre
         });
     }
 
     function manejarExportacionExcel() {
-        exportarLibroDiarioExcel({ asientos: asientosFiltrados, desde: filtroDesde, hasta: filtroHasta });
+        exportarLibroDiarioExcel({ asientos: asientosFiltrados, desde: filtroDesde, hasta: filtroHasta, empresa: empresaNombre });
     }
 
     if(cargando){

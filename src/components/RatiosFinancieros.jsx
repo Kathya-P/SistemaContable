@@ -143,7 +143,7 @@ function MiniGraficoTendencia({ datos = [], color = "#047857", unidad = "" }) {
     );
 }
 
-export function RatiosFinancieros() {
+export function RatiosFinancieros({ empresaNombre = "Empresa" }) {
     const anioActual = new Date().getFullYear();
     const [desde, setDesde] = useState(`${anioActual}-01-01`);
     const [hasta, setHasta] = useState(`${anioActual}-12-31`);
@@ -249,12 +249,13 @@ export function RatiosFinancieros() {
             secciones,
             desde,
             hasta,
-            opcionRapida
+            opcionRapida,
+            empresa: empresaNombre
         });
     }
 
     function manejarExportacionExcel() {
-        exportarRatiosExcel({ secciones, desde, hasta, opcionRapida });
+        exportarRatiosExcel({ secciones, desde, hasta, opcionRapida, empresa: empresaNombre });
     }
 
     return (

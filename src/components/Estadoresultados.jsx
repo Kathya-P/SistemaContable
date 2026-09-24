@@ -51,7 +51,7 @@ function construirFilas(e) {
     ];
 }
 
-function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
+function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = "Empresa" } = {}){
     const anio = new Date().getFullYear();
     const [desde, setDesde] = useState(filtroDesde || `${anio}-01-01`);
     const [hasta, setHasta] = useState(filtroHasta || `${anio}-12-31`);
@@ -118,12 +118,13 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
             filas,
             empresa: listo?.datos?.empresa,
             desde: listo?.datos?.desde || desde,
-            hasta: listo?.datos?.hasta || hasta
+            hasta: listo?.datos?.hasta || hasta,
+            empresa: empresaNombre
         });
     }
 
     function manejarExportacionExcel() {
-        exportarEstadoResultadosExcel({ filas, empresa: listo?.datos?.empresa, desde: listo?.datos?.desde || desde, hasta: listo?.datos?.hasta || hasta });
+        exportarEstadoResultadosExcel({ filas, empresa: empresaNombre, desde: listo?.datos?.desde || desde, hasta: listo?.datos?.hasta || hasta });
     }
 
     return(

@@ -124,7 +124,7 @@ const CONFIG_RESULTADOS = {
     }
 };
 
-export default function AuditoriaPage({ usuario }) {
+export default function AuditoriaPage({ usuario, empresaNombre = "Empresa" }) {
     const formatearFechaIso = (d) => {
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -296,11 +296,11 @@ export default function AuditoriaPage({ usuario }) {
     };
 
     const handleExportarPDF = () => {
-        exportarAuditoriaPDF({ logs });
+        exportarAuditoriaPDF({ logs, empresa: empresaNombre });
     };
 
     const handleExportarExcel = () => {
-        exportarAuditoriaExcel({ logs });
+        exportarAuditoriaExcel({ logs, empresa: empresaNombre });
     };
 
     const limpiarFiltros = () => {

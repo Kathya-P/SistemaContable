@@ -127,6 +127,7 @@ function App(){
     const [usuario, setUsuario] = useState(() =>
         !supabaseConfigurado ? { id: 1, nombre: "Contador Principal", rol: "ADMIN", empresa_id: 1, estado: true } : null
     );
+    const [empresaActual, setEmpresaActual] = useState(null);
     const [errorUsuario, setErrorUsuario] = useState("");
     const [permisos, setPermisos] = useState(() =>
         !supabaseConfigurado ? {
@@ -225,6 +226,29 @@ function App(){
         };
     }, [usuario]);
 
+    useEffect(() => {
+        if(!usuario){
+            setEmpresaActual(null);
+            return undefined;
+        }
+
+        if(!supabaseConfigurado){
+            setEmpresaActual({ nombre_empresa: "Empresa demo" });
+            return undefined;
+        }
+
+        let cancelado = false;
+        solicitarApi("/empresas")
+            .then(empresas => {
+                if(!cancelado){
+                    setEmpresaActual((empresas || [])[0] || null);
+                }
+            })
+            .catch(error => console.error("No se pudo cargar la empresa:", error));
+
+        return () => { cancelado = true; };
+    }, [usuario]);
+
     function cambiarTema(){
         setTemaOscuro(temaActual => {
             const nuevoTema = !temaActual;
@@ -298,18 +322,19 @@ function App(){
             return <p className="message-error">No tienes permiso para ver esta sección.</p>;
         }
 
-        if(vista === "dashboard") return <Dashboard cambiarVista={setVista} />;
-        if(vista === "cuentas") return <CatalogoCuentas />;
-        if(vista === "asiento") return <NuevoAsiento usuario={usuario} onCreated={() => setVista("diario")} />;
-        if(vista === "diario") return <LibroDiario />;
-        if(vista === "mayor") return <LibroMayor />;
-        if(vista === "kardex") return <KardexPage />;
-        if(vista === "estadoResultados") return <Estadoresultados />;
-        if(vista === "balanceGeneral") return <BalanceGeneral empresa={{ id: usuario.empresa_id }} />;
-        if(vista === "ratiosFinancieros") return <RatiosFinancieros />;
-        if(vista === "tablaComparativa") return <TablaComparativa usuario={usuario} />;
-        if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
-        if(vista === "auditoria") return <AuditoriaPage usuario={usuario} />;
+        const empresaNombre = empresaActual?.nombre_empresa || "Empresa";
+        if(vista === "dashboard") return <Dashboard cambiarVista={setVista} empresaNombre={empresaNombre} />;
+        if(vista === "cuentas") return <CatalogoCuentas empresaNombre={empresaNombre} />;
+        if(vista === "asiento") return <NuevoAsiento usuario={usuario} empresaNombre={empresaNombre} onCreated={() => setVista("diario")} />;
+        if(vista === "diario") return <LibroDiario empresaNombre={empresaNombre} />;
+        if(vista === "mayor") return <LibroMayor empresaNombre={empresaNombre} />;
+        if(vista === "kardex") return <KardexPage empresaNombre={empresaNombre} />;
+        if(vista === "estadoResultados") return <Estadoresultados empresaNombre={empresaNombre} />;
+        if(vista === "balanceGeneral") return <BalanceGeneral empresa={{ id: usuario.empresa_id }} empresaNombre={empresaNombre} />;
+        if(vista === "ratiosFinancieros") return <RatiosFinancieros empresaNombre={empresaNombre} />;
+        if(vista === "tablaComparativa") return <TablaComparativa usuario={usuario} empresaNombre={empresaNombre} />;
+        if(vista === "usuarios") return <GestionUsuarios usuario={usuario} empresaNombre={empresaNombre} />;
+        if(vista === "auditoria") return <AuditoriaPage usuario={usuario} empresaNombre={empresaNombre} />;
         return <Inicio cambiarVista={setVista} />;
     }
 

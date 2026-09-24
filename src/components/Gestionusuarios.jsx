@@ -6,7 +6,7 @@ import ExportarPdfButton from "./ExportarPdfButton";
 const ROLES = ["ADMIN", "CONTADOR", "AUXILIAR"];
 const formularioVacio = { nombre: "", correo: "", correo2: "", password: "", rol: "CONTADOR" };
 
-function GestionUsuarios({ usuario }){
+function GestionUsuarios({ usuario, empresaNombre = "Empresa" }){
     const [usuarios, setUsuarios] = useState([]);
     const [formulario, setFormulario] = useState(formularioVacio);
     const [mensaje, setMensaje] = useState("");
@@ -85,11 +85,11 @@ useEffect(() => {
     }
 
     function manejarExportacionPDF() {
-        exportarUsuariosPDF({ usuarios });
+        exportarUsuariosPDF({ usuarios, empresa: empresaNombre });
     }
 
     function manejarExportacionExcel() {
-        exportarUsuariosExcel({ usuarios });
+        exportarUsuariosExcel({ usuarios, empresa: empresaNombre });
     }
 
     return(

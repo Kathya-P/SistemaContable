@@ -4,7 +4,7 @@ import { supabaseConfigurado } from "../lib/supabase";
 import { exportarCatalogoCuentasPDF, exportarCatalogoCuentasExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
-function CatalogoCuentas(){
+function CatalogoCuentas({ empresaNombre = "Empresa" }){
     const [cuentas, setCuentas] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
@@ -40,11 +40,11 @@ function CatalogoCuentas(){
     }
 
     function manejarExportacionPDF() {
-        exportarCatalogoCuentasPDF({ cuentas });
+        exportarCatalogoCuentasPDF({ cuentas, empresa: empresaNombre });
     }
 
     function manejarExportacionExcel() {
-        exportarCatalogoCuentasExcel({ cuentas });
+        exportarCatalogoCuentasExcel({ cuentas, empresa: empresaNombre });
     }
 
     return(

@@ -101,7 +101,7 @@ function construirConceptoAutomatico(lineas, modoIva) {
     return `${texto}${iva}.`;
 }
 
-function NuevoAsiento({ usuario, onCreated }){
+function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
     const [empresas, setEmpresas] = useState([]);
     const [cuentas, setCuentas] = useState([]);
     const empresaId = usuario?.empresa_id ? String(usuario.empresa_id) : "";
@@ -311,11 +311,11 @@ function NuevoAsiento({ usuario, onCreated }){
     }
 
     function manejarExportacionPDF() {
-        exportarNuevoAsientoPDF({ detalles, cuentasPorId, fecha, concepto });
+        exportarNuevoAsientoPDF({ detalles, cuentasPorId, fecha, concepto, empresa: empresaNombre });
     }
 
     function manejarExportacionExcel() {
-        exportarNuevoAsientoExcel({ detalles, cuentasPorId, fecha, concepto });
+        exportarNuevoAsientoExcel({ detalles, cuentasPorId, fecha, concepto, empresa: empresaNombre });
     }
 
     return(

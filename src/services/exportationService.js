@@ -9,10 +9,11 @@ const COLOR_ENCABEZADO = [226, 239, 231];
 function crearLibro(nombre, hojas) {
     const libro = XLSX.utils.book_new();
     hojas.forEach(({ nombreHoja, filas, anchos, columnasMoneda = [], merges = [] }) => {
-        const hoja = XLSX.utils.aoa_to_sheet(filas);
+        const filasConEmpresa = filas;
+        const hoja = XLSX.utils.aoa_to_sheet(filasConEmpresa);
         const formatoMoneda = '"$"#,##0.00;[Red]-"$"#,##0.00';
         columnasMoneda.forEach(columna => {
-            for (let fila = 0; fila < filas.length; fila += 1) {
+            for (let fila = 0; fila < filasConEmpresa.length; fila += 1) {
                 const referencia = XLSX.utils.encode_cell({ r: fila, c: columna });
                 const celda = hoja[referencia];
                 if (celda && typeof celda.v === "number") {
@@ -23,7 +24,10 @@ function crearLibro(nombre, hojas) {
             }
         });
         if (anchos) hoja["!cols"] = anchos.map(ancho => ({ wch: ancho }));
-        if (merges.length) hoja["!merges"] = merges;
+        if (merges.length) hoja["!merges"] = merges.map(merge => ({
+            s: { r: merge.s.r + 1, c: merge.s.c },
+            e: { r: merge.e.r + 1, c: merge.e.c }
+        }));
         XLSX.utils.book_append_sheet(libro, hoja, nombreHoja.slice(0, 31));
     });
     XLSX.writeFile(libro, nombre, { cellStyles: true });
@@ -33,8 +37,11 @@ function celdaMoneda(valor) {
     return Number(valor || 0);
 }
 
-function exportarLibroExcel(nombre, hojas) {
-    crearLibro(`${limpiarNombreArchivo(nombre)}.xlsx`, hojas);
+function exportarLibroExcel(nombre, hojas, empresa = "Empresa") {
+    crearLibro(`${limpiarNombreArchivo(nombre)}.xlsx`, hojas.map(hoja => ({
+        ...hoja,
+        filas: [[empresa], ...hoja.filas]
+    })));
 }
 
 function descargarArchivoExcel(buffer, nombre) {
@@ -106,18 +113,20 @@ function limpiarNombreArchivo(nombre) {
     return String(nombre).replace(/[^a-z0-9_-]/gi, "_");
 }
 
-function crearDocumento(titulo, subtitulo) {
+function crearDocumento(titulo, subtitulo, empresa = "Empresa") {
     const documento = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     documento.setProperties({ title: titulo, subject: subtitulo, creator: "ContaCabal" });
     documento.setFont("helvetica", "bold");
     documento.setFontSize(16);
     documento.setTextColor(...COLOR_PRIMARIO);
-    documento.text(titulo, 14, 15);
+    documento.text(empresa, 14, 12);
+    documento.setFontSize(14);
+    documento.text(titulo, 14, 19);
     documento.setFont("helvetica", "normal");
     documento.setFontSize(9);
     documento.setTextColor(90, 90, 90);
-    documento.text(subtitulo, 14, 22);
-    documento.text(`Generado: ${new Date().toLocaleString("es-SV")}`, 283, 15, { align: "right" });
+    documento.text(subtitulo, 14, 26);
+    documento.text(`Generado: ${new Date().toLocaleString("es-SV")}`, 283, 12, { align: "right" });
     return documento;
 }
 
@@ -179,10 +188,10 @@ function obtenerFilasDiario(asientos = []) {
     return filas;
 }
 
-export function exportarLibroDiarioPDF({ asientos = [], desde, hasta } = {}) {
+export function exportarLibroDiarioPDF({ asientos = [], desde, hasta, empresa = "Empresa" } = {}) {
     const documento = crearDocumento(
         "Libro Diario",
-        `Registro cronologico | Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`
+        `Registro cronologico | Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`, empresa
     );
     const sumatoriaDebe = asientos.reduce((total, asiento) => total + (asiento.detalle_asientos || []).reduce((subtotal, detalle) => subtotal + Number(detalle.debe || 0), 0), 0);
     const sumatoriaHaber = asientos.reduce((total, asiento) => total + (asiento.detalle_asientos || []).reduce((subtotal, detalle) => subtotal + Number(detalle.haber || 0), 0), 0);
@@ -207,10 +216,10 @@ function obtenerMovimientos(movimientosPorCuenta, cuentaId) {
     return movimientosPorCuenta?.[String(cuentaId)]?.movimientos || [];
 }
 
-export function exportarLibroMayorPDF({ filas = [], totalesComprobacion = {}, movimientosPorCuenta, desde, hasta } = {}) {
+export function exportarLibroMayorPDF({ filas = [], totalesComprobacion = {}, movimientosPorCuenta, desde, hasta, empresa = "Empresa" } = {}) {
     const documento = crearDocumento(
         "Libro Mayor",
-        `Balance de comprobacion y detalle por cuenta | Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`
+        `Balance de comprobacion y detalle por cuenta | Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`, empresa
     );
 
     agregarTabla(documento, {
@@ -318,10 +327,10 @@ function filasBalanceExcel(seccion, grupo, nivel = 0) {
     return filas;
 }
 
-export function exportarBalanceGeneralPDF({ balance, desde, hasta } = {}) {
+export function exportarBalanceGeneralPDF({ balance, desde, hasta, empresa = "Empresa" } = {}) {
     const documento = crearDocumento(
         "Balance General",
-        `Activos frente a Pasivos y Capital | Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`
+        `Activos frente a Pasivos y Capital | Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`, empresa
     );
     const activo = balance?.activo || {};
     const pasivo = balance?.pasivo || {};
@@ -428,8 +437,8 @@ export function exportarBalanceGeneralPDF({ balance, desde, hasta } = {}) {
     documento.save(`Balance_General_${limpiarNombreArchivo(hasta || "periodo")}.pdf`);
 }
 
-export function exportarEstadoResultadosPDF({ filas = [], empresa, desde, hasta } = {}) {
-    const documento = crearDocumento("Estado de Resultados", `${empresa || "Empresa"} | Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`);
+export function exportarEstadoResultadosPDF({ filas = [], empresa = "Empresa", desde, hasta } = {}) {
+    const documento = crearDocumento("Estado de Resultados", `Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`, empresa);
     agregarTabla(documento, {
         startY: 28,
         head: [["", "Concepto", "Monto"]],
@@ -442,8 +451,8 @@ export function exportarEstadoResultadosPDF({ filas = [], empresa, desde, hasta 
     documento.save(`Estado_Resultados_${limpiarNombreArchivo(hasta || "periodo")}.pdf`);
 }
 
-export function exportarCatalogoCuentasPDF({ cuentas = [] } = {}) {
-    const documento = crearDocumento("Catalogo de Cuentas", `${cuentas.length} cuentas registradas`);
+export function exportarCatalogoCuentasPDF({ cuentas = [], empresa = "Empresa" } = {}) {
+    const documento = crearDocumento("Catalogo de Cuentas", `${cuentas.length} cuentas registradas`, empresa);
     const cuentasPorId = new Map(cuentas.map(cuenta => [String(cuenta.id), cuenta]));
     agregarTabla(documento, {
         startY: 28,
@@ -459,8 +468,8 @@ export function exportarCatalogoCuentasPDF({ cuentas = [] } = {}) {
     documento.save("Catalogo_de_Cuentas.pdf");
 }
 
-export function exportarKardexPDF({ filas = [], totales = {}, desde, hasta } = {}) {
-    const documento = crearDocumento("Kardex de Inventario", `Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`);
+export function exportarKardexPDF({ filas = [], totales = {}, desde, hasta, empresa = "Empresa" } = {}) {
+    const documento = crearDocumento("Kardex de Inventario", `Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`, empresa);
     agregarTabla(documento, {
         startY: 28,
         head: [
@@ -501,8 +510,8 @@ function obtenerEtiquetaMovimiento(tipo) {
     return etiquetas[tipo] || tipo || "Movimiento";
 }
 
-export function exportarUsuariosPDF({ usuarios = [] } = {}) {
-    const documento = crearDocumento("Usuarios de la Empresa", "Listado de usuarios y estado");
+export function exportarUsuariosPDF({ usuarios = [], empresa = "Empresa" } = {}) {
+    const documento = crearDocumento("Usuarios de la Empresa", "Listado de usuarios y estado", empresa);
     agregarTabla(documento, {
         startY: 28,
         head: [["Nombre", "Correo", "Rol", "Estado"]],
@@ -512,8 +521,8 @@ export function exportarUsuariosPDF({ usuarios = [] } = {}) {
     documento.save("Usuarios_de_la_Empresa.pdf");
 }
 
-export function exportarAuditoriaPDF({ logs = [] } = {}) {
-    const documento = crearDocumento("Auditoria del Sistema", "Registro de operaciones y accesos");
+export function exportarAuditoriaPDF({ logs = [], empresa = "Empresa" } = {}) {
+    const documento = crearDocumento("Auditoria del Sistema", "Registro de operaciones y accesos", empresa);
     agregarTabla(documento, {
         startY: 28,
         head: [["Fecha / Hora", "Usuario", "Accion", "Entidad", "ID", "Descripcion", "Resultado"]],
@@ -532,8 +541,8 @@ export function exportarAuditoriaPDF({ logs = [] } = {}) {
     documento.save("Auditoria_del_Sistema.pdf");
 }
 
-export function exportarNuevoAsientoPDF({ detalles = [], cuentasPorId, fecha, concepto } = {}) {
-    const documento = crearDocumento("Asiento Contable", `Fecha: ${formatearFecha(fecha)} | ${concepto || "Sin concepto"}`);
+export function exportarNuevoAsientoPDF({ detalles = [], cuentasPorId, fecha, concepto, empresa = "Empresa" } = {}) {
+    const documento = crearDocumento("Asiento Contable", `Fecha: ${formatearFecha(fecha)} | ${concepto || "Sin concepto"}`, empresa);
     const mapa = cuentasPorId instanceof Map ? cuentasPorId : new Map();
     agregarTabla(documento, {
         startY: 28,
@@ -547,8 +556,8 @@ export function exportarNuevoAsientoPDF({ detalles = [], cuentasPorId, fecha, co
     documento.save(`Asiento_${limpiarNombreArchivo(fecha || "nuevo")}.pdf`);
 }
 
-export function exportarTablaComparativaPDF({ vistaIzquierda, vistaDerecha, rangoIzquierda, rangoDerecha, usuario, tablasIzquierda = [], tablasDerecha = [] } = {}) {
-    const documento = crearDocumento("Tabla Comparativa", "Comparacion de reportes contables");
+export function exportarTablaComparativaPDF({ vistaIzquierda, vistaDerecha, rangoIzquierda, rangoDerecha, usuario, tablasIzquierda = [], tablasDerecha = [], empresa = "Empresa" } = {}) {
+    const documento = crearDocumento("Tabla Comparativa", "Comparacion de reportes contables", empresa);
     let siguienteY = 30;
     [[vistaIzquierda, rangoIzquierda, tablasIzquierda], [vistaDerecha, rangoDerecha, tablasDerecha]].forEach(([vista, rango, tablas], indice) => {
         if (indice > 0) {
@@ -602,8 +611,8 @@ function dibujarTarjeta(documento, x, y, ancho, titulo, valor) {
     documento.text(formatearMoneda(valor), x + 5, y + 17);
 }
 
-export function exportarDashboardPDF({ activos = 0, pasivos = 0, ingresos = 0, costos = 0, movimientos = [], periodo } = {}) {
-    const documento = crearDocumento("Dashboard Ejecutivo", `Resumen contable | ${periodo || "Periodo actual"}`);
+export function exportarDashboardPDF({ activos = 0, pasivos = 0, ingresos = 0, costos = 0, movimientos = [], periodo, empresa = "Empresa" } = {}) {
+    const documento = crearDocumento("Dashboard Ejecutivo", `Resumen contable | ${periodo || "Periodo actual"}`, empresa);
     const tarjetas = [
         ["Activos", activos],
         ["Pasivos", pasivos],
@@ -651,8 +660,8 @@ function obtenerNombrePeriodo(opcion) {
     return nombres[opcion] || "Periodo seleccionado";
 }
 
-export function exportarRatiosPDF({ secciones = {}, desde, hasta, opcionRapida } = {}) {
-    const documento = crearDocumento("Ratios Financieros", `${obtenerNombrePeriodo(opcionRapida)} | ${formatearFecha(desde)} al ${formatearFecha(hasta)}`);
+export function exportarRatiosPDF({ secciones = {}, desde, hasta, opcionRapida, empresa = "Empresa" } = {}) {
+    const documento = crearDocumento("Ratios Financieros", `${obtenerNombrePeriodo(opcionRapida)} | ${formatearFecha(desde)} al ${formatearFecha(hasta)}`, empresa);
     const filas = [];
     const seccionLiquidez = secciones.liquidez;
     if (seccionLiquidez?.ratios?.length) {
@@ -730,21 +739,21 @@ function filasDiarioExcel(asientos = []) {
     return filas;
 }
 
-export function exportarLibroDiarioExcel({ asientos = [], desde, hasta } = {}) {
-    exportarLibroExcel(`Libro_Diario_${desde || "periodo"}`, [{ nombreHoja: "Libro Diario", filas: [["LIBRO DIARIO"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ...filasDiarioExcel(asientos)], anchos: [16, 14, 14, 42, 15, 15, 15], columnasMoneda: [4, 5, 6] }]);
+export function exportarLibroDiarioExcel({ asientos = [], desde, hasta, empresa = "Empresa" } = {}) {
+    exportarLibroExcel(`Libro_Diario_${desde || "periodo"}`, [{ nombreHoja: "Libro Diario", filas: [["LIBRO DIARIO"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ...filasDiarioExcel(asientos)], anchos: [16, 14, 14, 42, 15, 15, 15], columnasMoneda: [4, 5, 6] }], empresa);
 }
 
-export function exportarLibroMayorExcel({ filas = [], totalesComprobacion = {}, movimientosPorCuenta, desde, hasta } = {}) {
+export function exportarLibroMayorExcel({ filas = [], totalesComprobacion = {}, movimientosPorCuenta, desde, hasta, empresa = "Empresa" } = {}) {
     const balance = [["LIBRO MAYOR"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ["Código", "Cuenta", "Debe", "Haber", "Saldo deudor", "Saldo acreedor"], ...filas.map(fila => [fila.codigo, fila.nombre, celdaMoneda(fila.total_debe), celdaMoneda(fila.total_haber), celdaMoneda(fila.saldo_deudor), celdaMoneda(fila.saldo_acreedor)]), ["", "Comprobación", celdaMoneda(totalesComprobacion.total_debe), celdaMoneda(totalesComprobacion.total_haber), celdaMoneda(totalesComprobacion.saldo_deudor), celdaMoneda(totalesComprobacion.saldo_acreedor)]];
     const detalle = [["Código", "Cuenta", "Partida", "Fecha", "Cuenta detalle", "Debe", "Haber"]];
     filas.forEach(fila => obtenerMovimientos(movimientosPorCuenta, fila.cuenta_id).forEach(movimiento => detalle.push([fila.codigo, fila.nombre, movimiento.numero_partida, formatearFecha(movimiento.fecha), `${movimiento.cuenta_codigo || fila.codigo} - ${movimiento.cuenta_nombre || fila.nombre}`, celdaMoneda(movimiento.debe), celdaMoneda(movimiento.haber)])));
     exportarLibroExcel(`Libro_Mayor_${desde || "periodo"}`, [
         { nombreHoja: "Balance comprobación", filas: balance, anchos: [14, 34, 16, 16, 18, 18], columnasMoneda: [2, 3, 4, 5] },
         { nombreHoja: "Detalle por cuenta", filas: detalle, anchos: [14, 30, 14, 16, 40, 16, 16], columnasMoneda: [5, 6] }
-    ]);
+    ], empresa);
 }
 
-export function exportarBalanceGeneralExcel({ balance, desde, hasta } = {}) {
+export function exportarBalanceGeneralExcel({ balance, desde, hasta, empresa = "Empresa" } = {}) {
     const activo = balance?.activo || {};
     const pasivo = balance?.pasivo || {};
     const capital = balance?.capital || {};
@@ -757,19 +766,19 @@ export function exportarBalanceGeneralExcel({ balance, desde, hasta } = {}) {
     const iva = balance?.liquidacionIva;
     if (iva) filas.push([], ["LIQUIDACIÓN DE IVA"], ["Concepto", "Monto"], ["IVA crédito fiscal", celdaMoneda(iva.ivaCreditoFiscal)], ["IVA débito fiscal", celdaMoneda(iva.ivaDebitoFiscal)], [Number(iva.impuestoAPagar || 0) > 0 ? "Impuesto a pagar" : "Remanente a favor", celdaMoneda(Number(iva.impuestoAPagar || 0) > 0 ? iva.impuestoAPagar : iva.remanenteAFavor)]);
     filas.push([], ["FIRMAS"], ["Representante Legal", "Gerencia General", "Contador General", "Reg. Profesional N° 45892", "Auditor Externo", "Dictamen e Informe Fiscal"]);
-    exportarLibroExcel(`Balance_General_${hasta || "periodo"}`, [{ nombreHoja: "Balance General", filas, anchos: [34, 18, 36, 18, 25, 28], columnasMoneda: [1, 3] }]);
+    exportarLibroExcel(`Balance_General_${hasta || "periodo"}`, [{ nombreHoja: "Balance General", filas, anchos: [34, 18, 36, 18, 25, 28], columnasMoneda: [1, 3] }], empresa);
 }
 
-export function exportarEstadoResultadosExcel({ filas = [], empresa, desde, hasta } = {}) {
-    exportarLibroExcel(`Estado_Resultados_${hasta || "periodo"}`, [{ nombreHoja: "Estado Resultados", filas: [["ESTADO DE RESULTADOS"], [empresa || "Empresa", `Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ["Marca", "Concepto", "Monto"], ...filas.map(fila => fila.encabezado ? [fila.encabezado, "", ""] : [fila.marca || "", fila.concepto || "", celdaMoneda(fila.monto)])], anchos: [12, 55, 18], columnasMoneda: [2] }]);
+export function exportarEstadoResultadosExcel({ filas = [], empresa = "Empresa", desde, hasta } = {}) {
+    exportarLibroExcel(`Estado_Resultados_${hasta || "periodo"}`, [{ nombreHoja: "Estado Resultados", filas: [["ESTADO DE RESULTADOS"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ["Marca", "Concepto", "Monto"], ...filas.map(fila => fila.encabezado ? [fila.encabezado, "", ""] : [fila.marca || "", fila.concepto || "", celdaMoneda(fila.monto)])], anchos: [12, 55, 18], columnasMoneda: [2] }], empresa);
 }
 
-export function exportarCatalogoCuentasExcel({ cuentas = [] } = {}) {
+export function exportarCatalogoCuentasExcel({ cuentas = [], empresa = "Empresa" } = {}) {
     const cuentasPorId = new Map(cuentas.map(cuenta => [String(cuenta.id), cuenta]));
-    exportarLibroExcel("Catalogo_de_Cuentas", [{ nombreHoja: "Catálogo", filas: [["Código", "Cuenta", "Nivel", "Cuenta padre"], ...cuentas.map(cuenta => [cuenta.codigo, cuenta.nombre, cuenta.nivel ?? "-", cuentasPorId.get(String(cuenta.cuenta_padre_id))?.nombre || "Cuenta principal"])], anchos: [15, 42, 12, 35] }]);
+    exportarLibroExcel("Catalogo_de_Cuentas", [{ nombreHoja: "Catálogo", filas: [["Código", "Cuenta", "Nivel", "Cuenta padre"], ...cuentas.map(cuenta => [cuenta.codigo, cuenta.nombre, cuenta.nivel ?? "-", cuentasPorId.get(String(cuenta.cuenta_padre_id))?.nombre || "Cuenta principal"])], anchos: [15, 42, 12, 35] }], empresa);
 }
 
-export function exportarKardexExcel({ filas = [], totales = {}, desde, hasta } = {}) {
+export function exportarKardexExcel({ filas = [], totales = {}, desde, hasta, empresa = "Empresa" } = {}) {
     const datos = [
         ["KARDEX DE INVENTARIO"],
         [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`],
@@ -784,33 +793,34 @@ export function exportarKardexExcel({ filas = [], totales = {}, desde, hasta } =
         { s: { r: 3, c: 5 }, e: { r: 3, c: 7 } },
         { s: { r: 3, c: 8 }, e: { r: 3, c: 9 } },
         { s: { r: 3, c: 10 }, e: { r: 3, c: 12 } }
-    ] }]);
+    ] }], empresa);
 }
 
-export function exportarUsuariosExcel({ usuarios = [] } = {}) {
-    exportarLibroExcel("Usuarios_de_la_Empresa", [{ nombreHoja: "Usuarios", filas: [["Nombre", "Correo", "Rol", "Estado"], ...usuarios.map(usuario => [usuario.nombre, usuario.correo, usuario.rol, usuario.estado ? "Activo" : "Inactivo"])], anchos: [30, 38, 16, 16] }]);
+export function exportarUsuariosExcel({ usuarios = [], empresa = "Empresa" } = {}) {
+    exportarLibroExcel("Usuarios_de_la_Empresa", [{ nombreHoja: "Usuarios", filas: [["Nombre", "Correo", "Rol", "Estado"], ...usuarios.map(usuario => [usuario.nombre, usuario.correo, usuario.rol, usuario.estado ? "Activo" : "Inactivo"])], anchos: [30, 38, 16, 16] }], empresa);
 }
 
-export function exportarAuditoriaExcel({ logs = [] } = {}) {
-    exportarLibroExcel("Auditoria_del_Sistema", [{ nombreHoja: "Auditoría", filas: [["Fecha / Hora", "Usuario", "Acción", "Entidad", "ID", "Descripción", "Resultado"], ...logs.map(log => [log.fecha_hora ? new Date(log.fecha_hora).toLocaleString("es-ES") : "-", log.usuario_nombre, log.tipo_accion, log.entidad_afectada, log.entidad_id || "", log.descripcion, log.resultado])], anchos: [22, 28, 18, 18, 12, 60, 18] }]);
+export function exportarAuditoriaExcel({ logs = [], empresa = "Empresa" } = {}) {
+    exportarLibroExcel("Auditoria_del_Sistema", [{ nombreHoja: "Auditoría", filas: [["Fecha / Hora", "Usuario", "Acción", "Entidad", "ID", "Descripción", "Resultado"], ...logs.map(log => [log.fecha_hora ? new Date(log.fecha_hora).toLocaleString("es-ES") : "-", log.usuario_nombre, log.tipo_accion, log.entidad_afectada, log.entidad_id || "", log.descripcion, log.resultado])], anchos: [22, 28, 18, 18, 12, 60, 18] }], empresa);
 }
 
-export function exportarNuevoAsientoExcel({ detalles = [], cuentasPorId, fecha, concepto } = {}) {
+export function exportarNuevoAsientoExcel({ detalles = [], cuentasPorId, fecha, concepto, empresa = "Empresa" } = {}) {
     const mapa = cuentasPorId instanceof Map ? cuentasPorId : new Map();
-    exportarLibroExcel(`Asiento_${fecha || "nuevo"}`, [{ nombreHoja: "Asiento", filas: [["ASIENTO CONTABLE"], [`Fecha: ${formatearFecha(fecha)}`, `Concepto: ${concepto || "Sin concepto"}`], [], ["Cuenta", "Subcuenta", "Debe", "Haber"], ...detalles.map(detalle => { const cuenta = mapa.get(String(detalle.cuenta_id)); return [cuenta?.nombre || "Cuenta principal", cuenta ? `${cuenta.codigo} - ${cuenta.nombre}` : "", celdaMoneda(detalle.debe), celdaMoneda(detalle.haber)]; })], anchos: [30, 42, 16, 16], columnasMoneda: [2, 3] }]);
+    exportarLibroExcel(`Asiento_${fecha || "nuevo"}`, [{ nombreHoja: "Asiento", filas: [["ASIENTO CONTABLE"], [`Fecha: ${formatearFecha(fecha)}`, `Concepto: ${concepto || "Sin concepto"}`], [], ["Cuenta", "Subcuenta", "Debe", "Haber"], ...detalles.map(detalle => { const cuenta = mapa.get(String(detalle.cuenta_id)); return [cuenta?.nombre || "Cuenta principal", cuenta ? `${cuenta.codigo} - ${cuenta.nombre}` : "", celdaMoneda(detalle.debe), celdaMoneda(detalle.haber)]; })], anchos: [30, 42, 16, 16], columnasMoneda: [2, 3] }], empresa);
 }
 
-export async function exportarTablaComparativaExcel({ vistaIzquierda, vistaDerecha, rangoIzquierda, rangoDerecha, usuario, tablasIzquierda = [], tablasDerecha = [] } = {}) {
+export async function exportarTablaComparativaExcel({ vistaIzquierda, vistaDerecha, rangoIzquierda, rangoDerecha, usuario, tablasIzquierda = [], tablasDerecha = [], empresa = "Empresa" } = {}) {
     const libro = new ExcelJS.Workbook();
     libro.creator = "ContaCabal";
 
     const crearHoja = (nombre, vista, rango, tablas) => {
         const hoja = libro.addWorksheet(nombre);
-        hoja.getCell("A1").value = vista || "No seleccionada";
+        hoja.getCell("A1").value = empresa;
         hoja.getCell("A1").font = { bold: true, size: 15, color: { argb: "FF1B4332" } };
-        hoja.getCell("A2").value = `Periodo: ${rango || ""}`;
-        hoja.getCell("A3").value = `Usuario: ${usuario || "Sistema"}`;
-        let filaActual = 5;
+        hoja.getCell("A2").value = vista || "No seleccionada";
+        hoja.getCell("A3").value = `Periodo: ${rango || ""}`;
+        hoja.getCell("A4").value = `Usuario: ${usuario || "Sistema"}`;
+        let filaActual = 6;
 
         if (!tablas.length) {
             hoja.getCell(`A${filaActual}`).value = "No hay datos cargados para este reporte.";
@@ -844,32 +854,34 @@ export async function exportarTablaComparativaExcel({ vistaIzquierda, vistaDerec
     descargarArchivoExcel(buffer, "Tabla_Comparativa.xlsx");
 }
 
-export async function exportarDashboardExcel({ activos = 0, pasivos = 0, ingresos = 0, costos = 0, movimientos = [], periodo } = {}) {
+export async function exportarDashboardExcel({ activos = 0, pasivos = 0, ingresos = 0, costos = 0, movimientos = [], periodo, empresa = "Empresa" } = {}) {
     const libro = new ExcelJS.Workbook();
     libro.creator = "ContaCabal";
     libro.created = new Date();
     const hoja = libro.addWorksheet("Dashboard");
     const formatoMonedaExcel = '"$"#,##0.00;[Red]-"$"#,##0.00';
 
-    hoja.getCell("A1").value = "DASHBOARD EJECUTIVO";
-    hoja.getCell("A1").font = { bold: true, size: 16, color: { argb: "FF1B4332" } };
-    hoja.getCell("A2").value = `Resumen contable | ${periodo || "Periodo actual"}`;
-    hoja.getCell("A4").value = "Tarjetas de resumen";
-    hoja.getCell("A4").font = { bold: true, color: { argb: "FF1B4332" } };
+    hoja.getCell("A1").value = empresa;
+    hoja.getCell("A1").font = { bold: true, size: 15, color: { argb: "FF1B4332" } };
+    hoja.getCell("A2").value = "DASHBOARD EJECUTIVO";
+    hoja.getCell("A2").font = { bold: true, size: 16, color: { argb: "FF1B4332" } };
+    hoja.getCell("A3").value = `Resumen contable | ${periodo || "Periodo actual"}`;
+    hoja.getCell("A5").value = "Tarjetas de resumen";
+    hoja.getCell("A5").font = { bold: true, color: { argb: "FF1B4332" } };
     hoja.addRow(["Tarjeta", "Valor"]);
-    hoja.getRow(5).font = { bold: true, color: { argb: "FFFFFFFF" } };
-    hoja.getRow(5).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B4332" } };
+    hoja.getRow(6).font = { bold: true, color: { argb: "FFFFFFFF" } };
+    hoja.getRow(6).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B4332" } };
     [["Activos", activos], ["Pasivos", pasivos], ["Ingresos netos", ingresos], ["Costo de ventas", costos]].forEach(([nombre, valor]) => {
         const fila = hoja.addRow([nombre, Number(valor || 0)]);
         fila.getCell(2).numFmt = formatoMonedaExcel;
     });
 
-    hoja.getCell("A11").value = "Gráfico de actividad financiera";
-    hoja.getCell("A11").font = { bold: true, color: { argb: "FF1B4332" } };
+    hoja.getCell("A12").value = "Gráfico de actividad financiera";
+    hoja.getCell("A12").font = { bold: true, color: { argb: "FF1B4332" } };
     const imagenId = libro.addImage({ base64: crearGraficoDashboardPNG(ingresos, costos), extension: "png" });
-    hoja.addImage(imagenId, "A12:H29");
+    hoja.addImage(imagenId, "A13:H30");
 
-    const filaMovimientos = 32;
+    const filaMovimientos = 33;
     hoja.getCell(`A${filaMovimientos}`).value = "Últimos movimientos";
     hoja.getCell(`A${filaMovimientos}`).font = { bold: true, color: { argb: "FF1B4332" } };
     hoja.getRow(filaMovimientos + 1).values = ["Fecha", "Comentario", "N. partida"];
@@ -882,8 +894,8 @@ export async function exportarDashboardExcel({ activos = 0, pasivos = 0, ingreso
     descargarArchivoExcel(buffer, "Dashboard_Ejecutivo.xlsx");
 }
 
-export function exportarRatiosExcel({ secciones = {}, desde, hasta, opcionRapida } = {}) {
+export function exportarRatiosExcel({ secciones = {}, desde, hasta, opcionRapida, empresa = "Empresa" } = {}) {
     const seccion = secciones.liquidez;
     const filas = [["RATIOS FINANCIEROS - LIQUIDEZ"], [`Filtro: ${obtenerNombrePeriodo(opcionRapida)} | ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ["Ratio financiero", "Valor", "Estado", "Rango saludable", "Interpretación"], ...(seccion?.ratios || []).map(ratio => [ratio.nombre, ratio.formato, ratio.estado, ratio.rangoSaludable, ratio.interpretacion])];
-    exportarLibroExcel(`Ratios_Financieros_${hasta || "periodo"}`, [{ nombreHoja: "Liquidez", filas, anchos: [34, 18, 18, 24, 65] }]);
+    exportarLibroExcel(`Ratios_Financieros_${hasta || "periodo"}`, [{ nombreHoja: "Liquidez", filas, anchos: [34, 18, 18, 24, 65] }], empresa);
 }

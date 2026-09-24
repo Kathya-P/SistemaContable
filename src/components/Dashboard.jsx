@@ -87,7 +87,7 @@ function calcularResumen(asientos, cuentas) {
 	return resultado;
 }
 
-function Dashboard({ cambiarVista }) {
+function Dashboard({ cambiarVista, empresaNombre = "Empresa" }) {
 	const [asientos, setAsientos] = useState([]);
 	const [cuentas, setCuentas] = useState([]);
 	const [balance, setBalance] = useState(null);
@@ -169,7 +169,8 @@ function Dashboard({ cambiarVista }) {
 				ingresos,
 				costos,
 				movimientos,
-				periodo: `Año ${new Date().getFullYear()}`
+				periodo: `Año ${new Date().getFullYear()}`,
+				empresa: empresaNombre
 			});
 		}
 
@@ -184,7 +185,7 @@ function Dashboard({ cambiarVista }) {
 	}
 
 	function manejarExportacionExcel() {
-		exportarDashboardExcel({ activos, pasivos, ingresos, costos, movimientos, periodo: `Año ${new Date().getFullYear()}` });
+		exportarDashboardExcel({ activos, pasivos, ingresos, costos, movimientos, periodo: `Año ${new Date().getFullYear()}`, empresa: empresaNombre });
 	}
 
 	return (

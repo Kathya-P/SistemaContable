@@ -8,7 +8,7 @@ import ExportarPdfButton from "./ExportarPdfButton";
 
 const anioActual = new Date().getFullYear();
 
-export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros } = {}) {
+export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = "Empresa" } = {}) {
     const [fechaInicio, setFechaInicio] = useState(filtroDesde || `${anioActual}-01-01`);
     const [fechaFin, setFechaFin] = useState(filtroHasta || `${anioActual}-12-31`);
 
@@ -52,11 +52,11 @@ export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros } = {}) {
     }
 
     function manejarExportacionPDF() {
-        exportarKardexPDF({ filas, totales, desde: fechaInicio, hasta: fechaFin });
+        exportarKardexPDF({ filas, totales, desde: fechaInicio, hasta: fechaFin, empresa: empresaNombre });
     }
 
     function manejarExportacionExcel() {
-        exportarKardexExcel({ filas, totales, desde: fechaInicio, hasta: fechaFin });
+        exportarKardexExcel({ filas, totales, desde: fechaInicio, hasta: fechaFin, empresa: empresaNombre });
     }
 
     return (

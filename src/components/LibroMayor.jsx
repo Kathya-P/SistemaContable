@@ -16,7 +16,7 @@ function moneda(valor){
     });
 }
 
-function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
+function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = "Empresa" } = {}){
     const [desde, setDesde] = useState(filtroDesde || `${new Date().getFullYear()}-01-01`);
     const [hasta, setHasta] = useState(filtroHasta || hoy());
     const [cuentas, setCuentas] = useState([]);
@@ -174,12 +174,13 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
             totalesComprobacion,
             movimientosPorCuenta,
             desde,
-            hasta
+            hasta,
+            empresa: empresaNombre
         });
     }
 
     function manejarExportacionExcel() {
-        exportarLibroMayorExcel({ filas: filasMostradas, totalesComprobacion, movimientosPorCuenta, desde, hasta });
+        exportarLibroMayorExcel({ filas: filasMostradas, totalesComprobacion, movimientosPorCuenta, desde, hasta, empresa: empresaNombre });
     }
 
     return(

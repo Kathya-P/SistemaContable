@@ -5,7 +5,7 @@ import KardexPage from "./KardexPage";
 import Estadoresultados from "./Estadoresultados";
 import BalanceGeneral from "./BalanceGeneral";
 import CatalogoCuentas from "./CatalogoCuentas";
-import { exportarTablaComparativaPDF } from "../services/exportationService";
+import { exportarTablaComparativaPDF, exportarTablaComparativaExcel } from "../services/exportationService";
 import { registrarAccionAuditoria } from "../services/auditoriaService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
@@ -75,7 +75,19 @@ function formatearFecha(iso) {
     return iso;
 }
 
-export default function TablaComparativa({ usuario }) {
+function obtenerTablasDeColumna(selector) {
+    const columna = document.querySelector(selector);
+    if (!columna) return [];
+
+    return Array.from(columna.querySelectorAll("table")).map(tabla => {
+        const filas = Array.from(tabla.querySelectorAll("tr")).map(fila =>
+            Array.from(fila.querySelectorAll("th, td")).map(celda => celda.textContent.replace(/\s+/g, " ").trim())
+        ).filter(fila => fila.length > 0);
+        return filas;
+    }).filter(filas => filas.length > 0);
+}
+
+export default function TablaComparativa({ usuario, empresaNombre = "Empresa" }) {
     const anioActual = new Date().getFullYear();
 
     // Selectores de vista
@@ -212,7 +224,23 @@ export default function TablaComparativa({ usuario }) {
             vistaDerecha: nombreVistaDer,
             rangoIzquierda: `${formatearFecha(filtrosAplicados.izq.desde)} al ${formatearFecha(filtrosAplicados.izq.hasta)}`,
             rangoDerecha: `${formatearFecha(filtrosAplicados.der.desde)} al ${formatearFecha(filtrosAplicados.der.hasta)}`,
-            usuario: usuario?.email
+            usuario: usuario?.email,
+            tablasIzquierda: obtenerTablasDeColumna(".comparativa-columna-izq"),
+            tablasDerecha: obtenerTablasDeColumna(".comparativa-columna-der"),
+            empresa: empresaNombre
+        });
+    }
+
+    function handleExportarExcel() {
+        exportarTablaComparativaExcel({
+            vistaIzquierda: nombreVistaIzq,
+            vistaDerecha: nombreVistaDer,
+            rangoIzquierda: `${formatearFecha(filtrosAplicados.izq.desde)} al ${formatearFecha(filtrosAplicados.izq.hasta)}`,
+            rangoDerecha: `${formatearFecha(filtrosAplicados.der.desde)} al ${formatearFecha(filtrosAplicados.der.hasta)}`,
+            usuario: usuario?.email,
+            tablasIzquierda: obtenerTablasDeColumna(".comparativa-columna-izq"),
+            tablasDerecha: obtenerTablasDeColumna(".comparativa-columna-der"),
+            empresa: empresaNombre
         });
     }
 
@@ -239,6 +267,7 @@ export default function TablaComparativa({ usuario }) {
                     <LibroMayor
                         filtroDesde={filtros.desde}
                         filtroHasta={filtros.hasta}
+                        empresaNombre={empresaNombre}
                         ocultarFiltros={true}
                     />
                 );
@@ -248,6 +277,7 @@ export default function TablaComparativa({ usuario }) {
                     <LibroDiario
                         filtroDesde={filtros.desde}
                         filtroHasta={filtros.hasta}
+                        empresaNombre={empresaNombre}
                     />
                 );
 
@@ -256,6 +286,7 @@ export default function TablaComparativa({ usuario }) {
                     <KardexPage
                         filtroDesde={filtros.desde}
                         filtroHasta={filtros.hasta}
+                        empresaNombre={empresaNombre}
                         ocultarFiltros={true}
                     />
                 );
@@ -267,6 +298,7 @@ export default function TablaComparativa({ usuario }) {
                         fechaDesde={filtros.desde}
                         fechaHasta={filtros.hasta}
                         fechaCorte={filtros.hasta}
+                        empresaNombre={empresaNombre}
                         ocultarFiltros={true}
                     />
                 );
@@ -276,12 +308,13 @@ export default function TablaComparativa({ usuario }) {
                     <Estadoresultados
                         filtroDesde={filtros.desde}
                         filtroHasta={filtros.hasta}
+                        empresaNombre={empresaNombre}
                         ocultarFiltros={true}
                     />
                 );
 
             case "cuentas":
-                return <CatalogoCuentas />;
+                return <CatalogoCuentas empresaNombre={empresaNombre} />;
 
             default:
                 return (
@@ -307,7 +340,7 @@ export default function TablaComparativa({ usuario }) {
                 {/* Botón de exportación */}
                 {puedeComparar && (
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <ExportarPdfButton onExport={handleExportarPDF} reporte="Tabla Comparativa" disabled={!puedeComparar} />
+                        <ExportarPdfButton onExport={handleExportarPDF} onExportExcel={handleExportarExcel} reporte="Tabla Comparativa" disabled={!puedeComparar} />
                         <button
                             type="button"
                             onClick={handleExportarCSV}

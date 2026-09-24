@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { solicitarApi } from "../services/api";
-import { exportarUsuariosPDF } from "../services/exportationService";
+import { exportarUsuariosPDF, exportarUsuariosExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 const ROLES = ["ADMIN", "CONTADOR", "AUXILIAR"];
 const formularioVacio = { nombre: "", correo: "", correo2: "", password: "", rol: "CONTADOR" };
 
-function GestionUsuarios({ usuario }){
+function GestionUsuarios({ usuario, empresaNombre = "Empresa" }){
     const [usuarios, setUsuarios] = useState([]);
     const [formulario, setFormulario] = useState(formularioVacio);
     const [mensaje, setMensaje] = useState("");
@@ -85,7 +85,11 @@ useEffect(() => {
     }
 
     function manejarExportacionPDF() {
-        exportarUsuariosPDF({ usuarios });
+        exportarUsuariosPDF({ usuarios, empresa: empresaNombre });
+    }
+
+    function manejarExportacionExcel() {
+        exportarUsuariosExcel({ usuarios, empresa: empresaNombre });
     }
 
     return(
@@ -95,7 +99,7 @@ useEffect(() => {
                     <p className="eyebrow">Administración</p>
                     <h1>Usuarios de la empresa</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Usuarios" disabled={!usuarios.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Usuarios" disabled={!usuarios.length} />
             </div>
 
             <form onSubmit={crearUsuario} className="entry-form">

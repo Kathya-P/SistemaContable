@@ -4,7 +4,7 @@ import { obtenerCuentas } from "../services/cuentasService";
 import { obtenerEmpresas } from "../services/empresasService";
 import { supabaseConfigurado } from "../lib/supabase";
 import { calcularAsiento } from "../utils/asientoIva";
-import { exportarNuevoAsientoPDF } from "../services/exportationService";
+import { exportarNuevoAsientoPDF, exportarNuevoAsientoExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 const nuevaLinea = () => ({
@@ -101,7 +101,7 @@ function construirConceptoAutomatico(lineas, modoIva) {
     return `${texto}${iva}.`;
 }
 
-function NuevoAsiento({ usuario, onCreated }){
+function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
     const [empresas, setEmpresas] = useState([]);
     const [cuentas, setCuentas] = useState([]);
     const empresaId = usuario?.empresa_id ? String(usuario.empresa_id) : "";
@@ -311,7 +311,11 @@ function NuevoAsiento({ usuario, onCreated }){
     }
 
     function manejarExportacionPDF() {
-        exportarNuevoAsientoPDF({ detalles, cuentasPorId, fecha, concepto });
+        exportarNuevoAsientoPDF({ detalles, cuentasPorId, fecha, concepto, empresa: empresaNombre });
+    }
+
+    function manejarExportacionExcel() {
+        exportarNuevoAsientoExcel({ detalles, cuentasPorId, fecha, concepto, empresa: empresaNombre });
     }
 
     return(
@@ -321,7 +325,7 @@ function NuevoAsiento({ usuario, onCreated }){
                     <p className="eyebrow">Registro contable</p>
                     <h1>Nuevo asiento</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Nuevo Asiento" disabled={!empresaId || !detalles.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Nuevo Asiento" disabled={!empresaId || !detalles.length} />
                 <div className={estaBalanceado ? "balance-status is-balanced" : "balance-status"}>
                     Debe {totalDebe.toLocaleString()} / Haber {totalHaber.toLocaleString()} · {estaBalanceado ? "Cuadra" : `No cuadra (${diferencia.toFixed(2)})`}
                 </div>

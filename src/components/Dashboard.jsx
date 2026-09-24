@@ -5,7 +5,7 @@ import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { solicitarApi } from "../services/api";
 import ExportarPdfButton from "./ExportarPdfButton";
-import { exportarDashboardPDF } from "../services/exportationService";
+import { exportarDashboardPDF, exportarDashboardExcel } from "../services/exportationService";
 import { supabaseConfigurado } from "../lib/supabase";
 
 function moneda(valor) {
@@ -87,7 +87,7 @@ function calcularResumen(asientos, cuentas) {
 	return resultado;
 }
 
-function Dashboard({ cambiarVista }) {
+function Dashboard({ cambiarVista, empresaNombre = "Empresa" }) {
 	const [asientos, setAsientos] = useState([]);
 	const [cuentas, setCuentas] = useState([]);
 	const [balance, setBalance] = useState(null);
@@ -169,7 +169,8 @@ function Dashboard({ cambiarVista }) {
 				ingresos,
 				costos,
 				movimientos,
-				periodo: `Año ${new Date().getFullYear()}`
+				periodo: `Año ${new Date().getFullYear()}`,
+				empresa: empresaNombre
 			});
 		}
 
@@ -181,6 +182,10 @@ function Dashboard({ cambiarVista }) {
 				</p>
 			</section>
 		);
+	}
+
+	function manejarExportacionExcel() {
+		exportarDashboardExcel({ activos, pasivos, ingresos, costos, movimientos, periodo: `Año ${new Date().getFullYear()}`, empresa: empresaNombre });
 	}
 
 	return (
@@ -202,7 +207,7 @@ function Dashboard({ cambiarVista }) {
 				>
 					+ Nuevo asiento
 				</button>
-				<ExportarPdfButton onExport={manejarExportacionPDF} reporte="Dashboard ejecutivo" />
+				<ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Dashboard ejecutivo" />
 			</div>
 
 			{error && (

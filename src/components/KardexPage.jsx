@@ -3,12 +3,12 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { FiltersPeriodo } from "./FiltersPeriodo";
 import { TablaKardex } from "./TablaKardex";
 import { formatearMoneda } from "../utils/kardexCalculos";
-import { exportarKardexPDF } from "../services/exportationService";
+import { exportarKardexPDF, exportarKardexExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 const anioActual = new Date().getFullYear();
 
-export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros } = {}) {
+export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = "Empresa" } = {}) {
     const [fechaInicio, setFechaInicio] = useState(filtroDesde || `${anioActual}-01-01`);
     const [fechaFin, setFechaFin] = useState(filtroHasta || `${anioActual}-12-31`);
 
@@ -52,7 +52,11 @@ export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros } = {}) {
     }
 
     function manejarExportacionPDF() {
-        exportarKardexPDF({ filas, totales, desde: fechaInicio, hasta: fechaFin });
+        exportarKardexPDF({ filas, totales, desde: fechaInicio, hasta: fechaFin, empresa: empresaNombre });
+    }
+
+    function manejarExportacionExcel() {
+        exportarKardexExcel({ filas, totales, desde: fechaInicio, hasta: fechaFin, empresa: empresaNombre });
     }
 
     return (
@@ -63,7 +67,7 @@ export function KardexPage({ filtroDesde, filtroHasta, ocultarFiltros } = {}) {
                     <p className="eyebrow">Control de Inventarios · Valuación Ponderada</p>
                     <h1>Kardex de Inventario</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Kardex" disabled={cargando || !!error || !filas.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Kardex" disabled={cargando || !!error || !filas.length} />
             </div>
 
             {/* Tarjetas de Indicadores Clave */}

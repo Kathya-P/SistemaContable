@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { obtenerLibroDiario } from "../services/libroDiarioService";
-import { exportarLibroDiarioPDF } from "../services/exportationService";
+import { exportarLibroDiarioPDF, exportarLibroDiarioExcel } from "../services/exportationService";
 import { supabaseConfigurado } from "../lib/supabase";
 import ExportarPdfButton from "./ExportarPdfButton";
 
@@ -45,7 +45,7 @@ function gruposDeAsiento(asiento){
     return [...grupos.values()];
 }
 
-function LibroDiario({ filtroDesde, filtroHasta } = {}){
+function LibroDiario({ filtroDesde, filtroHasta, empresaNombre = "Empresa" } = {}){
     const [asientos, setAsientos] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
@@ -95,8 +95,13 @@ function LibroDiario({ filtroDesde, filtroHasta } = {}){
         exportarLibroDiarioPDF({
             asientos: asientosFiltrados,
             desde: filtroDesde,
-            hasta: filtroHasta
+            hasta: filtroHasta,
+            empresa: empresaNombre
         });
+    }
+
+    function manejarExportacionExcel() {
+        exportarLibroDiarioExcel({ asientos: asientosFiltrados, desde: filtroDesde, hasta: filtroHasta, empresa: empresaNombre });
     }
 
     if(cargando){
@@ -114,7 +119,7 @@ function LibroDiario({ filtroDesde, filtroHasta } = {}){
                     <p className="eyebrow">Registro cronológico</p>
                     <h1>Libro Diario</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Libro Diario" disabled={!asientosFiltrados.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Libro Diario" disabled={!asientosFiltrados.length} />
                 <div className={diarioCuadrado ? "balance-status is-balanced" : "balance-status is-unbalanced"}>
                     {diarioCuadrado ? "Partida doble cuadrada" : "Revisar diferencias"}
                 </div>

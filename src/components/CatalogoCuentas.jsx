@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { obtenerCuentas } from "../services/cuentasService";
 import { supabaseConfigurado } from "../lib/supabase";
-import { exportarCatalogoCuentasPDF } from "../services/exportationService";
+import { exportarCatalogoCuentasPDF, exportarCatalogoCuentasExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
-function CatalogoCuentas(){
+function CatalogoCuentas({ empresaNombre = "Empresa" }){
     const [cuentas, setCuentas] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
@@ -40,7 +40,11 @@ function CatalogoCuentas(){
     }
 
     function manejarExportacionPDF() {
-        exportarCatalogoCuentasPDF({ cuentas });
+        exportarCatalogoCuentasPDF({ cuentas, empresa: empresaNombre });
+    }
+
+    function manejarExportacionExcel() {
+        exportarCatalogoCuentasExcel({ cuentas, empresa: empresaNombre });
     }
 
     return(
@@ -51,7 +55,7 @@ function CatalogoCuentas(){
                     <h1>Catálogo de cuentas</h1>
                 </div>
                 <span className="count-badge">{cuentas.length} cuentas</span>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Catálogo de Cuentas" disabled={!cuentas.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Catálogo de Cuentas" disabled={!cuentas.length} />
             </div>
 
             <div className="table-shell">

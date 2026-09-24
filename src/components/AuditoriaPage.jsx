@@ -6,6 +6,7 @@ import {
 } from "../services/auditoriaService";
 import { solicitarApi } from "../services/api";
 import { exportarAuditoriaPDF } from "../services/exportationService";
+import { exportarAuditoriaExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 // Iconos SVG para las acciones
@@ -123,7 +124,7 @@ const CONFIG_RESULTADOS = {
     }
 };
 
-export default function AuditoriaPage({ usuario }) {
+export default function AuditoriaPage({ usuario, empresaNombre = "Empresa" }) {
     const formatearFechaIso = (d) => {
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -295,7 +296,11 @@ export default function AuditoriaPage({ usuario }) {
     };
 
     const handleExportarPDF = () => {
-        exportarAuditoriaPDF({ logs });
+        exportarAuditoriaPDF({ logs, empresa: empresaNombre });
+    };
+
+    const handleExportarExcel = () => {
+        exportarAuditoriaExcel({ logs, empresa: empresaNombre });
     };
 
     const limpiarFiltros = () => {
@@ -575,7 +580,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         <IconoAccion tipo="descargar" size={16} />
                         Exportar CSV
                     </button>
-                    <ExportarPdfButton className="btn-exportar" onExport={handleExportarPDF} reporte="Auditoría" disabled={!logs.length} />
+                    <ExportarPdfButton className="btn-exportar" onExport={handleExportarPDF} onExportExcel={handleExportarExcel} reporte="Auditoría" disabled={!logs.length} />
                 </div>
             </div>
 

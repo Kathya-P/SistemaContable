@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { solicitarApi } from "../services/api";
 import { obtenerCuentas } from "../services/cuentasService";
-import { exportarLibroMayorPDF } from "../services/exportationService";
+import { exportarLibroMayorPDF, exportarLibroMayorExcel } from "../services/exportationService";
 import CuentaT from "./CuentaT";
 import ExportarPdfButton from "./ExportarPdfButton";
 
@@ -16,7 +16,7 @@ function moneda(valor){
     });
 }
 
-function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
+function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = "Empresa" } = {}){
     const [desde, setDesde] = useState(filtroDesde || `${new Date().getFullYear()}-01-01`);
     const [hasta, setHasta] = useState(filtroHasta || hoy());
     const [cuentas, setCuentas] = useState([]);
@@ -174,8 +174,13 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
             totalesComprobacion,
             movimientosPorCuenta,
             desde,
-            hasta
+            hasta,
+            empresa: empresaNombre
         });
+    }
+
+    function manejarExportacionExcel() {
+        exportarLibroMayorExcel({ filas: filasMostradas, totalesComprobacion, movimientosPorCuenta, desde, hasta, empresa: empresaNombre });
     }
 
     return(
@@ -185,7 +190,7 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
                     <p className="eyebrow">Mayorización automática</p>
                     <h1>Libro Mayor</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Libro Mayor" disabled={cargando || !!error || !filasMostradas.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Libro Mayor" disabled={cargando || !!error || !filasMostradas.length} />
             </div>
 
             {!ocultarFiltros && (

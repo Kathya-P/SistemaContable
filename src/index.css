@@ -1141,435 +1141,1206 @@ tr:last-child td {
 
 /* Theme overrides stay at the end so the dashboard defaults cannot overwrite them. */
 .app-shell.tema-oscuro {
-  background: #111827;
-  color: #e5e7eb;
+  --gh-bg: #0d1117;
+  --gh-surface: #161b22;
+  --gh-surface-elevated: #21262d;
+  --gh-border: #30363d;
+  --gh-text: #f0f6fc;
+  --gh-text-muted: #c9d1d9;
+  --gh-text-subtle: #8b949e;
+  --gh-text-faint: #6e7681;
+  --gh-accent: #2ea043;
+  --gh-accent-strong: #3fb950;
+  --gh-hover: #21262d;
+  background: var(--gh-bg);
+  color: var(--gh-text);
 }
 
-.app-shell.tema-oscuro .topbar {
-  background: #1f2937;
-  border-bottom-color: #374151;
+.app-shell.tema-oscuro .app-main,
+.app-shell.tema-oscuro .app-content,
+.app-shell.tema-oscuro .topbar,
+.app-shell.tema-oscuro .table-shell,
+.app-shell.tema-oscuro .control-panel,
+.app-shell.tema-oscuro .entry-form,
+.app-shell.tema-oscuro .report-filters,
+.app-shell.tema-oscuro .dashboard-panel,
+.app-shell.tema-oscuro .dashboard-stat,
+.app-shell.tema-oscuro .module-card {
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
+  color: var(--gh-text);
+}
+
+.app-shell.tema-oscuro .sidebar {
+  background: var(--gh-surface);
+  border-right: 1px solid var(--gh-border);
+  box-shadow: inset -1px 0 0 rgba(48, 54, 61, 0.8);
+}
+
+.app-shell.tema-oscuro .sidebar-header,
+.app-shell.tema-oscuro .sidebar-footer,
+.app-shell.tema-oscuro .sidebar-user {
+  border-color: var(--gh-border);
 }
 
 .app-shell.tema-oscuro .brand,
-.app-shell.tema-oscuro .hero-copy h1,
-.app-shell.tema-oscuro .section-heading h1,
+.app-shell.tema-oscuro .brand-name,
 .app-shell.tema-oscuro h1,
 .app-shell.tema-oscuro h2,
-.app-shell.tema-oscuro .metrics-row strong {
-  color: #f5f3f4;
+.app-shell.tema-oscuro h3,
+.app-shell.tema-oscuro .hero-copy h1,
+.app-shell.tema-oscuro .section-heading h1,
+.app-shell.tema-oscuro .metrics-row strong,
+.app-shell.tema-oscuro .panel-heading,
+.app-shell.tema-oscuro .detail-header h2,
+.app-shell.tema-oscuro .dashboard-heading h1,
+.app-shell.tema-oscuro .dashboard-panel h2 {
+  color: var(--gh-text);
 }
 
+.app-shell.tema-oscuro .brand-mark {
+  background: var(--gh-accent);
+  color: #fff;
+}
+
+.app-shell.tema-oscuro .dashboard-page .eyebrow,
+.app-shell.tema-oscuro .dashboard-page .dashboard-kicker,
+.app-shell.tema-oscuro .dashboard-page .dashboard-period,
+.app-shell.tema-oscuro .dashboard-page .dashboard-subtitle,
+.app-shell.tema-oscuro .dashboard-page .dashboard-stat span,
+.app-shell.tema-oscuro .dashboard-page .dashboard-stat small,
+.app-shell.tema-oscuro .dashboard-page .dashboard-empty,
+.app-shell.tema-oscuro .dashboard-page .chart-scale,
+.app-shell.tema-oscuro .dashboard-page .chart-column,
+.app-shell.tema-oscuro .dashboard-page .dashboard-activity-row,
+.app-shell.tema-oscuro .dashboard-page .dashboard-activity-row .meta,
+.app-shell.tema-oscuro .dashboard-page .dashboard-note,
+.app-shell.tema-oscuro .view-section .eyebrow,
+.app-shell.tema-oscuro .view-section .form-help,
+.app-shell.tema-oscuro .view-section .company-step,
+.app-shell.tema-oscuro .view-section .account-breakdown,
+.app-shell.tema-oscuro .view-section .partial-heading span,
+.app-shell.tema-oscuro .view-section .partial-row,
+.app-shell.tema-oscuro .view-section .metrics-row span,
+.app-shell.tema-oscuro .view-section .count-badge,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-metric-card span,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-filters-bar,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-filters-bar label,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-filters-bar input,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-filters-bar select,
+.app-shell.tema-oscuro .catalogo-cuentas-section .nodo-arbol-contenedor,
+.app-shell.tema-oscuro .catalogo-cuentas-section .subarbol-hijos,
+.app-shell.tema-oscuro .catalogo-cuentas-section .tree-node,
+.app-shell.tema-oscuro .catalogo-cuentas-section .cuenta-row,
+.app-shell.tema-oscuro .ratios-container,
+.app-shell.tema-oscuro .ratios-container .panel-ratios-filtro,
+.app-shell.tema-oscuro .ratios-container .card-ratio-item,
+.app-shell.tema-oscuro .ratios-container .tab-ratios-btn,
+.app-shell.tema-oscuro .ratios-container .chip-ratios-periodo,
+.app-shell.tema-oscuro .ratios-container .btn-ratios-accion,
+.app-shell.tema-oscuro .ratios-container .input-ratios-fecha,
+.app-shell.tema-oscuro .ratios-container .btn-ratios-actualizar,
+.app-shell.tema-oscuro .auditoria-page,
+.app-shell.tema-oscuro .auditoria-page .chip-rango,
+.app-shell.tema-oscuro .auditoria-page .input-auditoria,
+.app-shell.tema-oscuro .auditoria-page .select-auditoria,
+.app-shell.tema-oscuro .auditoria-page .detalle-cambio,
+.app-shell.tema-oscuro .auditoria-page .resumen-card,
+.app-shell.tema-oscuro .auditoria-page .ficha-log,
+.app-shell.tema-oscuro .auditoria-page .tabla-auditoria td,
+.app-shell.tema-oscuro .auditoria-page .tabla-auditoria th,
+.app-shell.tema-oscuro .auditoria-page .metricas-wrapper,
+.app-shell.tema-oscuro .auditoria-page .metricas-wrapper strong,
+.app-shell.tema-oscuro .auditoria-page .metricas-wrapper span {
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .dashboard-page h1,
+.app-shell.tema-oscuro .dashboard-page h2,
+.app-shell.tema-oscuro .dashboard-page .dashboard-stat strong,
+.app-shell.tema-oscuro .view-section h1,
+.app-shell.tema-oscuro .view-section h2,
+.app-shell.tema-oscuro .view-section h3,
+.app-shell.tema-oscuro .view-section strong,
+.app-shell.tema-oscuro .view-section b,
+.app-shell.tema-oscuro .view-section .section-heading h1,
+.app-shell.tema-oscuro .view-section .section-heading h2,
+.app-shell.tema-oscuro .view-section .detail-header h2,
+.app-shell.tema-oscuro .view-section .account-code,
+.app-shell.tema-oscuro .view-section .module-number,
+.app-shell.tema-oscuro .view-section .metrics-row strong,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-metric-card p,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-metric-card strong,
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading h1,
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading h2,
+.app-shell.tema-oscuro .catalogo-cuentas-section .tree-node strong,
+.app-shell.tema-oscuro .catalogo-cuentas-section .cuenta-row strong,
+.app-shell.tema-oscuro .ratios-container h1,
+.app-shell.tema-oscuro .ratios-container h2,
+.app-shell.tema-oscuro .ratios-container h3,
+.app-shell.tema-oscuro .ratios-container strong,
+.app-shell.tema-oscuro .ratios-container .card-ratio-item h3,
+.app-shell.tema-oscuro .auditoria-page h1,
+.app-shell.tema-oscuro .auditoria-page h2,
+.app-shell.tema-oscuro .auditoria-page h3,
+.app-shell.tema-oscuro .auditoria-page strong,
+.app-shell.tema-oscuro .auditoria-page .badge,
+.app-shell.tema-oscuro .auditoria-page .kpi-value,
+.app-shell.tema-oscuro .auditoria-page .valor-metrica,
+.app-shell.tema-oscuro .auditoria-page .tabla-auditoria strong,
+.app-shell.tema-oscuro .auditoria-page .tabla-auditoria td strong {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .dashboard-page .eyebrow,
+.app-shell.tema-oscuro .view-section .eyebrow,
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading .eyebrow,
+.app-shell.tema-oscuro .ratios-container .eyebrow,
+.app-shell.tema-oscuro .auditoria-page .eyebrow {
+  color: var(--gh-accent-strong) !important;
+}
+
+.app-shell.tema-oscuro .dashboard-page .dashboard-stat strong,
+.app-shell.tema-oscuro .dashboard-page .dashboard-panel h2,
+.app-shell.tema-oscuro .dashboard-page .dashboard-heading h1,
+.app-shell.tema-oscuro .dashboard-page .dashboard-subtitle,
+.app-shell.tema-oscuro .dashboard-page .dashboard-period,
+.app-shell.tema-oscuro .view-section p,
+.app-shell.tema-oscuro .view-section label,
+.app-shell.tema-oscuro .view-section td,
+.app-shell.tema-oscuro .view-section th,
+.app-shell.tema-oscuro .catalogo-cuentas-section p,
+.app-shell.tema-oscuro .catalogo-cuentas-section label,
+.app-shell.tema-oscuro .catalogo-cuentas-section td,
+.app-shell.tema-oscuro .catalogo-cuentas-section th,
+.app-shell.tema-oscuro .ratios-container p,
+.app-shell.tema-oscuro .ratios-container label,
+.app-shell.tema-oscuro .ratios-container td,
+.app-shell.tema-oscuro .ratios-container th,
+.app-shell.tema-oscuro .auditoria-page p,
+.app-shell.tema-oscuro .auditoria-page label,
+.app-shell.tema-oscuro .auditoria-page td,
+.app-shell.tema-oscuro .auditoria-page th {
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .dashboard-page .dashboard-stat strong,
+.app-shell.tema-oscuro .view-section .table-shell td,
+.app-shell.tema-oscuro .view-section .entry-detail-table td,
+.app-shell.tema-oscuro .view-section .entry-detail-table th,
+.app-shell.tema-oscuro .catalogo-cuentas-section .cuenta-row td,
+.app-shell.tema-oscuro .ratios-container .card-ratio-item,
+.app-shell.tema-oscuro .auditoria-page .tabla-auditoria td,
+.app-shell.tema-oscuro .auditoria-page .tabla-auditoria th {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .chip-rango.is-active,
+.app-shell.tema-oscuro .ratios-container .chip-ratios-periodo.is-active,
+.app-shell.tema-oscuro .ratios-container .tab-ratios-btn.is-active,
+.app-shell.tema-oscuro .auditoria-page .btn-exportar,
+.app-shell.tema-oscuro .auditoria-page .btn-actualizar,
+.app-shell.tema-oscuro .auditoria-page .btn-limpiar,
+.app-shell.tema-oscuro .auditoria-page .btn-detalles,
+.app-shell.tema-oscuro .auditoria-page .btn-paginacion {
+  color: #fff !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .btn-exportar,
+.app-shell.tema-oscuro .auditoria-page .chip-rango.is-active,
+.app-shell.tema-oscuro .ratios-container .chip-ratios-periodo.is-active,
+.app-shell.tema-oscuro .ratios-container .tab-ratios-btn.is-active {
+  background: #2ea043 !important;
+  border-color: #2ea043 !important;
+}
+
+.app-shell.tema-oscuro .sidebar-link,
+.app-shell.tema-oscuro .sidebar-section-toggle,
+.app-shell.tema-oscuro .sidebar-footer-button,
+.app-shell.tema-oscuro .sidebar-sublink,
 .app-shell.tema-oscuro .nav-link,
 .app-shell.tema-oscuro .theme-toggle {
-  color: #d1d5db;
-  border-color: #4b5563;
+  color: var(--gh-text-muted);
+  border-color: var(--gh-border);
 }
 
+.app-shell.tema-oscuro .sidebar-link:hover,
+.app-shell.tema-oscuro .sidebar-section-toggle:hover,
+.app-shell.tema-oscuro .sidebar-footer-button:hover,
+.app-shell.tema-oscuro .sidebar-sublink:hover,
 .app-shell.tema-oscuro .nav-link:hover,
-.app-shell.tema-oscuro .nav-link.is-active,
-.app-shell.tema-oscuro .theme-toggle:hover {
-  color: #fff;
-  background: rgba(217, 70, 239, 0.16);
+.app-shell.tema-oscuro .theme-toggle:hover,
+.app-shell.tema-oscuro .sidebar-link.is-active,
+.app-shell.tema-oscuro .sidebar-sublink.is-active,
+.app-shell.tema-oscuro .nav-link.is-active {
+  background: var(--gh-hover);
+  color: var(--gh-text);
 }
 
+.app-shell.tema-oscuro .sidebar-link.is-active,
+.app-shell.tema-oscuro .sidebar-sublink.is-active,
+.app-shell.tema-oscuro .nav-link.is-active {
+  border-color: rgba(46, 160, 67, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(46, 160, 67, 0.18);
+}
+
+.app-shell.tema-oscuro .sidebar-icon,
+.app-shell.tema-oscuro .sidebar-chevron,
+.app-shell.tema-oscuro .sidebar-user-info span,
 .app-shell.tema-oscuro .eyebrow,
 .app-shell.tema-oscuro .panel-period,
 .app-shell.tema-oscuro .ledger-line strong,
-.app-shell.tema-oscuro .panel-link {
-  color: #f5d0fe;
-}
-
+.app-shell.tema-oscuro .panel-link,
 .app-shell.tema-oscuro .welcome-copy,
-.app-shell.tema-oscuro label,
+.app-shell.tema-oscuro .dashboard-subtitle,
+.app-shell.tema-oscuro .dashboard-period,
+.app-shell.tema-oscuro .dashboard-stat span,
+.app-shell.tema-oscuro .dashboard-stat small,
+.app-shell.tema-oscuro .chart-scale,
+.app-shell.tema-oscuro .chart-column,
+.app-shell.tema-oscuro .dashboard-empty,
+.app-shell.tema-oscuro .account-breakdown,
+.app-shell.tema-oscuro .form-help,
+.app-shell.tema-oscuro .partial-heading span,
+.app-shell.tema-oscuro .partial-row,
+.app-shell.tema-oscuro .company-setup > span,
 .app-shell.tema-oscuro .metrics-row span,
-.app-shell.tema-oscuro th,
 .app-shell.tema-oscuro .count-badge,
-.app-shell.tema-oscuro .balance-status {
-  color: #9eafb9;
+.app-shell.tema-oscuro .balance-status,
+.app-shell.tema-oscuro .login-copy {
+  color: var(--gh-text-subtle);
 }
 
-/* Final formal palette requested by user */
-.app-shell,
-.app-shell .login-page,
-.app-shell .login-card,
-.app-shell .topbar,
-.app-shell .control-panel,
-.app-shell .table-shell,
-.app-shell .entry-form,
-.app-shell .report-filters {
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-}
-
-.app-shell {
-  background: #F6F7F8 !important;
-  color: #1C2321 !important;
-}
-
-.app-shell .topbar {
-  background: #FFFFFF !important;
-  border-bottom-color: #DDE3E0 !important;
-}
-
-.app-shell .brand,
-.app-shell .login-brand,
-.app-shell .detail-header h2,
-.app-shell .hero-copy h1,
-.app-shell .section-heading h1,
-.app-shell h1,
-.app-shell h2,
-.app-shell .metrics-row strong {
-  color: #1C2321 !important;
-}
-
-.app-shell .brand-mark,
-.app-shell .panel-mark,
-.app-shell .login-brand .brand-mark {
-  background: #1B4332 !important;
-  color: #fff !important;
-}
-
-.app-shell .nav-link {
-  color: #5F6B67 !important;
-}
-
-.app-shell .nav-link:hover,
-.app-shell .nav-link.is-active {
-  background: #E3EFE7 !important;
-  color: #1C2321 !important;
-}
-
-.app-shell .eyebrow,
-.app-shell .module-number,
-.app-shell .account-code,
-.app-shell .hero-copy h1 span {
-  color: #1B4332 !important;
-}
-
-.app-shell .welcome-copy,
-.app-shell .login-copy,
-.app-shell label,
-.app-shell .metrics-row span,
-.app-shell .count-badge,
-.app-shell .balance-status {
-  color: #5F6B67 !important;
-}
-
-.app-shell .button-primary {
-  color: #fff !important;
-  background: #1B4332 !important;
-  border: 1px solid transparent !important;
-  box-shadow: none !important;
-}
-
-.app-shell .button-secondary {
-  color: #1B4332 !important;
-  background: #E3EFE7 !important;
-  border: 1px solid #DDE3E0 !important;
-}
-
-.app-shell .control-panel {
-  background: #FFFFFF !important;
-  color: #1C2321 !important;
-  border-color: #DDE3E0 !important;
-}
-
-.app-shell .panel-heading,
-.app-shell .ledger-line strong,
-.app-shell .panel-link {
-  color: #1B4332 !important;
-}
-
-.app-shell .table-shell,
-.app-shell .entry-form,
-.app-shell .report-filters,
-.app-shell .login-card {
-  background: #FFFFFF !important;
-  border-color: #DDE3E0 !important;
-}
-
-.app-shell .login-page {
-  background: #F6F7F8 !important;
-}
-
-.app-shell .login-card {
-  box-shadow: 0 16px 36px rgba(28, 35, 33, 0.06) !important;
-}
-
-.app-shell .theme-toggle {
-  color: #5F6B67 !important;
-  border-color: #DDE3E0 !important;
-}
-
-.app-shell .theme-toggle:hover {
-  background: #E3EFE7 !important;
-  color: #1C2321 !important;
-}
-
-.app-shell.tema-oscuro {
-  background: #111827 !important;
-  color: #e5e7eb !important;
-}
-
-.app-shell.tema-oscuro .topbar {
-  background: #1f2937 !important;
-  border-bottom-color: #374151 !important;
-}
-
-.app-shell.tema-oscuro .brand,
-.app-shell.tema-oscuro .login-brand,
-.app-shell.tema-oscuro .detail-header h2,
-.app-shell.tema-oscuro .hero-copy h1,
-.app-shell.tema-oscuro .section-heading h1,
-.app-shell.tema-oscuro h1,
-.app-shell.tema-oscuro h2,
-.app-shell.tema-oscuro .metrics-row strong {
-  color: #f5f3f4 !important;
-}
-
-.app-shell.tema-oscuro .nav-link,
-.app-shell.tema-oscuro .theme-toggle {
-  color: #d1d5db !important;
-  border-color: #4b5563 !important;
-}
-
-.app-shell.tema-oscuro .nav-link:hover,
-.app-shell.tema-oscuro .nav-link.is-active,
-.app-shell.tema-oscuro .theme-toggle:hover {
-  background: rgba(27, 67, 50, 0.18) !important;
-  color: #fff !important;
+.app-shell.tema-oscuro .panel-link,
+.app-shell.tema-oscuro .eyebrow,
+.app-shell.tema-oscuro .ledger-line strong,
+.app-shell.tema-oscuro .dashboard-stat strong,
+.app-shell.tema-oscuro .module-number,
+.app-shell.tema-oscuro .account-code {
+  color: var(--gh-accent-strong);
 }
 
 .app-shell.tema-oscuro .button-primary {
-  background: #1B4332 !important;
+  background: var(--gh-accent);
+  border-color: var(--gh-accent);
+  color: #fff;
+  box-shadow: none;
+}
+
+.app-shell.tema-oscuro .button-primary:hover {
+  background: #2c974b;
+  border-color: #2c974b;
+}
+
+.app-shell.tema-oscuro .button-secondary,
+.app-shell.tema-oscuro .sidebar-footer-button.logout,
+.app-shell.tema-oscuro .theme-toggle {
+  background: var(--gh-surface-elevated);
+  border: 1px solid var(--gh-border);
+  color: var(--gh-text);
+}
+
+.app-shell.tema-oscuro .button-secondary:hover,
+.app-shell.tema-oscuro .theme-toggle:hover {
+  background: var(--gh-hover);
 }
 
 .app-shell.tema-oscuro .button-secondary {
-  color: #E3EFE7 !important;
-  border-color: #1B4332 !important;
-  background: rgba(27, 67, 50, 0.18) !important;
+  color: var(--gh-text);
 }
 
-.app-shell.tema-oscuro .login-page,
+.app-shell.tema-oscuro .sidebar-footer-button.logout:hover {
+  color: #ff7b72;
+  background: rgba(248, 81, 73, 0.12);
+}
+
+.app-shell.tema-oscuro .login-page {
+  background: var(--gh-bg);
+}
+
 .app-shell.tema-oscuro .login-card,
+.app-shell.tema-oscuro .auth-tabs,
+.app-shell.tema-oscuro .auth-tab,
 .app-shell.tema-oscuro .table-shell,
 .app-shell.tema-oscuro .entry-form,
 .app-shell.tema-oscuro .report-filters {
-  background: #1f2937 !important;
-  border-color: #374151 !important;
-  color: #e5e7eb !important;
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
 }
 
-.app-shell.tema-oscuro .login-copy,
-.app-shell.tema-oscuro label,
-.app-shell.tema-oscuro .metrics-row span,
-.app-shell.tema-oscuro th,
+.app-shell.tema-oscuro .auth-tab {
+  color: var(--gh-text-subtle);
+}
+
+.app-shell.tema-oscuro .auth-tab.is-active {
+  background: var(--gh-accent);
+  color: #fff;
+}
+
 .app-shell.tema-oscuro .count-badge,
-.app-shell.tema-oscuro .balance-status {
-  color: #d1d5db !important;
-}
-
-.app-shell.tema-oscuro .button-primary,
-.app-shell.tema-oscuro .button-secondary,
-.app-shell.tema-oscuro .theme-toggle,
-.app-shell.tema-oscuro .nav-link {
-  transition: all 150ms ease;
-}
-
-.app-shell.tema-oscuro .control-panel,
-.app-shell.tema-oscuro .table-shell,
-.app-shell.tema-oscuro .entry-form {
-  color: #d6e1e5;
-  background: #1a2a36;
-  border-color: #30434f;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .18);
-}
-
-.app-shell.tema-oscuro .panel-heading,
-.app-shell.tema-oscuro .ledger-line,
-.app-shell.tema-oscuro th,
-.app-shell.tema-oscuro td,
-.app-shell.tema-oscuro .metrics-row,
-.app-shell.tema-oscuro .metrics-row div {
-  color: #d6e1e5;
-  border-color: #30434f;
+.app-shell.tema-oscuro .balance-status,
+.app-shell.tema-oscuro .message-success,
+.app-shell.tema-oscuro .message-error {
+  border-radius: 6px;
 }
 
 .app-shell.tema-oscuro .count-badge,
 .app-shell.tema-oscuro .balance-status {
-  background: #263b49;
+  background: rgba(33, 38, 45, 0.9);
+  color: var(--gh-text-muted);
+}
+
+.app-shell.tema-oscuro .message-success {
+  background: rgba(46, 160, 67, 0.14);
+  border: 1px solid rgba(46, 160, 67, 0.4);
+  color: #7ee787;
+}
+
+.app-shell.tema-oscuro .message-error {
+  background: rgba(248, 81, 73, 0.12);
+  border: 1px solid rgba(248, 81, 73, 0.35);
+  color: #ff7b72;
+}
+
+.app-shell.tema-oscuro .message-warning {
+  background: rgba(187, 128, 9, 0.14);
+  border: 1px solid rgba(187, 128, 9, 0.4);
+  color: #d29922;
+}
+
+.app-shell.tema-oscuro table,
+.app-shell.tema-oscuro thead,
+.app-shell.tema-oscuro tbody,
+.app-shell.tema-oscuro tfoot {
+  background: var(--gh-bg);
+  color: var(--gh-text);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro th,
+.app-shell.tema-oscuro td {
+  color: var(--gh-text-muted);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro th {
+  background: var(--gh-surface-elevated);
+  color: var(--gh-text);
+}
+
+.app-shell.tema-oscuro td {
+  background: transparent;
+}
+
+.app-shell.tema-oscuro tbody tr:nth-child(even) td {
+  background: rgba(13, 17, 23, 0.34);
+}
+
+.app-shell.tema-oscuro tbody tr:hover td {
+  background: rgba(33, 38, 45, 0.9);
 }
 
 .app-shell.tema-oscuro input,
-.app-shell.tema-oscuro select {
-  color: #e1ebf0;
-  background: #14232d;
-  border-color: #405562;
+.app-shell.tema-oscuro select,
+.app-shell.tema-oscuro textarea {
+  background: var(--gh-bg);
+  color: var(--gh-text);
+  border: 1px solid var(--gh-border);
 }
 
-.app-shell.tema-oscuro input::placeholder {
-  color: #80929d;
+.app-shell.tema-oscuro input::placeholder,
+.app-shell.tema-oscuro textarea::placeholder {
+  color: var(--gh-text-subtle);
 }
 
-.app-shell.tema-oscuro .button-primary {
-  color: #10202a;
-  background: #8ac6d4;
+.app-shell.tema-oscuro input:focus,
+.app-shell.tema-oscuro select:focus,
+.app-shell.tema-oscuro textarea:focus {
+  border-color: var(--gh-accent-strong);
+  box-shadow: 0 0 0 2px rgba(46, 160, 67, 0.2);
+  outline: none;
 }
 
-.app-shell.tema-oscuro .button-secondary {
-  color: #dcecef;
-  background: #263b49;
+.app-shell.tema-oscuro .company-setup,
+.app-shell.tema-oscuro .partial-summary,
+.app-shell.tema-oscuro .kardex-filters,
+.app-shell.tema-oscuro .kardex-stat-card,
+.app-shell.tema-oscuro .kardex-shell,
+.app-shell.tema-oscuro .kardex-table-excel,
+.app-shell.tema-oscuro .kardex-cuenta-filter-bar,
+.app-shell.tema-oscuro .kardex-filter-pill {
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
+  color: var(--gh-text);
 }
 
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 12px;
-  color: #62717c;
-  background: transparent;
-  border: 1px solid #d6e0e5;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
+.app-shell.tema-oscuro .kardex-filter-pill {
+  color: var(--gh-text-subtle);
 }
 
-.logout-button {
-  padding: 9px 12px;
-  color: #a34b43;
-  background: transparent;
-  border: 1px solid #e1c6c2;
-  border-radius: 4px;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.logout-button:hover {
+.app-shell.tema-oscuro .kardex-filter-pill.is-active {
+  background: var(--gh-accent);
+  border-color: var(--gh-accent);
   color: #fff;
-  background: #a34b43;
+}
+
+.app-shell.tema-oscuro .diario-table th {
+  background: var(--gh-surface-elevated);
+  color: var(--gh-text);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro .diario-parent-row td {
+  background: rgba(33, 38, 45, 0.9);
+  color: var(--gh-text);
+}
+
+.app-shell.tema-oscuro .diario-child-row td,
+.app-shell.tema-oscuro .diario-concept-row td,
+.app-shell.tema-oscuro .diario-total-row td {
+  background: var(--gh-surface);
+  color: var(--gh-text-muted);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro .diario-grand-total-row th {
+  background: var(--gh-surface-elevated);
+  color: var(--gh-text);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro .mayor-total-row td {
+  background: rgba(46, 160, 67, 0.16);
+  color: var(--gh-text);
+  border-color: rgba(46, 160, 67, 0.5);
+}
+
+.app-shell.tema-oscuro .sidebar footer .sidebar-footer-button,
+.app-shell.tema-oscuro .sidebar .sidebar-footer-button,
+.app-shell.tema-oscuro .sidebar .sidebar-link,
+.app-shell.tema-oscuro .sidebar .sidebar-sublink {
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.app-shell.tema-oscuro .app-shell,
+.app-shell.tema-oscuro .app-main,
+.app-shell.tema-oscuro .app-content {
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.app-shell.tema-oscuro .sidebar-user-info strong {
+  color: #c9d1d9 !important;
+}
+
+.app-shell.tema-oscuro .sidebar-user-info span {
+  color: #8b949e !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section,
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-metric-card,
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-filters-bar,
+.app-shell.tema-oscuro .catalogo-cuentas-section .nodo-arbol-contenedor,
+.app-shell.tema-oscuro .catalogo-cuentas-section .subarbol-hijos,
+.app-shell.tema-oscuro .catalogo-cuentas-section .acc-node,
+.app-shell.tema-oscuro .catalogo-cuentas-section .tree-node,
+.app-shell.tema-oscuro .catalogo-cuentas-section .cuenta-row {
+  border-color: var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-metric-card {
+  background: var(--gh-surface) !important;
+  border: 1px solid var(--gh-border) !important;
+  box-shadow: none !important;
+}
+
+.app-shell.tema-oscuro .catalogo-metric-card span {
+  color: var(--gh-text-subtle) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-metric-card p {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-filters-bar {
+  background: var(--gh-surface) !important;
+  border: 1px solid var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-filters-bar input,
+.app-shell.tema-oscuro .catalogo-filters-bar select,
+.app-shell.tema-oscuro .catalogo-filters-bar button,
+.app-shell.tema-oscuro .catalogo-cuentas-section input,
+.app-shell.tema-oscuro .catalogo-cuentas-section select {
+  background: var(--gh-bg) !important;
+  color: var(--gh-text) !important;
+  border-color: var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .catalogo-filters-bar input::placeholder,
+.app-shell.tema-oscuro .catalogo-cuentas-section input::placeholder {
+  color: var(--gh-text-subtle) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .button-secondary,
+.app-shell.tema-oscuro .catalogo-cuentas-section .button-primary {
+  background: var(--gh-surface-elevated) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .button-primary {
+  background: var(--gh-accent) !important;
+  border-color: var(--gh-accent) !important;
+  color: #fff !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .nodo-arbol-contenedor,
+.app-shell.tema-oscuro .catalogo-cuentas-section .subarbol-hijos,
+.app-shell.tema-oscuro .catalogo-cuentas-section .tree-node,
+.app-shell.tema-oscuro .catalogo-cuentas-section .cuenta-row {
+  background: var(--gh-bg) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .tree-node:hover,
+.app-shell.tema-oscuro .catalogo-cuentas-section .cuenta-row:hover,
+.app-shell.tema-oscuro .catalogo-cuentas-section .nodo-arbol-contenedor:hover {
+  background: var(--gh-hover) !important;
+}
+
+.app-shell.tema-oscuro .company-step {
+  background: var(--gh-surface) !important;
+  border: 1px solid var(--gh-border) !important;
+  border-left-color: var(--gh-accent) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .company-step-heading h2,
+.app-shell.tema-oscuro .company-step-heading p,
+.app-shell.tema-oscuro .detail-header h2,
+.app-shell.tema-oscuro .company-step-status,
+.app-shell.tema-oscuro .step-kicker,
+.app-shell.tema-oscuro .entry-form label,
+.app-shell.tema-oscuro .entry-account-cell,
+.app-shell.tema-oscuro .entry-detail-table th,
+.app-shell.tema-oscuro .entry-detail-table td,
+.app-shell.tema-oscuro .entry-detail-table tfoot th,
+.app-shell.tema-oscuro .entry-partial-cell,
+.app-shell.tema-oscuro .form-help,
+.app-shell.tema-oscuro .account-breakdown,
+.app-shell.tema-oscuro .partial-row,
+.app-shell.tema-oscuro .partial-heading h2 {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .entry-form {
+  background: var(--gh-surface) !important;
+  border-color: var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .entry-detail-table th,
+.app-shell.tema-oscuro .entry-detail-table tfoot th {
+  background: var(--gh-surface-elevated) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .entry-detail-table td,
+.app-shell.tema-oscuro .entry-detail-table input,
+.app-shell.tema-oscuro .entry-detail-table select,
+.app-shell.tema-oscuro .detail-table-shell,
+.app-shell.tema-oscuro .entry-detail-table tbody tr:nth-child(even) td {
+  background: var(--gh-bg) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper {
+  background: var(--gh-surface) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+  box-shadow: none !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper table,
+.app-shell.tema-oscuro .bg-sheet-paper td,
+.app-shell.tema-oscuro .bg-sheet-paper th,
+.app-shell.tema-oscuro .bg-sheet-paper tr,
+.app-shell.tema-oscuro .bg-sheet-paper thead,
+.app-shell.tema-oscuro .bg-sheet-paper tbody,
+.app-shell.tema-oscuro .bg-sheet-paper tfoot {
+  background: var(--gh-bg) !important;
+  color: var(--gh-text) !important;
+  border-color: var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper h2,
+.app-shell.tema-oscuro .bg-sheet-paper h3,
+.app-shell.tema-oscuro .bg-sheet-paper p,
+.app-shell.tema-oscuro .bg-sheet-paper span,
+.app-shell.tema-oscuro .bg-sheet-paper td,
+.app-shell.tema-oscuro .bg-sheet-paper th {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper .balance-total-row,
+.app-shell.tema-oscuro .bg-sheet-paper .balance-section-header {
+  background: var(--gh-surface-elevated) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container,
+.app-shell.tema-oscuro .ratios-container .panel-ratios-filtro,
+.app-shell.tema-oscuro .ratios-container .tab-ratios-btn,
+.app-shell.tema-oscuro .ratios-container .card-ratio-item,
+.app-shell.tema-oscuro .ratios-container .chip-ratios-periodo,
+.app-shell.tema-oscuro .ratios-container .btn-ratios-accion,
+.app-shell.tema-oscuro .ratios-container .input-ratios-fecha,
+.app-shell.tema-oscuro .ratios-container .btn-ratios-actualizar {
+  border-color: var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .panel-ratios-filtro,
+.app-shell.tema-oscuro .ratios-container .card-ratio-item,
+.app-shell.tema-oscuro .ratios-container .btn-ratios-accion,
+.app-shell.tema-oscuro .ratios-container .chip-ratios-periodo,
+.app-shell.tema-oscuro .ratios-container .tab-ratios-btn {
+  background: var(--gh-surface) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .btn-ratios-accion.is-active,
+.app-shell.tema-oscuro .ratios-container .chip-ratios-periodo.is-active,
+.app-shell.tema-oscuro .ratios-container .tab-ratios-btn.is-active,
+.app-shell.tema-oscuro .ratios-container .btn-ratios-actualizar {
+  background: var(--gh-accent) !important;
+  border-color: var(--gh-accent) !important;
+  color: #fff !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .input-ratios-fecha {
+  background: var(--gh-bg) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .card-ratio-item {
+  box-shadow: none !important;
+}
+
+/* Final contrast pass for the accounting views. */
+.app-shell.tema-oscuro .catalogo-cuentas-section .nodo-arbol-contenedor,
+.app-shell.tema-oscuro .catalogo-cuentas-section .subarbol-hijos {
+  background: var(--gh-surface) !important;
+  border-color: var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta {
+  background: var(--gh-bg) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta:hover {
+  background: var(--gh-hover) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta > div:first-child > span:first-child,
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta > div:first-child > span:nth-child(2) {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta > div:first-child > div > span {
+  background: var(--gh-surface-elevated) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .company-step-status {
+  background: var(--gh-surface-elevated) !important;
+  border: 1px solid var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-section-container,
+.app-shell.tema-oscuro .bg-controls-bar,
+.app-shell.tema-oscuro .bg-validation-card,
+.app-shell.tema-oscuro .bg-sheet-paper {
+  background: var(--gh-surface) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper h2,
+.app-shell.tema-oscuro .bg-sheet-paper h3,
+.app-shell.tema-oscuro .bg-sheet-paper td,
+.app-shell.tema-oscuro .bg-sheet-paper th,
+.app-shell.tema-oscuro .bg-sheet-paper strong {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper p,
+.app-shell.tema-oscuro .bg-sheet-paper span,
+.app-shell.tema-oscuro .bg-sheet-paper small,
+.app-shell.tema-oscuro .bg-sheet-paper .text-muted {
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .panel-ratios-filtro > div:last-child,
+.app-shell.tema-oscuro .ratios-container > div > div,
+.app-shell.tema-oscuro .ratios-container > section > div {
+  background: var(--gh-surface) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .card-ratio-item,
+.app-shell.tema-oscuro .ratios-container > div > div > div {
+  background: var(--gh-bg) !important;
+  border-color: var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container h1,
+.app-shell.tema-oscuro .ratios-container h2,
+.app-shell.tema-oscuro .ratios-container h3,
+.app-shell.tema-oscuro .ratios-container strong,
+.app-shell.tema-oscuro .ratios-container .card-ratio-item h3 {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container p,
+.app-shell.tema-oscuro .ratios-container label,
+.app-shell.tema-oscuro .ratios-container .card-ratio-item p,
+.app-shell.tema-oscuro .ratios-container .card-ratio-item span {
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .card-ratio-item > div > div > div > span:first-child,
+.app-shell.tema-oscuro .ratios-container .btn-ratios-actualizar {
+  color: #fff !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .btn-ratios-actualizar {
+  background: var(--gh-accent) !important;
+  border-color: var(--gh-accent) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .metricas-auditoria-grid > div,
+.app-shell.tema-oscuro .auditoria-page .graficos-auditoria-container > div,
+.app-shell.tema-oscuro .auditoria-page .filtros-auditoria-panel {
+  background: var(--gh-surface) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .metricas-auditoria-grid > div strong,
+.app-shell.tema-oscuro .auditoria-page .metricas-auditoria-grid > div span,
+.app-shell.tema-oscuro .auditoria-page .graficos-auditoria-container strong,
+.app-shell.tema-oscuro .auditoria-page .filtros-auditoria-panel strong,
+.app-shell.tema-oscuro .auditoria-page .filtros-auditoria-panel label {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .input-auditoria,
+.app-shell.tema-oscuro .auditoria-page .select-auditoria {
+  background: var(--gh-bg) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .btn-actualizar {
+  background: var(--gh-accent) !important;
+  border-color: var(--gh-accent) !important;
+  color: #fff !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .btn-limpiar,
+.app-shell.tema-oscuro .auditoria-page .chip-rango,
+.app-shell.tema-oscuro .auditoria-page .btn-detalles,
+.app-shell.tema-oscuro .auditoria-page .btn-paginacion {
+  background: var(--gh-surface-elevated) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .table-shell,
+.app-shell.tema-oscuro .auditoria-page .table-shell table {
+  background: var(--gh-bg) !important;
+  border-color: var(--gh-border) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .table-shell thead,
+.app-shell.tema-oscuro .auditoria-page .table-shell thead tr,
+.app-shell.tema-oscuro .auditoria-page .table-shell th {
+  background: var(--gh-surface-elevated) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .table-shell td {
+  background: var(--gh-bg) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .table-shell tbody tr:hover td {
+  background: var(--gh-surface) !important;
+}
+
+/* Focused contrast corrections for the final dark-mode pass. */
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading h1,
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading h2 {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta > div:first-child > span:first-child {
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta > div:first-child > span:nth-child(2) {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta > div:first-child > div > span {
+  background: var(--gh-surface-elevated) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta > div:first-child > div > span[title*="Permite registrar"] {
+  color: var(--gh-accent-strong) !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:first-child > span,
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > span {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(2) > label,
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(3) > label {
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:first-child svg,
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child svg {
+  color: var(--gh-text-subtle) !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(3) {
+  color: var(--gh-text-subtle) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .card-ratio-item > div:first-child > div:first-child > span {
+  background: #2d333b !important;
+  border-color: #30363d !important;
+  color: #c9d1d9 !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .card-ratio-item > div:first-child > div:first-child > span[style*="rgb(110, 231, 183)"] {
+  background: #16351f !important;
+  border-color: #2ea043 !important;
+  color: #7ee787 !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .card-ratio-item > div:first-child > div:first-child > span[style*="rgb(167, 243, 208)"] {
+  background: #3d2e00 !important;
+  border-color: #9e6a03 !important;
+  color: #e3b341 !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .card-ratio-item > div:first-child > div:first-child > span[style*="rgb(134, 239, 172)"] {
+  background: #2d333b !important;
+  border-color: #30363d !important;
+  color: #c9d1d9 !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section > .table-shell > div:first-child {
+  background: #16351f !important;
+  border-bottom: 1px solid #2ea043 !important;
+  color: #f0f6fc !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section > .table-shell > div:first-child > span:first-child {
+  color: #f0f6fc !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section > .table-shell > div:first-child > span:last-child {
+  color: #c9d1d9 !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > button,
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:nth-child(2) > button {
+  background: #16351f !important;
+  color: #f0f6fc !important;
+  border: 1px solid #2ea043 !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > button:hover,
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:nth-child(2) > button:hover {
+  background: #1f6f43 !important;
+  color: #ffffff !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > button[style*="rgb(27, 67, 50)"],
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > button[style*="#1b4332"] {
+  background: #7ee787 !important;
+  color: #0d1117 !important;
+  border: 1px solid #2ea043 !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > button[style*="rgb(27, 67, 50)"]:hover,
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > button[style*="#1b4332"]:hover {
+  background: #7ee787 !important;
+  color: #0d1117 !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:first-child > span,
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(2) > label,
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(3) > label,
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > span {
+  color: #f0f6fc !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:first-child svg,
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child svg {
+  color: #8b949e !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(3) {
+  color: #8b949e !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .fila-cuenta > div:first-child > span[title] {
+  color: #f0f6fc !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(2) > input,
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(3) > input {
+  background: #162033 !important;
+  color: #f0f6fc !important;
+  border: 1px solid #2b3a55 !important;
+  color-scheme: dark;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(2) > input:hover,
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(3) > input:hover {
+  background: #1d2a42 !important;
+  color: #ffffff !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(2) > input:focus,
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(3) > input:focus {
+  border-color: #3b82f6 !important;
+  outline: none;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(5) > button {
+  background: #162033 !important;
+  color: #f0f6fc !important;
+  border: 1px solid #2b3a55 !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(5) > button:hover {
+  background: #1d2a42 !important;
+  color: #ffffff !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(5) > button:focus-visible {
+  border-color: #3b82f6 !important;
+  outline: none;
+}
+
+.app-shell.tema-oscuro .bg-validation-card > div:first-child > button {
+  background: #162033 !important;
+  color: #f0f6fc !important;
+  border: 1px solid #2b3a55 !important;
+}
+
+.app-shell.tema-oscuro .bg-validation-card > div:first-child > button:hover {
+  background: #1d2a42 !important;
+  color: #ffffff !important;
+}
+
+.app-shell.tema-oscuro .bg-validation-card > div:first-child > button:focus-visible {
+  border-color: #3b82f6 !important;
+  outline: none;
+}
+
+.app-shell.tema-oscuro .bg-validation-card > div:last-child > div {
+  background: #162033 !important;
+  color: #f0f6fc !important;
+  border-color: #2b3a55 !important;
+}
+
+.app-shell.tema-oscuro .bg-validation-card > div:last-child > div > span {
+  color: #c9d1d9 !important;
+}
+
+.app-shell.tema-oscuro .bg-validation-card > div:last-child > div > strong {
+  color: #f0f6fc !important;
 }
 
 .login-page {
   display: grid;
-  min-height: 100vh;
   place-items: center;
+  min-height: 100vh;
   padding: 32px;
   box-sizing: border-box;
-  background: #F6F7F8;
+  background: #f3f4f6;
 }
 
-.login-card {
-  width: min(100%, 430px);
-  padding: 36px;
-  background: #FFFFFF;
-  border: 1px solid #DDE3E0;
-  border-radius: 12px;
-  box-shadow: 0 16px 36px rgba(28, 35, 33, 0.06);
+.login-page .login-card {
+  width: min(100%, 500px);
+  padding: 32px 28px 24px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   box-sizing: border-box;
 }
 
-.login-brand {
+.login-page .login-brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  margin-bottom: 46px;
-  color: #1B4332;
+  margin-bottom: 18px;
+  color: #1b4332;
   font-weight: 800;
+  font-size: 16px;
 }
 
-.login-brand .brand-mark {
+.login-page .login-brand .brand-mark {
   display: grid;
   width: 34px;
   height: 34px;
   place-items: center;
-  color: #fff;
-  background: #1B4332;
   border-radius: 8px;
+  background: #1b4332;
+  color: #ffffff;
   font-size: 11px;
+  font-weight: 900;
 }
 
-.login-card h1 {
+.login-page .eyebrow,
+.login-page h1,
+.login-page .login-copy,
+.login-page .auth-tabs,
+.login-page .auth-tab,
+.login-page .login-form,
+.login-page label,
+.login-page input,
+.login-page button {
+  box-sizing: border-box;
+}
+
+.login-page .eyebrow {
   margin: 0 0 10px;
-  color: #1C2321;
-  font-size: 34px;
-  letter-spacing: -1px;
+  color: #1b4332;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 800;
 }
 
-.login-copy {
-  margin-bottom: 28px;
-  color: #5F6B67;
+.login-page h1 {
+  margin: 0 0 10px;
+  text-align: center;
+  color: #111827;
+  font-size: clamp(28px, 4vw, 38px);
+  letter-spacing: -0.04em;
+}
+
+.login-page .login-copy {
+  margin: 0 0 20px;
+  color: #5f6b67;
+  text-align: center;
   font-size: 14px;
   line-height: 1.6;
 }
 
-.login-form {
-  display: grid;
-  gap: 18px;
-}
-
-.auth-tabs {
+.login-page .auth-tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
   padding: 4px;
-  background: #F6F7F8;
-  border: 1px solid #DDE3E0;
+  background: #f3f4f6;
+  border: 1px solid #dfe3e7;
   border-radius: 10px;
 }
 
-.auth-tab {
+.login-page .auth-tab {
   flex: 1;
-  padding: 9px 10px;
-  color: #5F6B67;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
   background: transparent;
-  border: none;
-  border-radius: 7px;
+  color: #5f6b67;
   font-weight: 700;
-  font-size: 13px;
   cursor: pointer;
 }
 
-.auth-tab.is-active {
-  color: #fff;
-  background: #1B4332;
+.login-page .auth-tab.is-active {
+  background: #1b4332;
+  color: #ffffff;
 }
 
-.tema-oscuro .auth-tabs {
-  background: #111b24;
-  border-color: #30434f;
+.login-page .login-form {
+  display: grid;
+  gap: 16px;
 }
 
-.tema-oscuro .auth-tab {
-  color: #9eafb9;
+.login-page label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
 }
 
-.tema-oscuro .auth-tab.is-active {
-  color: #e8f0f2;
-  background: #1B4332;
+.login-page input,
+.login-page select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #dfe3e7;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
 }
 
-.login-form .button-primary {
+.login-page input::placeholder {
+  color: #6b7280;
+}
+
+.login-page .button-primary {
+  width: 100%;
   min-height: 44px;
-  margin-top: 4px;
+  padding: 11px 16px;
+  border: 1px solid #1b4332;
+  border-radius: 8px;
+  background: #1b4332;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.tema-oscuro .login-page {
-  background: #111b24;
+.login-page .button-primary:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
-.tema-oscuro .login-card {
-  background: #1a2a36;
-  border-color: #30434f;
-}
-
-.tema-oscuro .login-brand,
-.tema-oscuro .login-card h1 {
-  color: #e8f0f2;
-}
-
-.tema-oscuro .login-copy {
-  color: #9eafb9;
+.login-page .message-error,
+.login-page .message-success {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 @media (max-width: 760px) {
@@ -1577,136 +2348,9 @@ tr:last-child td {
     padding: 18px;
   }
 
-  .login-card {
-    padding: 26px;
+  .login-page .login-card {
+    padding: 26px 20px 20px;
   }
-}
-
-.theme-toggle:hover {
-  color: #183b52;
-  background: #edf3f6;
-}
-
-.theme-toggle span {
-  font-size: 17px;
-  line-height: 1;
-}
-
-.tema-oscuro {
-  background: #111b24;
-  color: #c7d1d8;
-}
-
-.tema-oscuro .topbar {
-  background: #172530;
-  border-bottom-color: #2b3a46;
-}
-
-.tema-oscuro .brand {
-  color: #e1ebf0;
-}
-
-.tema-oscuro .brand .brand-mark {
-  color: #172530;
-  background: #8ac6d4;
-}
-
-.tema-oscuro .nav-link,
-.tema-oscuro .theme-toggle {
-  color: #9eafb9;
-  border-color: #3a4b57;
-}
-
-.tema-oscuro .nav-link:hover,
-.tema-oscuro .nav-link.is-active,
-.tema-oscuro .theme-toggle:hover {
-  color: #e4f2f4;
-  background: #263b49;
-}
-
-.tema-oscuro .hero-copy h1,
-.tema-oscuro .section-heading h1,
-.tema-oscuro h1,
-.tema-oscuro h2 {
-  color: #e8f0f2;
-}
-
-.tema-oscuro .eyebrow {
-  color: #8ac6d4;
-}
-
-.tema-oscuro .welcome-copy,
-.tema-oscuro label,
-.tema-oscuro .metrics-row span,
-.tema-oscuro th,
-.tema-oscuro .count-badge,
-.tema-oscuro .balance-status {
-  color: #9eafb9;
-}
-
-.tema-oscuro .control-panel,
-.tema-oscuro .table-shell,
-.tema-oscuro .entry-form {
-  color: #d6e1e5;
-  background: #1a2a36;
-  border-color: #30434f;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .18);
-}
-
-.tema-oscuro .panel-heading,
-.tema-oscuro .ledger-line,
-.tema-oscuro th,
-.tema-oscuro td,
-.tema-oscuro .metrics-row,
-.tema-oscuro .metrics-row div {
-  border-color: #30434f;
-}
-
-.tema-oscuro .panel-heading,
-.tema-oscuro .ledger-line,
-.tema-oscuro td {
-  color: #d6e1e5;
-}
-
-.tema-oscuro .panel-period,
-.tema-oscuro .ledger-line strong,
-.tema-oscuro .panel-link {
-  color: #8ac6d4;
-}
-
-.tema-oscuro .count-badge,
-.tema-oscuro .balance-status {
-  background: #263b49;
-}
-
-.tema-oscuro input,
-.tema-oscuro select {
-  color: #e1ebf0;
-  background: #14232d;
-  border-color: #405562;
-}
-
-.tema-oscuro input::placeholder {
-  color: #80929d;
-}
-
-.tema-oscuro .button-primary {
-  color: #10202a;
-  background: #8ac6d4;
-}
-
-.tema-oscuro .button-secondary {
-  color: #dcecef;
-  background: #263b49;
-}
-
-.tema-oscuro .balance-status.is-balanced,
-.tema-oscuro .message-success {
-  color: #9bd9b5;
-}
-
-.tema-oscuro .message-error {
-  color: #f0a29a;
 }
 
 .diario-shell {

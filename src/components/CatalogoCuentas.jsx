@@ -593,32 +593,35 @@ function manejarExportacionExcel() {
             )}
 
             {/* Barra de métricas rápidas */}
-            <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: "12px",
-                margin: "18px 0"
-            }}>
-                <div style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gap: "12px",
+                    margin: "18px 0"
+                }}
+                className="catalogo-metrics-grid"
+            >
+                <div className="catalogo-metric-card" style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
                     <span style={{ fontSize: "12px", color: "#667", textTransform: "uppercase" }}>Total cuentas</span>
                     <p style={{ margin: "2px 0 0", fontSize: "24px", fontWeight: "700", color: "#173B35" }}>{estadisticas.total}</p>
                 </div>
-                <div style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
+                <div className="catalogo-metric-card catalogo-metric-card--success" style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
                     <span style={{ fontSize: "12px", color: "#2E7D32", textTransform: "uppercase" }}>Activas</span>
                     <p style={{ margin: "2px 0 0", fontSize: "24px", fontWeight: "700", color: "#2E7D32" }}>{estadisticas.activas}</p>
                 </div>
-                <div style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
+                <div className="catalogo-metric-card catalogo-metric-card--warning" style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
                     <span style={{ fontSize: "12px", color: "#8A5300", textTransform: "uppercase" }}>Inactivas</span>
                     <p style={{ margin: "2px 0 0", fontSize: "24px", fontWeight: "700", color: "#8A5300" }}>{estadisticas.inactivas}</p>
                 </div>
-                <div style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
+                <div className="catalogo-metric-card catalogo-metric-card--info" style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
                     <span style={{ fontSize: "12px", color: "#1F5F99", textTransform: "uppercase" }}>Con movimientos</span>
                     <p style={{ margin: "2px 0 0", fontSize: "24px", fontWeight: "700", color: "#1F5F99" }}>{estadisticas.conMovimientos}</p>
                 </div>
             </div>
 
            {/* Filtros y opciones de visualización */}
-<div style={{
+<div className="catalogo-filters-bar" style={{
     background: "#FFF",
     border: "1px solid #DDE3E0",
     borderRadius: "8px",

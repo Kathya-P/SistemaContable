@@ -20,6 +20,16 @@ export function CuentaT({ cuenta, onCerrar }) {
     const totalHaber = cuenta.movimientos.reduce((suma, m) => suma + m.haber, 0);
     const saldo = Math.round((totalDebe - totalHaber) * 100) / 100;
 
+    function origenMovimiento(m) {
+        // Si el movimiento vino de una subcuenta distinta a la que se está
+        // mostrando (ej. "1101 Efectivo y equivalentes" agrupando "Bancos"),
+        // se etiqueta para no perder de dónde salió cada línea.
+        if (m.cuenta_codigo && String(m.cuenta_codigo) !== String(cuenta.codigo)) {
+            return `${m.cuenta_codigo} - ${m.cuenta_nombre}`;
+        }
+        return null;
+    }
+
     return (
         <div className="t-account-panel">
             <div className="t-account-panel-heading">
@@ -33,19 +43,29 @@ export function CuentaT({ cuenta, onCerrar }) {
                         <div className="t-head">Debe</div>
                         {cuenta.movimientos.filter(m => m.debe > 0).map((m, indice) => (
                             <div className="t-row" key={`d-${indice}`}>
-                                <span className="t-ref">Partida {m.numero_partida} · {formatearFecha(m.fecha)}</span>
-                                <span>{dinero(m.debe)}</span>
+                                <span className="t-ref-block">
+                                    <span className="t-ref">Partida {m.numero_partida} · {formatearFecha(m.fecha)}</span>
+                                    {origenMovimiento(m) && (
+                                        <span className="t-subcuenta">{origenMovimiento(m)}</span>
+                                    )}
+                                </span>
+                                <span className="t-monto">{dinero(m.debe)}</span>
                             </div>
                         ))}
                         <div className="t-total">{dinero(totalDebe)}</div>
                     </div>
 
-                    <div className="t-side">
+                    <div className="t-side t-side-haber">
                         <div className="t-head">Haber</div>
                         {cuenta.movimientos.filter(m => m.haber > 0).map((m, indice) => (
                             <div className="t-row" key={`h-${indice}`}>
-                                <span className="t-ref">Partida {m.numero_partida} · {formatearFecha(m.fecha)}</span>
-                                <span>{dinero(m.haber)}</span>
+                                <span className="t-ref-block">
+                                    <span className="t-ref">Partida {m.numero_partida} · {formatearFecha(m.fecha)}</span>
+                                    {origenMovimiento(m) && (
+                                        <span className="t-subcuenta">{origenMovimiento(m)}</span>
+                                    )}
+                                </span>
+                                <span className="t-monto">{dinero(m.haber)}</span>
                             </div>
                         ))}
                         <div className="t-total">{dinero(totalHaber)}</div>

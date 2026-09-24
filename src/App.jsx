@@ -18,7 +18,6 @@ import { solicitarApi } from "./services/api";
 
 // estructura del menú lateral (grupos colapsables)
 const menuLateral = [
-    { id: "inicio", clave: "inicio", nombre: "Inicio", icono: "inicio" },
     { id: "dashboard", clave: "dashboard", nombre: "Dashboard", icono: "dashboard" },
     {
         id: "contabilidad", nombre: "Contabilidad", icono: "contabilidad",

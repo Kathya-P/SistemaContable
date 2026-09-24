@@ -66,19 +66,29 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = 
         return mapa;
     }, [catalogo]);
 
-    // Decide qué cuenta se debe mostrar: si el padre es una CUENTA de 4
-    // dígitos (ej. 1101 Efectivo y equivalentes), se agrupa ahí. Si el padre
-    // es GRUPO/SUBGRUPO (1-2 dígitos) o no hay padre, la cuenta ya es la que
-    // se muestra tal cual (ej. IVA, Ventas, Compras).
-    const resolverCuentaMostrada = useCallback((cuentaId) => {
+    // Decide qué cuenta se debe mostrar: si el padre es de nivel "CUENTA"
+    // (ej. 1101 Efectivo y equivalentes), se agrupa ahí. Si el padre es
+    // GRUPO/SUBGRUPO o no hay padre, la cuenta ya es la que se muestra tal
+    // cual (ej. IVA, Ventas, Compras). Si la cuenta no aparece en el
+    // catálogo cargado, usamos el código/nombre que ya trae la propia fila
+    // en vez de dejarla en blanco.
+    const resolverCuentaMostrada = useCallback((cuentaId, codigoPropio = "", nombrePropio = "") => {
         const cuenta = catalogoPorId.get(String(cuentaId));
+
         if (!cuenta) {
-            return { id: String(cuentaId), codigo: "", nombre: "" };
+            if (import.meta.env.DEV) {
+                console.warn(`[LibroMayor] La cuenta id=${cuentaId} tiene movimientos pero no está en el catálogo cargado (¿inactiva, eliminada o de otra empresa?).`);
+            }
+            return { id: String(cuentaId), codigo: codigoPropio, nombre: nombrePropio };
         }
 
         const padre = cuenta.cuenta_padre_id ? catalogoPorId.get(String(cuenta.cuenta_padre_id)) : null;
+        const padreEsCuenta = padre && (
+            String(padre.nivel || "").toUpperCase() === "CUENTA" ||
+            (!padre.nivel && String(padre.codigo || "").length === 4)
+        );
 
-        if (padre && String(padre.codigo || "").length === 4) {
+        if (padreEsCuenta) {
             return { id: String(padre.id), codigo: padre.codigo, nombre: padre.nombre };
         }
 
@@ -86,11 +96,12 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = 
     }, [catalogoPorId]);
 
     // Agrupa los TOTALES de /libro-mayor por cuenta mostrada: esta es la lista que se pinta en la tabla.
+    // Agrupa los TOTALES de /libro-mayor por cuenta mostrada: esta es la lista que se pinta en la tabla.
     const filasMostradas = useMemo(() => {
         const mapa = new Map();
 
         for (const cuenta of cuentas) {
-            const mostrada = resolverCuentaMostrada(cuenta.cuenta_id);
+            const mostrada = resolverCuentaMostrada(cuenta.cuenta_id, cuenta.codigo, cuenta.nombre);
 
             if (!mapa.has(mostrada.id)) {
                 mapa.set(mostrada.id, {
@@ -142,7 +153,7 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = 
                 const cuentaDetalle = detalle.cuentas;
                 if (!cuentaDetalle) continue;
 
-                const mostrada = resolverCuentaMostrada(cuentaDetalle.id);
+                const mostrada = resolverCuentaMostrada(cuentaDetalle.id, cuentaDetalle.codigo, cuentaDetalle.nombre);
 
                 if (!mapa.has(mostrada.id)) {
                     mapa.set(mostrada.id, { ...mostrada, movimientos: [] });

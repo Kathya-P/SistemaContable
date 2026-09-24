@@ -3288,6 +3288,16 @@ select {
    Cuenta T (clic sobre una fila del Libro Mayor)
    ========================================================================== */
 
+.t-subcuenta {
+  color: #1B4332;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.tema-oscuro .t-subcuenta {
+  color: #a7f3d0;
+}
+
 .lm-cuenta-row {
   cursor: pointer;
   transition: background-color 120ms ease;
@@ -3395,14 +3405,21 @@ select {
 .t-row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px;
-  align-items: center;
-  padding: 7px 10px;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
   border-bottom: 1px solid #edf0eb;
   font-size: 13px;
 }
+.t-ref-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
 
-.t-row span:last-child {
+.t-monto {
+  flex-shrink: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -3896,11 +3913,33 @@ select {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(17, 24, 21, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  padding: 16px;
+}
+
+.modal-contenido {
+  background: #FFFFFF;
+  color: #1C2321;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  padding: 24px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #DDE3E0;
+  position: relative;
+  z-index: 10000;
+  box-sizing: border-box;
+}
+
+.modal-contenido.modal-catalogo {
+  background: #FFFFFF;
+  color: #1C2321;
 }
 
 .modal-contenido.modal-iva {

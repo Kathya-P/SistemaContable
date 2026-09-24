@@ -504,8 +504,8 @@ function manejarExportacionExcel() {
             <div className="section-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
                 <div>
                     <p className="eyebrow">Estructura contable</p>
-                    <h1 style={{ margin: "2px 0 6px" }}>Catálogo de cuentas</h1>
-                    <p style={{ fontSize: "13.5px", color: "#5F6B67", margin: 0 }}>
+                    <h1 style={{ margin: "2px 0 6px" }}>Catálogo de cuentas</h1><br></br>
+                    <p></p><p style={{ fontSize: "13.5px", color: "#5F6B67", margin: 0 }}>
                         Administración del plan de cuentas contable, jerarquías y políticas de movimiento.
                     </p>
                 </div>

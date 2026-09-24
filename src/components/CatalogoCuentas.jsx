@@ -541,9 +541,9 @@ function manejarExportacionExcel() {
                         type="button"
                         className="button-secondary"
                         onClick={descargarPlantillaCSV}
-                        title="Descargar plantilla CSV oficial para importación"
+                        title="Descargar plantilla excel oficial para importación"
                     >
-                        Plantilla CSV
+                        Plantilla Excel
                     </button>
                     {modalPredeterminadoAbierto && (
                         <ModalCatalogoPredeterminado

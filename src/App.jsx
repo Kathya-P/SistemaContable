@@ -18,7 +18,6 @@ import { solicitarApi } from "./services/api";
 
 // estructura del menú lateral (grupos colapsables)
 const menuLateral = [
-    { id: "inicio", clave: "inicio", nombre: "Inicio", icono: "inicio" },
     { id: "dashboard", clave: "dashboard", nombre: "Dashboard", icono: "dashboard" },
     {
         id: "contabilidad", nombre: "Contabilidad", icono: "contabilidad",
@@ -298,7 +297,6 @@ function App(){
             return <p className="message-error">No tienes permiso para ver esta sección.</p>;
         }
 
-        if(vista === "dashboard") return <Dashboard cambiarVista={setVista} />;
         if(vista === "cuentas") return <CatalogoCuentas />;
         if(vista === "asiento") return <NuevoAsiento usuario={usuario} onCreated={() => setVista("diario")} />;
         if(vista === "diario") return <LibroDiario />;
@@ -310,7 +308,7 @@ function App(){
         if(vista === "tablaComparativa") return <TablaComparativa usuario={usuario} />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} />;
         if(vista === "auditoria") return <AuditoriaPage usuario={usuario} />;
-        return <Inicio cambiarVista={setVista} />;
+        return <Dashboard cambiarVista={setVista} />;
     }
 
     // filtra grupos e items según los permisos del usuario

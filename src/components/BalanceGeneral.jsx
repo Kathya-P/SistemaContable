@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
-import { exportarBalanceGeneralPDF } from "../services/exportationService";
+import { exportarBalanceGeneralPDF, exportarBalanceGeneralExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 // Iconos SVG integrados sin dependencias externas (compatibilidad total para Vercel y despliegues sin lucide-react)
@@ -266,6 +266,10 @@ export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta
         });
     }
 
+    function manejarExportacionExcel() {
+        exportarBalanceGeneralExcel({ balance, desde: fechasAplicadas.desde, hasta: fechasAplicadas.hasta });
+    }
+
     // Determina si una cuenta debe mostrar sus subcuentas
     const debeMostrarSubcuentas = (codigo) => {
         if (nivel === 3) return true; // En nivel 3 siempre se muestran
@@ -396,7 +400,7 @@ export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta
 
                     {/* Acciones de impresión y vista */}
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Balance General" disabled={cargando || !balance} />
+                        <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Balance General" disabled={cargando || !balance} />
                     </div>
                 </div>
 

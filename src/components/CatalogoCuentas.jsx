@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { obtenerCuentas } from "../services/cuentasService";
 import { supabaseConfigurado } from "../lib/supabase";
-import { exportarCatalogoCuentasPDF } from "../services/exportationService";
+import { exportarCatalogoCuentasPDF, exportarCatalogoCuentasExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 function CatalogoCuentas(){
@@ -43,6 +43,10 @@ function CatalogoCuentas(){
         exportarCatalogoCuentasPDF({ cuentas });
     }
 
+    function manejarExportacionExcel() {
+        exportarCatalogoCuentasExcel({ cuentas });
+    }
+
     return(
         <section className="view-section">
             <div className="section-heading">
@@ -51,7 +55,7 @@ function CatalogoCuentas(){
                     <h1>Catálogo de cuentas</h1>
                 </div>
                 <span className="count-badge">{cuentas.length} cuentas</span>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Catálogo de Cuentas" disabled={!cuentas.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Catálogo de Cuentas" disabled={!cuentas.length} />
             </div>
 
             <div className="table-shell">

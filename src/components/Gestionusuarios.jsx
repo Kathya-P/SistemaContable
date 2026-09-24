@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { solicitarApi } from "../services/api";
-import { exportarUsuariosPDF } from "../services/exportationService";
+import { exportarUsuariosPDF, exportarUsuariosExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 const ROLES = ["ADMIN", "CONTADOR", "AUXILIAR"];
@@ -88,6 +88,10 @@ useEffect(() => {
         exportarUsuariosPDF({ usuarios });
     }
 
+    function manejarExportacionExcel() {
+        exportarUsuariosExcel({ usuarios });
+    }
+
     return(
         <section className="view-section">
             <div className="section-heading">
@@ -95,7 +99,7 @@ useEffect(() => {
                     <p className="eyebrow">Administración</p>
                     <h1>Usuarios de la empresa</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Usuarios" disabled={!usuarios.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Usuarios" disabled={!usuarios.length} />
             </div>
 
             <form onSubmit={crearUsuario} className="entry-form">

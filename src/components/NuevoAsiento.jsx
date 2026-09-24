@@ -4,7 +4,7 @@ import { obtenerCuentas } from "../services/cuentasService";
 import { obtenerEmpresas } from "../services/empresasService";
 import { supabaseConfigurado } from "../lib/supabase";
 import { calcularAsiento } from "../utils/asientoIva";
-import { exportarNuevoAsientoPDF } from "../services/exportationService";
+import { exportarNuevoAsientoPDF, exportarNuevoAsientoExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 const nuevaLinea = () => ({
@@ -314,6 +314,10 @@ function NuevoAsiento({ usuario, onCreated }){
         exportarNuevoAsientoPDF({ detalles, cuentasPorId, fecha, concepto });
     }
 
+    function manejarExportacionExcel() {
+        exportarNuevoAsientoExcel({ detalles, cuentasPorId, fecha, concepto });
+    }
+
     return(
         <section className="view-section">
             <div className="section-heading">
@@ -321,7 +325,7 @@ function NuevoAsiento({ usuario, onCreated }){
                     <p className="eyebrow">Registro contable</p>
                     <h1>Nuevo asiento</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Nuevo Asiento" disabled={!empresaId || !detalles.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Nuevo Asiento" disabled={!empresaId || !detalles.length} />
                 <div className={estaBalanceado ? "balance-status is-balanced" : "balance-status"}>
                     Debe {totalDebe.toLocaleString()} / Haber {totalHaber.toLocaleString()} · {estaBalanceado ? "Cuadra" : `No cuadra (${diferencia.toFixed(2)})`}
                 </div>

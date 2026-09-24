@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { solicitarApi } from "../services/api";
 import { obtenerCuentas } from "../services/cuentasService";
-import { exportarLibroMayorPDF } from "../services/exportationService";
+import { exportarLibroMayorPDF, exportarLibroMayorExcel } from "../services/exportationService";
 import CuentaT from "./CuentaT";
 import ExportarPdfButton from "./ExportarPdfButton";
 
@@ -178,6 +178,10 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
         });
     }
 
+    function manejarExportacionExcel() {
+        exportarLibroMayorExcel({ filas: filasMostradas, totalesComprobacion, movimientosPorCuenta, desde, hasta });
+    }
+
     return(
         <section className="view-section">
             <div className="section-heading">
@@ -185,7 +189,7 @@ function LibroMayor({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
                     <p className="eyebrow">Mayorización automática</p>
                     <h1>Libro Mayor</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Libro Mayor" disabled={cargando || !!error || !filasMostradas.length} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Libro Mayor" disabled={cargando || !!error || !filasMostradas.length} />
             </div>
 
             {!ocultarFiltros && (

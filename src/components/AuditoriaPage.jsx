@@ -6,6 +6,7 @@ import {
 } from "../services/auditoriaService";
 import { solicitarApi } from "../services/api";
 import { exportarAuditoriaPDF } from "../services/exportationService";
+import { exportarAuditoriaExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 // Iconos SVG para las acciones
@@ -298,6 +299,10 @@ export default function AuditoriaPage({ usuario }) {
         exportarAuditoriaPDF({ logs });
     };
 
+    const handleExportarExcel = () => {
+        exportarAuditoriaExcel({ logs });
+    };
+
     const limpiarFiltros = () => {
         aplicarRangoRapido("anio");
         setFiltroUsuario("todos");
@@ -575,7 +580,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                         <IconoAccion tipo="descargar" size={16} />
                         Exportar CSV
                     </button>
-                    <ExportarPdfButton className="btn-exportar" onExport={handleExportarPDF} reporte="Auditoría" disabled={!logs.length} />
+                    <ExportarPdfButton className="btn-exportar" onExport={handleExportarPDF} onExportExcel={handleExportarExcel} reporte="Auditoría" disabled={!logs.length} />
                 </div>
             </div>
 

@@ -5,7 +5,7 @@ import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { solicitarApi } from "../services/api";
 import ExportarPdfButton from "./ExportarPdfButton";
-import { exportarDashboardPDF } from "../services/exportationService";
+import { exportarDashboardPDF, exportarDashboardExcel } from "../services/exportationService";
 import { supabaseConfigurado } from "../lib/supabase";
 
 function moneda(valor) {
@@ -183,6 +183,10 @@ function Dashboard({ cambiarVista }) {
 		);
 	}
 
+	function manejarExportacionExcel() {
+		exportarDashboardExcel({ activos, pasivos, ingresos, costos, movimientos, periodo: `Año ${new Date().getFullYear()}` });
+	}
+
 	return (
 		<section className="dashboard-page">
 			<div className="dashboard-heading">
@@ -202,7 +206,7 @@ function Dashboard({ cambiarVista }) {
 				>
 					+ Nuevo asiento
 				</button>
-				<ExportarPdfButton onExport={manejarExportacionPDF} reporte="Dashboard ejecutivo" />
+				<ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Dashboard ejecutivo" />
 			</div>
 
 			{error && (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { solicitarApi } from "../services/api";
 import { obtenerDatosKardex } from "../services/kardexService";
-import { exportarEstadoResultadosPDF } from "../services/exportationService";
+import { exportarEstadoResultadosPDF, exportarEstadoResultadosExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 // como en la hoja: cero = "$ -" y negativos = "-$ 1,000.00"
@@ -51,7 +51,7 @@ function construirFilas(e) {
     ];
 }
 
-function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
+function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNombre = "Empresa" } = {}){
     const anio = new Date().getFullYear();
     const [desde, setDesde] = useState(filtroDesde || `${anio}-01-01`);
     const [hasta, setHasta] = useState(filtroHasta || `${anio}-12-31`);
@@ -118,8 +118,13 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
             filas,
             empresa: listo?.datos?.empresa,
             desde: listo?.datos?.desde || desde,
-            hasta: listo?.datos?.hasta || hasta
+            hasta: listo?.datos?.hasta || hasta,
+            empresa: empresaNombre
         });
+    }
+
+    function manejarExportacionExcel() {
+        exportarEstadoResultadosExcel({ filas, empresa: empresaNombre, desde: listo?.datos?.desde || desde, hasta: listo?.datos?.hasta || hasta });
     }
 
     return(
@@ -129,7 +134,7 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros } = {}){
                     <p className="eyebrow">Estados financieros</p>
                     <h1>Estado de Resultados</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Estado de Resultados" disabled={!listo} />
+                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Estado de Resultados" disabled={!listo} />
             </div>
 
             {!ocultarFiltros && (

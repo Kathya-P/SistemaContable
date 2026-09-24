@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
-import { exportarBalanceGeneralPDF } from "../services/exportationService";
+import { exportarBalanceGeneralPDF, exportarBalanceGeneralExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 // Iconos SVG integrados sin dependencias externas (compatibilidad total para Vercel y despliegues sin lucide-react)
@@ -100,7 +100,7 @@ function formatearFechaCorte(fechaStr) {
     return fechaStr;
 }
 
-export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta: propFechaHasta, fechaCorte: propFechaCorte, ocultarFiltros }) {
+export function BalanceGeneral({ empresa, empresaNombre = "Empresa", fechaDesde: propFechaDesde, fechaHasta: propFechaHasta, fechaCorte: propFechaCorte, ocultarFiltros }) {
     // Año base para pre-cargar 1 de enero y 31 de diciembre
     const anioActual = new Date().getFullYear();
     const fechaInicialDesde = propFechaDesde || `${anioActual}-01-01`;
@@ -262,8 +262,13 @@ export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta
         exportarBalanceGeneralPDF({
             balance,
             desde: fechasAplicadas.desde,
-            hasta: fechasAplicadas.hasta
+            hasta: fechasAplicadas.hasta,
+            empresa: empresaNombre
         });
+    }
+
+    function manejarExportacionExcel() {
+        exportarBalanceGeneralExcel({ balance, desde: fechasAplicadas.desde, hasta: fechasAplicadas.hasta, empresa: empresaNombre });
     }
 
     // Determina si una cuenta debe mostrar sus subcuentas
@@ -396,7 +401,7 @@ export function BalanceGeneral({ empresa, fechaDesde: propFechaDesde, fechaHasta
 
                     {/* Acciones de impresión y vista */}
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <ExportarPdfButton onExport={manejarExportacionPDF} reporte="Balance General" disabled={cargando || !balance} />
+                        <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Balance General" disabled={cargando || !balance} />
                     </div>
                 </div>
 

@@ -235,9 +235,13 @@ function CatalogoCuentas({ usuario }) {
         }
     }
 
-    function manejarExportacionPDF() {
-        exportarCatalogoCuentasPDF({ cuentas: cuentasFiltradas });
-    }
+function manejarExportacionPDF() {
+    exportarCatalogoCuentasPDF({ cuentas: cuentasFiltradas });
+}
+
+function manejarExportacionExcel() {
+    exportarCatalogoCuentasExcel({ cuentas });
+}
 
     // Render recursivo de nodo en el árbol
     function renderNodoArbol(cuenta, nivelProfundidad = 0) {

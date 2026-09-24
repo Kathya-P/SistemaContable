@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { obtenerRatiosFinancieros } from "../services/ratiosService";
 import { obtenerDatosKardex } from "../services/kardexService";
-import { exportarRatiosPDF } from "../services/exportationService";
+import { exportarRatiosPDF, exportarRatiosExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 // Helper para formatear fechas a YYYY-MM-DD
@@ -143,7 +143,7 @@ function MiniGraficoTendencia({ datos = [], color = "#047857", unidad = "" }) {
     );
 }
 
-export function RatiosFinancieros() {
+export function RatiosFinancieros({ empresaNombre = "Empresa" }) {
     const anioActual = new Date().getFullYear();
     const [desde, setDesde] = useState(`${anioActual}-01-01`);
     const [hasta, setHasta] = useState(`${anioActual}-12-31`);
@@ -249,8 +249,13 @@ export function RatiosFinancieros() {
             secciones,
             desde,
             hasta,
-            opcionRapida
+            opcionRapida,
+            empresa: empresaNombre
         });
+    }
+
+    function manejarExportacionExcel() {
+        exportarRatiosExcel({ secciones, desde, hasta, opcionRapida, empresa: empresaNombre });
     }
 
     return (
@@ -422,7 +427,7 @@ export function RatiosFinancieros() {
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                        <ExportarPdfButton className="btn-ratios-accion" onExport={manejarExportacionPDF} reporte="Ratios Financieros" disabled={cargando || !datosRatios} />
+                        <ExportarPdfButton className="btn-ratios-accion" onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Ratios Financieros" disabled={cargando || !datosRatios} />
 
                         <button
                             type="button"

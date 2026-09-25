@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
     crearAsiento,
     crearAsientoRecurrente,
@@ -31,6 +31,261 @@ const dineroC = centavos => dinero(centavos / 100);
 // El Libro Diario ya antepone "C/", así que el concepto se guarda sin ese prefijo.
 function quitarPrefijoConcepto(texto) {
     return String(texto || "").trim().replace(/^C\/\s*/i, "");
+}
+
+// Selector dinámico y autocompletable de subcuentas contables
+function SelectorSubcuenta({ value, cuentas = [], onChange }) {
+    const [abierto, setAbierto] = useState(false);
+    const [busqueda, setBusqueda] = useState("");
+    const [indiceResaltado, setIndiceResaltado] = useState(0);
+    const contenedorRef = useRef(null);
+    const inputRef = useRef(null);
+    const listaRef = useRef(null);
+
+    const cuentaSeleccionada = useMemo(
+        () => cuentas.find(c => String(c.id) === String(value)),
+        [cuentas, value]
+    );
+
+    // Mantener sincronizado el texto cuando el menú está cerrado
+    useEffect(() => {
+        if (!abierto) {
+            setBusqueda(cuentaSeleccionada ? `${cuentaSeleccionada.codigo} - ${cuentaSeleccionada.nombre}` : "");
+        }
+    }, [cuentaSeleccionada, abierto]);
+
+    // Filtrar cuentas dinámicamente en tiempo real según lo escrito
+    const cuentasFiltradas = useMemo(() => {
+        const termino = busqueda.trim().toLowerCase();
+        if (!termino) return cuentas;
+        return cuentas.filter(c => {
+            const cod = String(c.codigo || "").toLowerCase();
+            const nom = String(c.nombre || "").toLowerCase();
+            return cod.includes(termino) || nom.includes(termino);
+        });
+    }, [cuentas, busqueda]);
+
+    // Cerrar al hacer clic fuera del componente
+    useEffect(() => {
+        const manejarClicFuera = (e) => {
+            if (contenedorRef.current && !contenedorRef.current.contains(e.target)) {
+                setAbierto(false);
+                setBusqueda(cuentaSeleccionada ? `${cuentaSeleccionada.codigo} - ${cuentaSeleccionada.nombre}` : "");
+            }
+        };
+        document.addEventListener("mousedown", manejarClicFuera);
+        return () => document.removeEventListener("mousedown", manejarClicFuera);
+    }, [cuentaSeleccionada]);
+
+    // Scroll automático al item resaltado con flechas de teclado
+    useEffect(() => {
+        if (abierto && listaRef.current && listaRef.current.children[indiceResaltado]) {
+            listaRef.current.children[indiceResaltado].scrollIntoView({ block: "nearest" });
+        }
+    }, [indiceResaltado, abierto]);
+
+    const seleccionar = (cuenta) => {
+        onChange(cuenta ? String(cuenta.id) : "");
+        setAbierto(false);
+        setBusqueda(cuenta ? `${cuenta.codigo} - ${cuenta.nombre}` : "");
+    };
+
+    const manejarKeyDown = (e) => {
+        if (!abierto) {
+            if (e.key === "ArrowDown" || e.key === "Enter") {
+                e.preventDefault();
+                setAbierto(true);
+                setIndiceResaltado(0);
+            }
+            return;
+        }
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setIndiceResaltado(prev => (prev + 1 < cuentasFiltradas.length ? prev + 1 : 0));
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setIndiceResaltado(prev => (prev - 1 >= 0 ? prev - 1 : cuentasFiltradas.length - 1));
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (cuentasFiltradas[indiceResaltado]) {
+                seleccionar(cuentasFiltradas[indiceResaltado]);
+            }
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            setAbierto(false);
+            setBusqueda(cuentaSeleccionada ? `${cuentaSeleccionada.codigo} - ${cuentaSeleccionada.nombre}` : "");
+        }
+    };
+
+    return (
+        <div ref={contenedorRef} style={{ position: "relative", width: "100%", zIndex: abierto ? 100 : "auto" }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={busqueda}
+                    placeholder="Escribir código o nombre..."
+                    autoComplete="off"
+                    style={{
+                        width: "100%",
+                        padding: "7px 46px 7px 10px",
+                        fontSize: "13px",
+                        border: "1.5px solid",
+                        borderColor: abierto ? "#059669" : "#DDE3E0",
+                        borderRadius: "4px",
+                        background: "#FFFFFF",
+                        color: "#1f2937",
+                        outline: "none",
+                        boxShadow: abierto ? "0 0 0 2px rgba(16, 185, 129, 0.2)" : "none",
+                        transition: "border-color 0.15s, box-shadow 0.15s"
+                    }}
+                    onFocus={() => {
+                        setAbierto(true);
+                        setIndiceResaltado(0);
+                        inputRef.current?.select();
+                    }}
+                    onChange={e => {
+                        setBusqueda(e.target.value);
+                        setAbierto(true);
+                        setIndiceResaltado(0);
+                        if (!e.target.value.trim() && value) {
+                            onChange("");
+                        }
+                    }}
+                    onKeyDown={manejarKeyDown}
+                    aria-label="Buscar subcuenta"
+                />
+
+                <div style={{ position: "absolute", right: "6px", display: "flex", alignItems: "center", gap: "2px" }}>
+                    {value && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                seleccionar(null);
+                                inputRef.current?.focus();
+                            }}
+                            title="Limpiar subcuenta"
+                            style={{
+                                background: "none",
+                                border: "none",
+                                color: "#9ca3af",
+                                cursor: "pointer",
+                                padding: "2px 4px",
+                                fontSize: "15px",
+                                lineHeight: 1,
+                                borderRadius: "3px"
+                            }}
+                        >
+                            ×
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setAbierto(prev => !prev);
+                            inputRef.current?.focus();
+                        }}
+                        title="Ver lista de cuentas"
+                        style={{
+                            background: "none",
+                            border: "none",
+                            color: "#059669",
+                            cursor: "pointer",
+                            padding: "2px 4px",
+                            fontSize: "10px",
+                            lineHeight: 1
+                        }}
+                    >
+                        {abierto ? "▲" : "▼"}
+                    </button>
+                </div>
+            </div>
+
+            {/* Menú desplegable dinámico flotante */}
+            {abierto && (
+                <div
+                    ref={listaRef}
+                    style={{
+                        position: "absolute",
+                        top: "calc(100% + 4px)",
+                        left: 0,
+                        right: 0,
+                        minWidth: "290px",
+                        maxHeight: "230px",
+                        overflowY: "auto",
+                        background: "#ffffff",
+                        border: "1.5px solid #a7f3d0",
+                        borderRadius: "8px",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 4px 6px -2px rgba(0,0,0,0.05)",
+                        zIndex: 9999,
+                        padding: "5px"
+                    }}
+                >
+                    {cuentasFiltradas.length === 0 ? (
+                        <div style={{ padding: "12px 14px", fontSize: "12px", color: "#6b7280", textAlign: "center" }}>
+                            No se encontraron subcuentas con "{busqueda}"
+                        </div>
+                    ) : (
+                        cuentasFiltradas.map((cuenta, idx) => {
+                            const esSeleccionada = String(cuenta.id) === String(value);
+                            const esResaltada = idx === indiceResaltado;
+
+                            return (
+                                <div
+                                    key={cuenta.id}
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        seleccionar(cuenta);
+                                    }}
+                                    onMouseEnter={() => setIndiceResaltado(idx)}
+                                    style={{
+                                        padding: "7px 10px",
+                                        borderRadius: "5px",
+                                        cursor: "pointer",
+                                        fontSize: "12px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        gap: "8px",
+                                        background: esResaltada ? "#ecfdf5" : esSeleccionada ? "#f0fdf4" : "transparent",
+                                        color: esResaltada || esSeleccionada ? "#065f46" : "#1f2937",
+                                        fontWeight: esSeleccionada ? "600" : "normal",
+                                        transition: "background-color 0.1s"
+                                    }}
+                                >
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
+                                        <span style={{
+                                            fontFamily: "monospace",
+                                            fontWeight: "700",
+                                            color: "#047857",
+                                            background: "#d1fae5",
+                                            padding: "2px 6px",
+                                            borderRadius: "4px",
+                                            fontSize: "11px",
+                                            whiteSpace: "nowrap"
+                                        }}>
+                                            {cuenta.codigo}
+                                        </span>
+                                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                            {cuenta.nombre}
+                                        </span>
+                                    </div>
+                                    {esSeleccionada && (
+                                        <span style={{ color: "#059669", fontWeight: "700", fontSize: "14px" }}>
+                                            ✓
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            )}
+        </div>
+    );
 }
 
 // La "cuenta mayor" de una subcuenta es su padre; las cuentas sin hijas son ellas mismas.
@@ -516,7 +771,7 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                         )}
                     </p>
 
-                    <div className="detail-table-shell">
+                    <div className="detail-table-shell" style={{ minHeight: "300px" }}>
                         <table className="entry-detail-table">
                         <thead>
                             <tr>
@@ -540,11 +795,12 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                                 return (
                                     <tr key={indice}>
                                         <td className="entry-account-cell">{padre ? `${padre.codigo} - ${padre.nombre}` : "Cuenta principal"}</td>
-                                        <td>
-                                            <select value={detalle.cuenta_id} onChange={evento => actualizarDetalle(indice, "cuenta_id", evento.target.value)} aria-label="Subcuenta contable">
-                                                <option value="">Seleccionar subcuenta</option>
-                                                {cuentasMovibles.map(opcion => <option key={opcion.id} value={opcion.id}>{opcion.codigo} - {opcion.nombre}</option>)}
-                                            </select>
+                                        <td style={{ position: "relative", minWidth: "240px" }}>
+                                            <SelectorSubcuenta
+                                                value={detalle.cuenta_id}
+                                                cuentas={cuentasMovibles}
+                                                onChange={nuevaCuentaId => actualizarDetalle(indice, "cuenta_id", nuevaCuentaId)}
+                                            />
                                         </td>
                                         <td className="entry-partial-cell">{parcial > 0 ? parcial.toFixed(2) : ""}</td>
                                         <td><input type="number" min="0" step="0.01" value={detalle.debe} onChange={evento => actualizarDetalle(indice, "debe", evento.target.value)} placeholder={lineaReal?.lado === "debe" ? sugerido : "0.00"} aria-label="Debe" /></td>

@@ -79,12 +79,10 @@ export function exportarAuditoriaCSV(logs = [], nombreArchivo = "Reporte_Auditor
     }
 
     const cabeceras = [
-        "ID",
         "Fecha y Hora",
         "Usuario",
         "Acción",
         "Entidad Afectada",
-        "ID Entidad",
         "Descripción",
         "Resultado",
         "IP",
@@ -98,12 +96,10 @@ export function exportarAuditoriaCSV(logs = [], nombreArchivo = "Reporte_Auditor
     };
 
     const filas = logs.map(log => [
-        escaparCSV(log.id),
         escaparCSV(log.fecha_hora ? new Date(log.fecha_hora).toLocaleString("es-ES") : ""),
         escaparCSV(log.usuario_nombre),
         escaparCSV(log.tipo_accion ? log.tipo_accion.toUpperCase() : ""),
         escaparCSV(log.entidad_afectada),
-        escaparCSV(log.entidad_id || ""),
         escaparCSV(log.descripcion),
         escaparCSV(log.resultado),
         escaparCSV(log.ip_usuario || ""),

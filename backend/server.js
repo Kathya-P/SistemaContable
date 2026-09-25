@@ -169,6 +169,66 @@ async function cargarCuentas(ids, empresaId) {
     return data || [];
 }
 
+function fechaValida(valor) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(valor || ""));
+}
+
+function primerDiaDelMes(fecha) {
+    return `${String(fecha).slice(0, 7)}-01`;
+}
+
+function fechaMensual(anio, mes, dia) {
+    const ultimoDia = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+    const diaValido = Math.min(Number(dia), ultimoDia);
+    return `${anio}-${String(mes).padStart(2, "0")}-${String(diaValido).padStart(2, "0")}`;
+}
+
+function siguienteFechaMensual(fecha, dia) {
+    const base = new Date(`${fecha}T00:00:00Z`);
+    const siguienteMes = base.getUTCMonth() + 2;
+    const anio = base.getUTCFullYear() + (siguienteMes > 12 ? 1 : 0);
+    const mes = siguienteMes > 12 ? 1 : siguienteMes;
+    return fechaMensual(anio, mes, dia);
+}
+
+function hoyIso() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+async function obtenerRecurrenteDeEmpresa(id, empresaId) {
+    const { data, error } = await supabase
+        .from("asientos_recurrentes")
+        .select("id, empresa_id, usuario_id, concepto, fecha_base, dia_recurrencia, modo_iva, activo, proxima_fecha")
+        .eq("id", id)
+        .eq("empresa_id", empresaId)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+        const errorNoEncontrado = new Error("Asiento recurrente no encontrado.");
+        errorNoEncontrado.statusCode = 404;
+        throw errorNoEncontrado;
+    }
+    return data;
+}
+
+async function obtenerOcurrenciaDeEmpresa(id, empresaId) {
+    const { data, error } = await supabase
+        .from("asientos_recurrentes_ocurrencias")
+        .select("id, asiento_recurrente_id, fecha_propuesta, mes_propuesta, estado, asiento_id")
+        .eq("id", id)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+        const errorNoEncontrado = new Error("Ocurrencia recurrente no encontrada.");
+        errorNoEncontrado.statusCode = 404;
+        throw errorNoEncontrado;
+    }
+    await obtenerRecurrenteDeEmpresa(data.asiento_recurrente_id, empresaId);
+    return data;
+}
+
 const apiRouter = express.Router();
 
 apiRouter.get("/health", (_req, res) => {
@@ -1410,6 +1470,273 @@ apiRouter.post("/asientos/validar", async (req, res) => {
         const ids = [...new Set(detalles.map(detalle => detalle.cuenta_id).filter(Boolean))];
         const cuentas = await cargarCuentas(ids, usuario.empresa_id);
         return res.json(validarPartidaDoble(detalles, cuentas));
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.post("/asientos-recurrentes", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
+        const recurrente = req.body?.recurrente || {};
+        exigirEmpresaDelUsuario(usuario, recurrente.empresa_id);
+
+        const fechaBase = String(recurrente.fecha_base || "");
+        const concepto = String(recurrente.concepto || "").trim();
+        const modoIva = String(recurrente.modo_iva || "incluido");
+        const detalles = Array.isArray(recurrente.detalles) ? recurrente.detalles : [];
+        const diaRecurrencia = Number(recurrente.dia_recurrencia || fechaBase.slice(-2));
+
+        if (!fechaValida(fechaBase)) throw new Error("La fecha base de la recurrencia no es válida.");
+        if (!concepto) throw new Error("El concepto de la recurrencia es obligatorio.");
+        if (!['incluido', 'mas', 'sin'].includes(modoIva)) throw new Error("El modo de IVA no es válido.");
+        if (!Number.isInteger(diaRecurrencia) || diaRecurrencia < 1 || diaRecurrencia > 31) {
+            throw new Error("El día de recurrencia debe estar entre 1 y 31.");
+        }
+        if (detalles.length < 2 || detalles.some(detalle => !detalle.cuenta_id)) {
+            throw new Error("La recurrencia debe conservar al menos dos cuentas válidas.");
+        }
+
+        const ids = [...new Set(detalles.map(detalle => detalle.cuenta_id).filter(Boolean))];
+        const cuentas = await cargarCuentas(ids, usuario.empresa_id);
+        if (cuentas.length !== ids.length || cuentas.some(cuenta => cuenta.permite_movimientos !== true)) {
+            throw new Error("La recurrencia contiene cuentas inexistentes o no movibles.");
+        }
+
+        const detallesValidados = detalles.map((detalle, indice) => {
+            const debe = Number(detalle.debe || 0);
+            const haber = Number(detalle.haber || 0);
+            if (!Number.isFinite(debe) || !Number.isFinite(haber) || debe < 0 || haber < 0 || (debe > 0 && haber > 0)) {
+                throw new Error(`La línea recurrente ${indice + 1} tiene importes inválidos.`);
+            }
+            return {
+                cuenta_id: detalle.cuenta_id,
+                descripcion: String(detalle.descripcion || ""),
+                debe,
+                haber,
+                orden: indice
+            };
+        });
+
+        const { data: plantilla, error: errorPlantilla } = await supabase
+            .from("asientos_recurrentes")
+            .insert({
+                empresa_id: Number(usuario.empresa_id),
+                usuario_id: usuario.id,
+                concepto,
+                fecha_base: fechaBase,
+                dia_recurrencia: diaRecurrencia,
+                modo_iva: modoIva,
+                proxima_fecha: siguienteFechaMensual(fechaBase, diaRecurrencia)
+            })
+            .select("id, empresa_id, concepto, fecha_base, dia_recurrencia, modo_iva, activo, proxima_fecha")
+            .single();
+
+        if (errorPlantilla) throw errorPlantilla;
+
+        const { error: errorDetalles } = await supabase
+            .from("detalle_asientos_recurrentes")
+            .insert(detallesValidados.map(detalle => ({
+                ...detalle,
+                asiento_recurrente_id: plantilla.id
+            })));
+
+        if (errorDetalles) {
+            await supabase.from("asientos_recurrentes").delete().eq("id", plantilla.id);
+            throw errorDetalles;
+        }
+
+        return res.status(201).json(plantilla);
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.get("/asientos-recurrentes/pendientes", async (req, res) => {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
+        const fechaConsulta = fechaValida(req.query.fecha) ? req.query.fecha : hoyIso();
+        const { data: plantillas, error: errorPlantillas } = await supabase
+            .from("asientos_recurrentes")
+            .select("id, empresa_id, concepto, modo_iva, dia_recurrencia, proxima_fecha")
+            .eq("empresa_id", usuario.empresa_id)
+            .eq("activo", true)
+            .lte("proxima_fecha", fechaConsulta);
+
+        if (errorPlantillas) throw errorPlantillas;
+        if (!plantillas?.length) return res.json([]);
+
+        const ids = plantillas.map(plantilla => plantilla.id);
+        await supabase
+            .from("asientos_recurrentes_ocurrencias")
+            .upsert(plantillas.map(plantilla => ({
+                asiento_recurrente_id: plantilla.id,
+                fecha_propuesta: plantilla.proxima_fecha,
+                mes_propuesta: primerDiaDelMes(plantilla.proxima_fecha)
+            })), { onConflict: "asiento_recurrente_id,mes_propuesta", ignoreDuplicates: true });
+
+        const [{ data: ocurrencias, error: errorOcurrencias }, { data: detalles, error: errorDetalles }] = await Promise.all([
+            supabase
+                .from("asientos_recurrentes_ocurrencias")
+                .select("id, asiento_recurrente_id, fecha_propuesta, estado")
+                .in("asiento_recurrente_id", ids)
+                .eq("estado", "PENDIENTE")
+                .lte("fecha_propuesta", fechaConsulta)
+                .order("fecha_propuesta", { ascending: true }),
+            supabase
+                .from("detalle_asientos_recurrentes")
+                .select("asiento_recurrente_id, cuenta_id, descripcion, debe, haber, orden")
+                .in("asiento_recurrente_id", ids)
+                .order("orden", { ascending: true })
+        ]);
+
+        if (errorOcurrencias) throw errorOcurrencias;
+        if (errorDetalles) throw errorDetalles;
+
+        const plantillasPorId = new Map(plantillas.map(plantilla => [String(plantilla.id), plantilla]));
+        const detallesPorPlantilla = new Map();
+        for (const detalle of detalles || []) {
+            const clave = String(detalle.asiento_recurrente_id);
+            const lista = detallesPorPlantilla.get(clave) || [];
+            lista.push({
+                cuenta_id: String(detalle.cuenta_id),
+                descripcion: detalle.descripcion || "",
+                debe: String(detalle.debe ?? ""),
+                haber: String(detalle.haber ?? "")
+            });
+            detallesPorPlantilla.set(clave, lista);
+        }
+
+        return res.json((ocurrencias || []).map(ocurrencia => {
+            const plantilla = plantillasPorId.get(String(ocurrencia.asiento_recurrente_id));
+            const lineas = detallesPorPlantilla.get(String(ocurrencia.asiento_recurrente_id)) || [];
+            return {
+                id: ocurrencia.id,
+                recurrente_id: ocurrencia.asiento_recurrente_id,
+                empresa_id: plantilla.empresa_id,
+                fecha_propuesta: ocurrencia.fecha_propuesta,
+                concepto: plantilla.concepto,
+                modo_iva: plantilla.modo_iva,
+                detalles: lineas,
+                total_debe: lineas.reduce((total, linea) => total + Number(linea.debe || 0), 0),
+                total_haber: lineas.reduce((total, linea) => total + Number(linea.haber || 0), 0)
+            };
+        }));
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.post("/asientos-recurrentes/ocurrencias/:id/procesar", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+        const ocurrencia = await obtenerOcurrenciaDeEmpresa(req.params.id, usuario.empresa_id);
+        if (ocurrencia.estado !== "PENDIENTE") throw new Error("La propuesta recurrente ya fue procesada.");
+
+        const { data: marcada, error: errorMarcada } = await supabase
+            .from("asientos_recurrentes_ocurrencias")
+            .update({
+                estado: "REGISTRADO",
+                asiento_id: req.body?.asiento_id || null,
+                usuario_procesamiento_id: usuario.id,
+                fecha_procesamiento: new Date().toISOString()
+            })
+            .eq("id", ocurrencia.id)
+            .eq("estado", "PENDIENTE")
+            .select("id, estado, fecha_propuesta")
+            .maybeSingle();
+
+        if (errorMarcada) throw errorMarcada;
+        if (!marcada) throw new Error("La propuesta recurrente ya fue procesada por otra acción.");
+
+        const plantilla = await obtenerRecurrenteDeEmpresa(ocurrencia.asiento_recurrente_id, usuario.empresa_id);
+        const { error: errorSiguiente } = await supabase
+            .from("asientos_recurrentes")
+            .update({
+                proxima_fecha: siguienteFechaMensual(ocurrencia.fecha_propuesta, plantilla.dia_recurrencia),
+                fecha_actualizacion: new Date().toISOString()
+            })
+            .eq("id", plantilla.id);
+
+        if (errorSiguiente) throw errorSiguiente;
+        return res.json({ ok: true, ocurrencia: marcada });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.post("/asientos-recurrentes/ocurrencias/:id/omitir", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+        const ocurrencia = await obtenerOcurrenciaDeEmpresa(req.params.id, usuario.empresa_id);
+        if (ocurrencia.estado !== "PENDIENTE") throw new Error("La propuesta recurrente ya fue procesada.");
+
+        const { data: marcada, error: errorMarcada } = await supabase
+            .from("asientos_recurrentes_ocurrencias")
+            .update({
+                estado: "OMITIDO",
+                usuario_procesamiento_id: usuario.id,
+                fecha_procesamiento: new Date().toISOString()
+            })
+            .eq("id", ocurrencia.id)
+            .eq("estado", "PENDIENTE")
+            .select("id, estado, fecha_propuesta")
+            .maybeSingle();
+
+        if (errorMarcada) throw errorMarcada;
+        if (!marcada) throw new Error("La propuesta recurrente ya fue procesada por otra acción.");
+
+        const plantilla = await obtenerRecurrenteDeEmpresa(ocurrencia.asiento_recurrente_id, usuario.empresa_id);
+        const { error: errorSiguiente } = await supabase
+            .from("asientos_recurrentes")
+            .update({
+                proxima_fecha: siguienteFechaMensual(ocurrencia.fecha_propuesta, plantilla.dia_recurrencia),
+                fecha_actualizacion: new Date().toISOString()
+            })
+            .eq("id", plantilla.id);
+
+        if (errorSiguiente) throw errorSiguiente;
+        return res.json({ ok: true, ocurrencia: marcada });
+    } catch (error) {
+        return responderError(res, error);
+    }
+});
+
+apiRouter.patch("/asientos-recurrentes/ocurrencias/:id/desactivar", async (req, res) => {
+    try {
+        exigirClaveDeEscritura();
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+        const ocurrencia = await obtenerOcurrenciaDeEmpresa(req.params.id, usuario.empresa_id);
+        const plantilla = await obtenerRecurrenteDeEmpresa(ocurrencia.asiento_recurrente_id, usuario.empresa_id);
+
+        const { error: errorPlantilla } = await supabase
+            .from("asientos_recurrentes")
+            .update({ activo: false, fecha_actualizacion: new Date().toISOString() })
+            .eq("id", plantilla.id);
+
+        if (errorPlantilla) throw errorPlantilla;
+        if (ocurrencia.estado === "PENDIENTE") {
+            await supabase
+                .from("asientos_recurrentes_ocurrencias")
+                .update({
+                    estado: "OMITIDO",
+                    usuario_procesamiento_id: usuario.id,
+                    fecha_procesamiento: new Date().toISOString()
+                })
+                .eq("id", ocurrencia.id)
+                .eq("estado", "PENDIENTE");
+        }
+        return res.json({ ok: true });
     } catch (error) {
         return responderError(res, error);
     }

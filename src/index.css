@@ -3298,6 +3298,133 @@ body {
   border-radius: 12px;
 }
 
+.recurring-pending {
+  margin-bottom: 18px;
+  padding: 18px;
+  background: #F6F7F8;
+  border: 1px solid #DDE3E0;
+  border-radius: 10px;
+}
+
+.recurring-pending-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.recurring-pending-heading h2 {
+  margin: 3px 0 0;
+  color: #1C2321;
+  font-size: 17px;
+}
+
+.recurring-pending-heading > span {
+  color: #5F6B67;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recurring-pending-list {
+  display: grid;
+  gap: 10px;
+}
+
+.recurring-pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  background: #FFFFFF;
+  border: 1px solid #DDE3E0;
+  border-radius: 8px;
+}
+
+.recurring-pending-item > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.recurring-pending-item strong {
+  color: #1C2321;
+  font-size: 14px;
+}
+
+.recurring-pending-item span {
+  color: #5F6B67;
+  font-size: 12px;
+}
+
+.recurring-pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
+.recurring-pending-actions button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.recurring-option {
+  align-content: start;
+  grid-template-columns: 1fr auto;
+  gap: 5px 10px;
+}
+
+.recurring-option input {
+  width: auto;
+  margin: 0;
+}
+
+.recurring-option small {
+  grid-column: 1 / -1;
+  color: #6E7974;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.app-shell.tema-oscuro .recurring-pending {
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro .recurring-pending-heading h2,
+.app-shell.tema-oscuro .recurring-pending-item strong {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .recurring-pending-heading > span,
+.app-shell.tema-oscuro .recurring-pending-item span,
+.app-shell.tema-oscuro .recurring-option small {
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .recurring-pending-item {
+  background: var(--gh-surface-elevated);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro .recurring-pending-actions .button-secondary {
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
+  color: var(--gh-text);
+}
+
+@media (max-width: 760px) {
+  .recurring-pending-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recurring-pending-actions {
+    justify-content: flex-start;
+  }
+}
+
 .company-step {
   display: grid;
   gap: 18px;

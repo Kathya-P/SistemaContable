@@ -170,7 +170,9 @@ export async function obtenerCuentas(empresaId) {
                 if (detalles) {
                     cuentasConMovimientos = new Set(detalles.map(d => String(d.cuenta_id)));
                 }
-            } catch {}
+            } catch {
+                // Silently ignore if detalle_asientos is not accessible
+            }
 
             return (cuentas || []).map(c => ({
                 ...c,
@@ -475,33 +477,72 @@ export async function importarCatalogo({ cuentas = [], modo = "agregar" }, empre
 }
 
 async function importarCatalogoClienteDirecto(cuentas = [], modo = "agregar", empresaId) {
-if (modo === "reemplazar") {
-    const { data: asientosEmpresa } = await supabase
-        .from("asientos")
-        .select("id")
-        .eq("empresa_id", empresaId);
+    let idEmpresaFinal = empresaId;
 
-    const idsAsientos = (asientosEmpresa || []).map(a => a.id);
-    let totalMovimientos = 0;
-    if (idsAsientos.length > 0) {
-        const { count } = await supabase
-            .from("detalle_asientos")
-            .select("id", { count: "exact", head: true })
-            .in("asiento_id", idsAsientos);
-        totalMovimientos = count || 0;
+    if (!idEmpresaFinal && supabase) {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.id) {
+                const { data: u } = await supabase
+                    .from("usuarios")
+                    .select("empresa_id")
+                    .eq("auth_id", user.id)
+                    .maybeSingle();
+                if (u?.empresa_id) {
+                    idEmpresaFinal = u.empresa_id;
+                }
+            }
+        } catch {
+            // Silencioso
+        }
+
+        if (!idEmpresaFinal) {
+            try {
+                const { data: primeraEmpresa } = await supabase
+                    .from("empresas")
+                    .select("id")
+                    .limit(1)
+                    .maybeSingle();
+                if (primeraEmpresa?.id) {
+                    idEmpresaFinal = primeraEmpresa.id;
+                }
+            } catch {
+                // Silencioso
+            }
+        }
     }
 
-    if (totalMovimientos > 0) {
-        throw new Error("No se puede reemplazar el catálogo completo porque ya existen asientos contables registrados con movimientos. Elige la opción 'Agregar al existente'.");
+    if (!idEmpresaFinal) {
+        throw new Error("No se pudo determinar la empresa asignada a tu usuario. Asegúrate de tener una empresa creada o asignada.");
     }
 
-    await supabase.from("cuentas").delete().eq("empresa_id", empresaId);
-}
+    if (modo === "reemplazar") {
+        const { data: asientosEmpresa } = await supabase
+            .from("asientos")
+            .select("id")
+            .eq("empresa_id", idEmpresaFinal);
+
+        const idsAsientos = (asientosEmpresa || []).map(a => a.id);
+        let totalMovimientos = 0;
+        if (idsAsientos.length > 0) {
+            const { count } = await supabase
+                .from("detalle_asientos")
+                .select("id", { count: "exact", head: true })
+                .in("asiento_id", idsAsientos);
+            totalMovimientos = count || 0;
+        }
+
+        if (totalMovimientos > 0) {
+            throw new Error("No se puede reemplazar el catálogo completo porque ya existen asientos contables registrados con movimientos. Elige la opción 'Agregar al existente'.");
+        }
+
+        await supabase.from("cuentas").delete().eq("empresa_id", idEmpresaFinal);
+    }
 
     const { data: existentes } = await supabase
         .from("cuentas")
         .select("id, codigo, tipo")
-        .eq("empresa_id", empresaId);
+        .eq("empresa_id", idEmpresaFinal);
     const mapaCodigoId = new Map((existentes || []).map(c => [String(c.codigo).trim().toUpperCase(), { id: c.id, tipo: c.tipo }]));
 
     const ordenNiveles = { GRUPO: 1, SUBGRUPO: 2, CUENTA: 3, SUBCUENTA: 4 };
@@ -536,7 +577,7 @@ if (modo === "reemplazar") {
             cuenta_padre_id: cuentaPadreId,
             permite_movimientos: (c.nivel === "GRUPO" || c.nivel === "SUBGRUPO") ? false : Boolean(c.permite_movimientos),
             estado: c.estado !== false,
-            empresa_id: empresaId
+            empresa_id: idEmpresaFinal
         };
 
         if (mapaCodigoId.has(codigoTrim)) {
@@ -980,12 +1021,20 @@ export function validarArchivoCatalogo(filas = [], cuentasExistentes = [], modo 
  */
 export function descargarPlantillaCSV(separador = ";") {
     const sep = separador === "," ? "," : ";";
-    // Solo 5 columnas limpias y esenciales
-    const encabezados = ["codigo", "nombre", "tipo", "nivel", "cuenta_padre_codigo"].join(sep);
+    // Columnas limpias y esenciales con lleva_iva opcional
+    const encabezados = ["codigo", "nombre", "tipo", "nivel", "cuenta_padre_codigo", "lleva_iva"].join(sep);
     
     const filas = [
-        ["1101", "EFECTIVO Y EQUIVALENTES DE EFECTIVO", "ACTIVO", "CUENTA", ""],
-        ["110101", "Caja General", "ACTIVO", "SUBCUENTA", "1101"]
+        ["1101", "EFECTIVO Y EQUIVALENTES DE EFECTIVO", "ACTIVO", "CUENTA", "", "NO"],
+        ["110101", "Caja General", "ACTIVO", "SUBCUENTA", "1101", "NO"],
+        ["1105", "IVA CRÉDITO FISCAL", "ACTIVO", "CUENTA", "", "NO"],
+        ["110501", "IVA Crédito Fiscal", "ACTIVO", "SUBCUENTA", "1105", "NO"],
+        ["2102", "IVA DÉBITO FISCAL", "PASIVO", "CUENTA", "", "NO"],
+        ["210201", "IVA Débito Fiscal", "PASIVO", "SUBCUENTA", "2102", "NO"],
+        ["4101", "COMPRAS", "GASTO", "CUENTA", "", "SI"],
+        ["410101", "Compras Locales", "GASTO", "SUBCUENTA", "4101", "SI"],
+        ["5101", "VENTAS", "INGRESO", "CUENTA", "", "SI"],
+        ["510101", "Ventas Locales", "INGRESO", "SUBCUENTA", "5101", "SI"]
     ].map(f => f.join(sep));
 
     const contenido = "\uFEFF" + [encabezados, ...filas].join("\r\n");

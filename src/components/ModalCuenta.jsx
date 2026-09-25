@@ -6,12 +6,20 @@ import {
     TIPOS_VALIDOS, 
     NIVELES_VALIDOS 
 } from "../services/cuentasService";
+import { 
+    obtenerConfiguracionIva, 
+    cuentaAplicaIva, 
+    alternarIvaCuenta, 
+    inferirLlevaIvaPorDefecto 
+} from "../utils/configuracionIva";
 
 function ModalCuenta({ abierto, cuenta, cuentaPadreInicial, cuentas = [], usuario, alCerrar, alGuardar }) {
     const esEdicion = Boolean(cuenta?.id);
     const tieneMovimientos = Boolean(cuenta?.tiene_movimientos);
 
     const [formulario, setFormulario] = useState(() => {
+        const configIva = obtenerConfiguracionIva(usuario?.empresa_id);
+
         if (cuenta) {
             return {
                 codigo: cuenta.codigo || "",
@@ -20,17 +28,21 @@ function ModalCuenta({ abierto, cuenta, cuentaPadreInicial, cuentas = [], usuari
                 nivel: cuenta.nivel || "CUENTA",
                 cuenta_padre_id: cuenta.cuenta_padre_id ? String(cuenta.cuenta_padre_id) : "",
                 permite_movimientos: Boolean(cuenta.permite_movimientos),
+                lleva_iva: cuentaAplicaIva(cuenta, configIva, usuario?.empresa_id),
                 estado: cuenta.estado !== false
             };
         }
         if (cuentaPadreInicial) {
+            const cod = `${cuentaPadreInicial.codigo}`;
+            const tipoPadre = cuentaPadreInicial.tipo || "ACTIVO";
             return {
-                codigo: `${cuentaPadreInicial.codigo}`,
+                codigo: cod,
                 nombre: "",
-                tipo: cuentaPadreInicial.tipo || "ACTIVO",
+                tipo: tipoPadre,
                 nivel: cuentaPadreInicial.nivel === "GRUPO" ? "SUBGRUPO" : (cuentaPadreInicial.nivel === "SUBGRUPO" ? "CUENTA" : "SUBCUENTA"),
                 cuenta_padre_id: String(cuentaPadreInicial.id),
                 permite_movimientos: cuentaPadreInicial.nivel !== "GRUPO",
+                lleva_iva: inferirLlevaIvaPorDefecto({ codigo: cod, tipo: tipoPadre }),
                 estado: true
             };
         }
@@ -41,6 +53,7 @@ function ModalCuenta({ abierto, cuenta, cuentaPadreInicial, cuentas = [], usuari
             nivel: "CUENTA",
             cuenta_padre_id: "",
             permite_movimientos: true,
+            lleva_iva: false,
             estado: true
         };
     });
@@ -64,9 +77,10 @@ function ModalCuenta({ abierto, cuenta, cuentaPadreInicial, cuentas = [], usuari
         setFormulario(prev => {
             const actual = { ...prev, [campo]: valor };
 
-            // Si cambia el nivel a GRUPO o SUBGRUPO, forzar permite_movimientos a false
+            // Si cambia el nivel a GRUPO o SUBGRUPO, forzar permite_movimientos y lleva_iva a false
             if (campo === "nivel" && (valor === "GRUPO" || valor === "SUBGRUPO")) {
                 actual.permite_movimientos = false;
+                actual.lleva_iva = false;
             }
 
             // Si selecciona un padre, sincronizar tipo si difiere
@@ -84,6 +98,12 @@ function ModalCuenta({ abierto, cuenta, cuentaPadreInicial, cuentas = [], usuari
                     if (padre && padre.tipo !== valor) {
                         actual.cuenta_padre_id = "";
                     }
+                }
+            }
+
+            if (!esEdicion && (campo === "tipo" || campo === "codigo")) {
+                if (actual.nivel !== "GRUPO" && actual.nivel !== "SUBGRUPO") {
+                    actual.lleva_iva = inferirLlevaIvaPorDefecto({ codigo: actual.codigo, tipo: actual.tipo });
                 }
             }
 
@@ -123,14 +143,21 @@ function ModalCuenta({ abierto, cuenta, cuentaPadreInicial, cuentas = [], usuari
             return;
         }
 
-try {
-    setGuardando(true);
-    let resultado;
-    if (esEdicion) {
-        resultado = await actualizarCuenta(cuenta.id, formulario, cuentas, tieneMovimientos);
-    } else {
-        resultado = await crearCuenta(formulario, cuentas, usuario?.empresa_id);
-    }
+        try {
+            setGuardando(true);
+            let resultado;
+            if (esEdicion) {
+                resultado = await actualizarCuenta(cuenta.id, formulario, cuentas, tieneMovimientos);
+            } else {
+                resultado = await crearCuenta(formulario, cuentas, usuario?.empresa_id);
+            }
+
+            // Sincronizar estado de IVA para este código de cuenta
+            const codigoFinal = String(resultado?.codigo || formulario.codigo).trim();
+            if (codigoFinal) {
+                alternarIvaCuenta(usuario?.empresa_id, codigoFinal, Boolean(formulario.lleva_iva), cuentas);
+            }
+
             alGuardar(resultado);
             alCerrar();
         } catch (error) {
@@ -142,17 +169,19 @@ try {
 
     return (
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-cuenta-titulo">
-            <div 
-                className="modal-contenido modal-catalogo" 
-                style={{ 
-                    maxWidth: "620px", 
+            <div
+                className="modal-contenido modal-catalogo"
+                style={{
+                    maxWidth: "580px",
                     width: "95%",
+                    maxHeight: "90vh",
+                    overflowY: "auto",
                     backgroundColor: "#FFFFFF",
                     color: "#1C2321",
                     borderRadius: "12px",
                     boxShadow: "0 20px 45px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.12)",
                     border: "1px solid #DDE3E0",
-                    padding: "24px",
+                    padding: "18px 20px",
                     position: "relative",
                     zIndex: 10000
                 }}
@@ -375,6 +404,27 @@ try {
                                         * Deshabilitado: Las cuentas de nivel {formulario.nivel} son agrupadoras y no admiten asientos directos.
                                     </span>
                                 )}
+                            </div>
+                        </label>
+
+                        <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: esAgrupadora ? "not-allowed" : "pointer" }}>
+                            <input
+                                type="checkbox"
+                                name="lleva_iva"
+                                checked={Boolean(formulario.lleva_iva)}
+                                onChange={e => manejarCambioCampo("lleva_iva", e.target.checked)}
+                                disabled={esAgrupadora}
+                                style={{ accentColor: "#1B4332", width: "16px", height: "16px" }}
+                            />
+                            <div>
+                                <span style={{ fontWeight: "600", fontSize: "13px", color: "#173B35" }}>
+                                    Aplica / Genera IVA (13% Débito o Crédito Fiscal)
+                                </span>
+                                <span style={{ display: "block", fontSize: "11px", color: "#5F6B67" }}>
+                                    {formulario.lleva_iva 
+                                        ? "Calcula IVA automáticamente al registrar transacciones en Nuevo Asiento." 
+                                        : "Cuenta exenta: no genera cálculo automático de IVA."}
+                                </span>
                             </div>
                         </label>
 

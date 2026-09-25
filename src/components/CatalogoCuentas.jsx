@@ -15,12 +15,23 @@ import ExportarExcelButton from "./ExportarExcelButton";
 import ModalCuenta from "./ModalCuenta";
 import ModalImportarCatalogo from "./ModalImportarCatalogo";
 import ModalCatalogoPredeterminado from "./ModalCatalogoPredeterminado";
+import ModalConfiguracionIva from "./ModalConfiguracionIva";
+import { 
+    inicializarConfiguracionIva, 
+    cuentaAplicaIva, 
+    alternarIvaCuenta 
+} from "../utils/configuracionIva";
 
 function CatalogoCuentas({ usuario }) {
     const [cuentas, setCuentas] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
     const [mensajeExito, setMensajeExito] = useState("");
+
+    // Configuración y gestión de IVA
+    const [configIva, setConfigIva] = useState(null);
+    const [modalConfigIvaAbierto, setModalConfigIvaAbierto] = useState(false);
+    const [filtroIva, setFiltroIva] = useState("TODOS"); // "TODOS", "CON_IVA", "SIN_IVA", "DESTINO_IVA"
 
     // Filtros y vista
     const [busqueda, setBusqueda] = useState("");
@@ -47,6 +58,8 @@ function CatalogoCuentas({ usuario }) {
             setError("");
             const data = await obtenerCuentas(usuario?.empresa_id);
             setCuentas(data || []);
+            const conf = inicializarConfiguracionIva(usuario?.empresa_id, data || []);
+            setConfigIva(conf);
 
             // Inicializar nodos expandidos con cuentas de nivel GRUPO y SUBGRUPO
             const inicialesExpandidos = new Set();
@@ -73,6 +86,9 @@ function CatalogoCuentas({ usuario }) {
                 const data = await obtenerCuentas(usuario?.empresa_id);
                 if (!cancelado) {
                     setCuentas(data || []);
+                    const conf = inicializarConfiguracionIva(usuario?.empresa_id, data || []);
+                    setConfigIva(conf);
+
                     const inicialesExpandidos = new Set();
                     (data || []).forEach(c => {
                         if (c.nivel === "GRUPO" || c.nivel === "SUBGRUPO") {
@@ -94,6 +110,21 @@ function CatalogoCuentas({ usuario }) {
         cargar();
         return () => { cancelado = true; };
     }, []);
+
+    function manejarAlternarIva(cuenta, e) {
+        if (e) e.stopPropagation();
+        if (!puedeGestionar) return;
+
+        const codigo = String(cuenta.codigo || "").trim();
+        const tieneIva = cuentaAplicaIva(cuenta, configIva, usuario?.empresa_id);
+        const nuevoValor = !tieneIva;
+
+        const nuevaConf = alternarIvaCuenta(usuario?.empresa_id, codigo, nuevoValor, cuentas);
+        setConfigIva(nuevaConf);
+
+        setMensajeExito(`Cuenta ${codigo} (${cuenta.nombre}): IVA (13%) ${nuevoValor ? "activado" : "desactivado (exenta)"}.`);
+        setTimeout(() => setMensajeExito(""), 3500);
+    }
 
     // Mapa de cuentas por ID para consultas rápidas
     const cuentasPorId = useMemo(() => {
@@ -140,9 +171,17 @@ function CatalogoCuentas({ usuario }) {
             if (filtroEstado === "INACTIVAS" && c.estado) {
                 return false;
             }
+            if (filtroIva !== "TODOS") {
+                const tieneIva = cuentaAplicaIva(c, configIva, usuario?.empresa_id);
+                const esDestino = (configIva?.cuentaCreditoCodigo && String(c.codigo).trim() === String(configIva.cuentaCreditoCodigo).trim()) ||
+                                  (configIva?.cuentaDebitoCodigo && String(c.codigo).trim() === String(configIva.cuentaDebitoCodigo).trim());
+                if (filtroIva === "CON_IVA" && !tieneIva) return false;
+                if (filtroIva === "SIN_IVA" && (tieneIva || esDestino)) return false;
+                if (filtroIva === "DESTINO_IVA" && !esDestino) return false;
+            }
             return true;
         });
-    }, [cuentas, busqueda, filtroTipo, filtroNivel, filtroEstado]);
+    }, [cuentas, busqueda, filtroTipo, filtroNivel, filtroEstado, filtroIva, configIva, usuario?.empresa_id]);
 
     // Contadores estadísticos
     const estadisticas = useMemo(() => {
@@ -150,8 +189,9 @@ function CatalogoCuentas({ usuario }) {
         const activas = cuentas.filter(c => c.estado).length;
         const inactivas = total - activas;
         const conMovimientos = cuentas.filter(c => c.tiene_movimientos).length;
-        return { total, activas, inactivas, conMovimientos };
-    }, [cuentas]);
+        const conIva = cuentas.filter(c => c.permite_movimientos && cuentaAplicaIva(c, configIva, usuario?.empresa_id)).length;
+        return { total, activas, inactivas, conMovimientos, conIva };
+    }, [cuentas, configIva, usuario?.empresa_id]);
 
     function alternarNodo(id) {
         setNodosExpandidos(prev => {
@@ -404,6 +444,52 @@ function manejarExportacionExcel() {
                                 </span>
                             )}
 
+                            {/* Badge de IVA */}
+                            {(() => {
+                                const codigo = String(cuenta.codigo || "").trim();
+                                const esDestinoCredito = configIva?.cuentaCreditoCodigo && codigo === String(configIva.cuentaCreditoCodigo).trim();
+                                const esDestinoDebito = configIva?.cuentaDebitoCodigo && codigo === String(configIva.cuentaDebitoCodigo).trim();
+
+                                if (esDestinoCredito) {
+                                    return (
+                                        <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", background: "#E8F0FE", color: "#1967D2", border: "1px solid #C2D7FA" }} title="Cuenta receptora de IVA Crédito Fiscal (Compras)">
+                                            IVA Crédito
+                                        </span>
+                                    );
+                                }
+                                if (esDestinoDebito) {
+                                    return (
+                                        <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", background: "#FEF3D6", color: "#B06000", border: "1px solid #FCD888" }} title="Cuenta receptora de IVA Débito Fiscal (Ventas)">
+                                            IVA Débito
+                                        </span>
+                                    );
+                                }
+                                if (cuenta.permite_movimientos) {
+                                    const tieneIva = cuentaAplicaIva(cuenta, configIva, usuario?.empresa_id);
+                                    if (tieneIva) {
+                                        return (
+                                            <span 
+                                                onClick={puedeGestionar ? (e) => manejarAlternarIva(cuenta, e) : undefined}
+                                                style={{ 
+                                                    fontSize: "10px", 
+                                                    fontWeight: "600", 
+                                                    padding: "2px 6px", 
+                                                    borderRadius: "4px", 
+                                                    background: "#EAF5EE", 
+                                                    color: "#1B4332", 
+                                                    border: "1px solid #B8DEC3",
+                                                    cursor: puedeGestionar ? "pointer" : "default"
+                                                }}
+                                                title={puedeGestionar ? "Aplica IVA (13%). Clic para cambiar a exenta." : "Aplica IVA (13%)"}
+                                            >
+                                                + IVA 13%
+                                            </span>
+                                        );
+                                    }
+                                }
+                                return null;
+                            })()}
+
                             {/* Inactiva visual */}
                             {esInactiva && (
                                 <span style={{
@@ -533,9 +619,20 @@ function manejarExportacionExcel() {
                             >
                                 Importar catálogo
                             </button>
-                                <button type="button" className="button-secondary" onClick={() => setModalPredeterminadoAbierto(true)}>
-                                    Cargar catálogo predeterminado
-                                </button>
+
+                            <button type="button" className="button-secondary" onClick={() => setModalPredeterminadoAbierto(true)}>
+                                Cargar catálogo predeterminado
+                            </button>
+
+                            <button
+                                type="button"
+                                className="button-secondary"
+                                onClick={() => setModalConfigIvaAbierto(true)}
+                                style={{ display: "flex", alignItems: "center", gap: "6px", color: "#1B4332", borderColor: "#B8DEC3" }}
+                                title="Configurar cuentas de IVA Crédito y Débito Fiscal, o activar/desactivar IVA"
+                            >
+                                <span></span> Configurar IVA (13%)
+                            </button>
                         </>
                     )}
                     <button
@@ -598,7 +695,7 @@ function manejarExportacionExcel() {
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
                     gap: "12px",
                     margin: "18px 0"
                 }}
@@ -611,6 +708,10 @@ function manejarExportacionExcel() {
                 <div className="catalogo-metric-card catalogo-metric-card--success" style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
                     <span style={{ fontSize: "12px", color: "#2E7D32", textTransform: "uppercase" }}>Activas</span>
                     <p style={{ margin: "2px 0 0", fontSize: "24px", fontWeight: "700", color: "#2E7D32" }}>{estadisticas.activas}</p>
+                </div>
+                <div className="catalogo-metric-card" style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
+                    <span style={{ fontSize: "12px", color: "#1B4332", textTransform: "uppercase", fontWeight: "600" }}>Aplica IVA (13%)</span>
+                    <p style={{ margin: "2px 0 0", fontSize: "24px", fontWeight: "700", color: "#1B4332" }}>{estadisticas.conIva}</p>
                 </div>
                 <div className="catalogo-metric-card catalogo-metric-card--warning" style={{ background: "#FFF", padding: "12px 16px", borderRadius: "8px", border: "1px solid #DDE3E0" }}>
                     <span style={{ fontSize: "12px", color: "#8A5300", textTransform: "uppercase" }}>Inactivas</span>
@@ -718,6 +819,8 @@ function manejarExportacionExcel() {
             <option value="ACTIVAS">Solo activas</option>
             <option value="INACTIVAS">Solo inactivas</option>
         </select>
+
+
 
         {/* Separador */}
         <div style={{
@@ -865,8 +968,20 @@ function manejarExportacionExcel() {
                 </div>
             ) : (
                 /* VISTA DE TABLA PLANA */
-                <div className="table-shell">
-                    <table>
+                <div className="table-shell" style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", fontSize: "12px" }}>
+                        <colgroup>
+                            <col style={{ width: "80px" }} />   {/* Código */}
+                            <col style={{ minWidth: "160px", maxWidth: "220px" }} /> {/* Nombre */}
+                            <col style={{ width: "70px" }} />   {/* Tipo */}
+                            <col style={{ width: "80px" }} />   {/* Naturaleza */}
+                            <col style={{ width: "72px" }} />   {/* Nivel */}
+                            <col style={{ width: "150px" }} />  {/* Cuenta padre */}
+                            <col style={{ width: "70px" }} />   {/* Asientos */}
+                            <col style={{ width: "80px" }} />   {/* IVA */}
+                            <col style={{ width: "65px" }} />   {/* Estado */}
+                            {puedeGestionar && <col style={{ width: "200px" }} />} {/* Acciones */}
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th>Código</th>
@@ -876,6 +991,7 @@ function manejarExportacionExcel() {
                                 <th>Nivel</th>
                                 <th>Cuenta padre</th>
                                 <th>Asientos</th>
+                                <th style={{ textAlign: "center" }}>IVA (13%)</th>
                                 <th>Estado</th>
                                 {puedeGestionar && <th style={{ textAlign: "right" }}>Acciones</th>}
                             </tr>
@@ -883,7 +999,7 @@ function manejarExportacionExcel() {
                         <tbody>
                             {cuentasFiltradas.length === 0 ? (
                                 <tr>
-                                    <td colSpan={puedeGestionar ? 9 : 8} className="empty-state">
+                                    <td colSpan={puedeGestionar ? 10 : 9} className="empty-state">
                                         No se encontraron cuentas con los filtros indicados.
                                     </td>
                                 </tr>
@@ -895,25 +1011,34 @@ function manejarExportacionExcel() {
 
                                     return (
                                         <tr key={cuenta.id} style={{ opacity: esInactiva ? 0.7 : 1, background: esInactiva ? "#F9FAFB" : "transparent" }}>
-                                            <td className="account-code" style={{ textDecoration: esInactiva ? "line-through" : "none" }}>
+                                            <td className="account-code" style={{ textDecoration: esInactiva ? "line-through" : "none", whiteSpace: "nowrap" }}>
                                                 {cuenta.codigo}
                                             </td>
-                                            <td style={{ fontWeight: cuenta.nivel === "GRUPO" ? "bold" : "normal" }}>
-                                                {cuenta.nombre}
-                                                {cuenta.tiene_movimientos && (
-                                                    <span style={{ marginLeft: "6px", fontSize: "10px", padding: "1px 5px", background: "#E3EFE7", color: "#173D2D", borderRadius: "3px", border: "1px solid #C2CECA" }}>
-                                                        Movs
+                                            <td style={{ fontWeight: cuenta.nivel === "GRUPO" ? "600" : "normal" }} title={cuenta.nombre}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                                    <span style={{
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                        maxWidth: "180px",
+                                                        display: "block"
+                                                    }}>
+                                                        {cuenta.nombre}
                                                     </span>
-                                                )}
+                                                    {cuenta.tiene_movimientos && (
+                                                        <span style={{ flexShrink: 0, fontSize: "9.5px", padding: "1px 4px", background: "#E3EFE7", color: "#173D2D", borderRadius: "3px", border: "1px solid #C2CECA" }}>
+                                                            Movs
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
-                                            <td>
-                                                <span style={{ fontSize: "11.5px", fontWeight: "600" }}>{cuenta.tipo}</span>
+                                            <td style={{ whiteSpace: "nowrap" }}>
+                                                <span style={{ fontWeight: "600" }}>{cuenta.tipo}</span>
                                             </td>
-                                            <td>
+                                            <td style={{ whiteSpace: "nowrap" }}>
                                                 <span style={{
-                                                    fontSize: "11px",
                                                     fontWeight: "600",
-                                                    padding: "2px 6px",
+                                                    padding: "2px 5px",
                                                     borderRadius: "4px",
                                                     background: esDeudora ? "#EAF5EE" : "#F2F6F4",
                                                     color: esDeudora ? "#1B4332" : "#2D6A4F"
@@ -921,18 +1046,97 @@ function manejarExportacionExcel() {
                                                     {esDeudora ? "Deudora" : "Acreedora"}
                                                 </span>
                                             </td>
-                                            <td>
-                                                <span style={{ fontSize: "11.5px" }}>{cuenta.nivel}</span>
+                                            <td style={{ whiteSpace: "nowrap" }}>
+                                                {cuenta.nivel}
                                             </td>
-                                            <td style={{ fontSize: "12px", color: "#555" }}>
-                                                {padre ? `${padre.codigo} - ${padre.nombre}` : <span style={{ color: "#999" }}>Principal (Raíz)</span>}
+                                            <td title={padre ? `${padre.codigo} - ${padre.nombre}` : "Principal (Raíz)"}>
+                                                <span style={{
+                                                    display: "block",
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                    maxWidth: "140px",
+                                                    color: padre ? "#555" : "#999"
+                                                }}>
+                                                    {padre ? `${padre.codigo} - ${padre.nombre}` : "Raíz"}
+                                                </span>
                                             </td>
-                                            <td>
+                                            <td style={{ whiteSpace: "nowrap" }}>
                                                 {cuenta.permite_movimientos ? (
-                                                    <span style={{ fontSize: "11px", color: "#1B4332", fontWeight: "600" }}>Sí</span>
+                                                    <span style={{ color: "#1B4332", fontWeight: "600" }}>Sí</span>
                                                 ) : (
-                                                    <span style={{ fontSize: "11px", color: "#888" }}>No (Agrup.)</span>
+                                                    <span style={{ color: "#888" }}>No</span>
                                                 )}
+                                            </td>
+                                            <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                                                {(() => {
+                                                    const codigo = String(cuenta.codigo || "").trim();
+                                                    const esDestinoCredito = configIva?.cuentaCreditoCodigo && codigo === String(configIva.cuentaCreditoCodigo).trim();
+                                                    const esDestinoDebito = configIva?.cuentaDebitoCodigo && codigo === String(configIva.cuentaDebitoCodigo).trim();
+
+                                                    if (esDestinoCredito) {
+                                                        return (
+                                                            <span
+                                                                style={{ fontSize: "10.5px", fontWeight: "700", padding: "3px 8px", borderRadius: "20px", background: "#E8F0FE", color: "#1967D2", border: "1px solid #C2D7FA", whiteSpace: "nowrap" }}
+                                                                title="Cuenta receptora de IVA Crédito Fiscal (Compras y Gastos)"
+                                                            >
+                                                                ● IVA Crédito
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (esDestinoDebito) {
+                                                        return (
+                                                            <span
+                                                                style={{ fontSize: "10.5px", fontWeight: "700", padding: "3px 8px", borderRadius: "20px", background: "#FEF3D6", color: "#B06000", border: "1px solid #FCD888", whiteSpace: "nowrap" }}
+                                                                title="Cuenta receptora de IVA Débito Fiscal (Ventas e Ingresos)"
+                                                            >
+                                                                ● IVA Débito
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (!cuenta.permite_movimientos) {
+                                                        return <span style={{ color: "#CCC", fontSize: "12px" }}>—</span>;
+                                                    }
+
+                                                    const tieneIva = cuentaAplicaIva(cuenta, configIva, usuario?.empresa_id);
+
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            onClick={puedeGestionar ? (e) => manejarAlternarIva(cuenta, e) : undefined}
+                                                            disabled={!puedeGestionar}
+                                                            title={puedeGestionar
+                                                                ? (tieneIva ? "Clic para marcar como exenta" : "Clic para aplicar IVA 13%")
+                                                                : (tieneIva ? "Aplica IVA (13%)" : "Exenta de IVA")
+                                                            }
+                                                            style={{
+                                                                display: "inline-flex",
+                                                                alignItems: "center",
+                                                                gap: "5px",
+                                                                padding: "3px 10px",
+                                                                borderRadius: "20px",
+                                                                border: tieneIva ? "1px solid #B8DEC3" : "1px solid #DDE3E0",
+                                                                background: tieneIva ? "#EAF5EE" : "#F5F5F5",
+                                                                color: tieneIva ? "#1B4332" : "#888",
+                                                                fontSize: "11.5px",
+                                                                fontWeight: tieneIva ? "600" : "400",
+                                                                cursor: puedeGestionar ? "pointer" : "default",
+                                                                transition: "all 150ms ease",
+                                                                whiteSpace: "nowrap",
+                                                                outline: "none"
+                                                            }}
+                                                        >
+                                                            <span style={{
+                                                                width: "8px",
+                                                                height: "8px",
+                                                                borderRadius: "50%",
+                                                                background: tieneIva ? "#1B4332" : "#CCC",
+                                                                flexShrink: 0
+                                                            }} />
+                                                            {tieneIva ? "13%" : "Exenta"}
+                                                        </button>
+                                                    );
+                                                })()}
                                             </td>
                                             <td>
                                                 <span style={{
@@ -950,7 +1154,7 @@ function manejarExportacionExcel() {
                                                 <td style={{ textAlign: "right" }}>
                                                     <div style={{ display: "inline-flex", gap: "4px" }}>
                                                         {cuenta.nivel !== "SUBCUENTA" && (
-                                                            <button
+                                                             <button
                                                                 type="button"
                                                                 onClick={() => abrirCrearCuenta(cuenta)}
                                                                 className="button-secondary"
@@ -1022,6 +1226,20 @@ function manejarExportacionExcel() {
                     alGuardar={async (cuentaGuardada) => {
                         setMensajeExito(`Cuenta ${cuentaGuardada.codigo} guardada con éxito.`);
                         await recargarCuentas();
+                        setTimeout(() => setMensajeExito(""), 4000);
+                    }}
+                />
+            )}
+
+            {modalConfigIvaAbierto && (
+                <ModalConfiguracionIva
+                    abierto={modalConfigIvaAbierto}
+                    cuentas={cuentas}
+                    usuario={usuario}
+                    alCerrar={() => setModalConfigIvaAbierto(false)}
+                    alGuardar={(nuevaConf) => {
+                        setConfigIva(nuevaConf);
+                        setMensajeExito("Configuración de IVA actualizada exitosamente.");
                         setTimeout(() => setMensajeExito(""), 4000);
                     }}
                 />

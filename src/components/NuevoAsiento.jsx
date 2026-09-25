@@ -163,8 +163,8 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
 
     // el asiento real: lo que escribes + el IVA automático + la línea que se completa sola
     const calculo = useMemo(
-        () => calcularAsiento(detalles, cuentasPorId, cuentasPorCodigo, modoIva),
-        [detalles, cuentasPorId, cuentasPorCodigo, modoIva]
+        () => calcularAsiento(detalles, cuentasPorId, cuentasPorCodigo, modoIva, empresaId),
+        [detalles, cuentasPorId, cuentasPorCodigo, modoIva, empresaId]
     );
     const vistaPrevia = useMemo(() => armarVistaPrevia(calculo.lineas, cuentasPorId), [calculo, cuentasPorId]);
 
@@ -186,7 +186,7 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
         && estaBalanceado;
 
     function conceptoAutomatico(detallesActuales, modo){
-        const resultado = calcularAsiento(detallesActuales, cuentasPorId, cuentasPorCodigo, modo);
+        const resultado = calcularAsiento(detallesActuales, cuentasPorId, cuentasPorCodigo, modo, empresaId);
         return construirConceptoAutomatico(resultado.lineas, modo);
     }
 
@@ -508,6 +508,12 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                         {modoIva === "mas" && "Más IVA: escribe el monto sin IVA y el sistema le suma el 13% en las cuentas que lo llevan. "}
                         {modoIva === "sin" && "Sin IVA: no se agrega ninguna línea de IVA. "}
                         Puedes dejar sin importe una sola línea (por ejemplo Proveedores o Caja) y se completa sola con lo que falta para cuadrar.
+                        {calculo.infoIva?.cuentaCredito && (
+                            <span style={{ display: "block", marginTop: "3px", color: "#1B4332", fontSize: "11px" }}>
+                                • Cuenta Crédito Fiscal activa: <strong>{calculo.infoIva.cuentaCredito.codigo} - {calculo.infoIva.cuentaCredito.nombre}</strong>
+                                {calculo.infoIva.cuentaDebito && ` | Cuenta Débito Fiscal activa: ${calculo.infoIva.cuentaDebito.codigo} - ${calculo.infoIva.cuentaDebito.nombre}`}
+                            </span>
+                        )}
                     </p>
 
                     <div className="detail-table-shell">

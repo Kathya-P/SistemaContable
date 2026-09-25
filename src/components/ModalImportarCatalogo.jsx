@@ -5,6 +5,11 @@ import {
     descargarPlantillaCSV,
     parsearTextoPegadoWordPDF
 } from "../services/cuentasService";
+import {
+    detectarCuentasIva,
+    inferirLlevaIvaPorDefecto,
+    guardarConfiguracionIva
+} from "../utils/configuracionIva";
 
 /**
  * Carga la librería SheetJS (XLSX) bajo demanda desde CDN sin requerir paquetes locales en node_modules.
@@ -312,6 +317,12 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
     const [errorGeneral, setErrorGeneral] = useState("");
     const fileInputRef = useRef(null);
 
+    // Configuración interactiva de IVA para el catálogo importado
+    const [habilitarIvaAutomatico, setHabilitarIvaAutomatico] = useState(true);
+    const [cuentaCreditoSeleccionada, setCuentaCreditoSeleccionada] = useState("");
+    const [cuentaDebitoSeleccionada, setCuentaDebitoSeleccionada] = useState("");
+    const [cuentasConIvaMarcadas, setCuentasConIvaMarcadas] = useState(new Set());
+
     if (!abierto) return null;
 
     // Normaliza nombres de encabezados para soportar formatos oficiales del gobierno, SSF, BCR y variaciones comunes
@@ -327,6 +338,7 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
         if (c === "cuenta_padre_codigo" || c === "padre_codigo" || c === "cuenta_padre" || c === "padre" || c === "parent" || c === "cuenta_superior") return "cuenta_padre_codigo";
         if (c === "permite_movimientos" || c === "permite_movimiento" || c === "movimientos" || c === "movimiento" || c === "afectable" || c === "imputable") return "permite_movimientos";
         if (c === "operacion" || c === "signo" || c === "naturaleza") return "operacion";
+        if (c === "lleva_iva" || c === "aplica_iva" || c === "iva" || c === "grava_iva" || c === "con_iva") return "lleva_iva";
         return c;
     }
 
@@ -356,6 +368,29 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
 
         const validacion = validarArchivoCatalogo(filasNormalizadas, cuentasExistentes, modoSeleccionado, { flexible: true });
         setResultadoValidacion(validacion);
+
+        // Auto-detectar cuentas de IVA y marcar cuentas que llevan IVA
+        if (validacion && validacion.filasValidas.length > 0) {
+            const detectadas = detectarCuentasIva(validacion.filasValidas);
+            setCuentaCreditoSeleccionada(detectadas.cuentaCredito ? String(detectadas.cuentaCredito.codigo) : "");
+            setCuentaDebitoSeleccionada(detectadas.cuentaDebito ? String(detectadas.cuentaDebito.codigo) : "");
+
+            // Pre-marcar cuentas que llevan IVA por defecto
+            const marcadasIniciales = new Set();
+            validacion.filasValidas.forEach(f => {
+                // Si en el archivo venía explícitamente "lleva_iva" / "aplica_iva"
+                const flagExplicito = f.lleva_iva || f.aplica_iva || f.iva;
+                if (flagExplicito !== undefined && flagExplicito !== "") {
+                    const s = String(flagExplicito).toLowerCase();
+                    if (s === "si" || s === "true" || s === "1" || s === "s") {
+                        marcadasIniciales.add(String(f.codigo));
+                    }
+                } else if (inferirLlevaIvaPorDefecto(f)) {
+                    marcadasIniciales.add(String(f.codigo));
+                }
+            });
+            setCuentasConIvaMarcadas(marcadasIniciales);
+        }
     }
 
     async function procesarArchivoFisico(file) {
@@ -484,6 +519,19 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
         }
     }
 
+    function alternarCuentaIva(codigo) {
+        setCuentasConIvaMarcadas(prev => {
+            const nuevo = new Set(prev);
+            const strCod = String(codigo);
+            if (nuevo.has(strCod)) {
+                nuevo.delete(strCod);
+            } else {
+                nuevo.add(strCod);
+            }
+            return nuevo;
+        });
+    }
+
     async function manejarConfirmarImportacion() {
         if (!resultadoValidacion || !resultadoValidacion.esValido) return;
 
@@ -491,6 +539,13 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
             setImportando(true);
             setErrorGeneral("");
             
+            // Resolver empresa_id de manera segura
+            let idEmpresa = usuario?.empresa_id;
+            if (!idEmpresa && cuentasExistentes && cuentasExistentes.length > 0) {
+                const conEmpresa = cuentasExistentes.find(c => c.empresa_id);
+                if (conEmpresa) idEmpresa = conEmpresa.empresa_id;
+            }
+
             const cuentasAImportar = resultadoValidacion.filasValidas.map(f => ({
                 codigo: f.codigo,
                 nombre: f.nombre,
@@ -501,10 +556,18 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
                 estado: true
             }));
 
-                const resultado = await importarCatalogo({
-                    cuentas: cuentasAImportar,
-                    modo
-                }, usuario?.empresa_id);
+            const resultado = await importarCatalogo({
+                cuentas: cuentasAImportar,
+                modo
+            }, idEmpresa);
+
+            // Guardar configuración de IVA para la empresa
+            guardarConfiguracionIva(idEmpresa, {
+                habilitado: habilitarIvaAutomatico,
+                cuentaCreditoCodigo: cuentaCreditoSeleccionada || null,
+                cuentaDebitoCodigo: cuentaDebitoSeleccionada || null,
+                codigosConIva: Array.from(cuentasConIvaMarcadas)
+            });
 
             alImportarExitoso(resultado);
             alCerrar();
@@ -572,10 +635,10 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
                                 Formato admitido: Excel (.xlsx, .xls), PDF (.pdf), CSV o TXT
                             </strong>
                             <code style={{ fontSize: "12px", background: "#FFFFFF", color: "#1B4332", border: "1px solid #DDE3E0", padding: "2px 6px", borderRadius: "3px", marginTop: "4px", display: "inline-block" }}>
-                                codigo, nombre, tipo, nivel, cuenta_padre_codigo
+                                codigo, nombre, tipo, nivel, cuenta_padre_codigo, lleva_iva (opcional)
                             </code>
                             <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#40534C" }}>
-                                La propiedad de permitir movimientos se calcula de forma automática según la jerarquía contable.
+                                Puedes marcar directamente en la tabla si cada cuenta lleva IVA y qué cuenta acumula crédito o débito fiscal.
                             </p>
                         </div>
                         <button
@@ -912,9 +975,82 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
                                 </div>
                             )}
 
-                            {/* Previsualización de cuentas válidas */}
+                            {/* Previsualización de cuentas válidas y configuración de IVA */}
                             {resultadoValidacion.filasValidas.length > 0 && (
                                 <div>
+                                    {/* Panel de Configuración de IVA para el Catálogo */}
+                                    <div style={{
+                                        background: "#F4FBF7",
+                                        border: "1px solid #BCE3D0",
+                                        borderRadius: "8px",
+                                        padding: "14px",
+                                        marginBottom: "16px"
+                                    }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+                                            <div>
+                                                <strong style={{ fontSize: "14px", color: "#173B35" }}>
+                                                    ⚙️ Configuración de IVA Automático (13%)
+                                                </strong>
+                                                <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: "#3B5C50" }}>
+                                                    Elige si este catálogo usa cálculo automático de IVA y confirma qué cuentas reciben el crédito y débito fiscal.
+                                                </p>
+                                            </div>
+                                            <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: "600", color: "#1B4332", cursor: "pointer" }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={habilitarIvaAutomatico}
+                                                    onChange={e => setHabilitarIvaAutomatico(e.target.checked)}
+                                                    style={{ accentColor: "#1B4332" }}
+                                                />
+                                                Habilitar cálculo de IVA
+                                            </label>
+                                        </div>
+
+                                        {habilitarIvaAutomatico ? (
+                                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "8px" }}>
+                                                <div>
+                                                    <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#173B35", marginBottom: "4px" }}>
+                                                        Cuenta para IVA Crédito Fiscal (Compras y Gastos):
+                                                    </label>
+                                                    <select
+                                                        value={cuentaCreditoSeleccionada}
+                                                        onChange={e => setCuentaCreditoSeleccionada(e.target.value)}
+                                                        style={{ width: "100%", padding: "6px 8px", borderRadius: "5px", border: "1px solid #A2CDBD", fontSize: "12px", background: "#FFF" }}
+                                                    >
+                                                        <option value="">-- Sin cuenta asignada --</option>
+                                                        {resultadoValidacion.filasValidas.map(f => (
+                                                            <option key={`cred-${f.codigo}`} value={f.codigo}>
+                                                                {f.codigo} - {f.nombre}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#173B35", marginBottom: "4px" }}>
+                                                        Cuenta para IVA Débito Fiscal (Ventas):
+                                                    </label>
+                                                    <select
+                                                        value={cuentaDebitoSeleccionada}
+                                                        onChange={e => setCuentaDebitoSeleccionada(e.target.value)}
+                                                        style={{ width: "100%", padding: "6px 8px", borderRadius: "5px", border: "1px solid #A2CDBD", fontSize: "12px", background: "#FFF" }}
+                                                    >
+                                                        <option value="">-- Sin cuenta asignada --</option>
+                                                        {resultadoValidacion.filasValidas.map(f => (
+                                                            <option key={`deb-${f.codigo}`} value={f.codigo}>
+                                                                {f.codigo} - {f.nombre}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: "12px", color: "#667", background: "#FFF", padding: "8px 12px", borderRadius: "4px", border: "1px solid #E0E5E2" }}>
+                                                ℹ️ El cálculo automático de IVA estará desactivado para este catálogo. Las partidas se registrarán sin desglosar IVA automáticamente.
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {resultadoValidacion.avisos && resultadoValidacion.avisos.length > 0 && (
                                         <div style={{
                                             border: "1px solid #C5E0D8",
@@ -941,34 +1077,59 @@ function ModalImportarCatalogo({ abierto, cuentasExistentes = [], usuario, alCer
                                         </div>
                                     )}
 
-                                    <span style={{ fontSize: "12.5px", fontWeight: "600", color: "#173B35", display: "block", marginBottom: "6px" }}>
-                                        Previsualización de registros a procesar ({Math.min(resultadoValidacion.filasValidas.length, 5)} de {resultadoValidacion.filasValidas.length}):
-                                    </span>
-                                    <div style={{ maxHeight: "150px", overflowY: "auto", border: "1px solid #DDE3E0", borderRadius: "4px" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                                        <span style={{ fontSize: "12.5px", fontWeight: "600", color: "#173B35" }}>
+                                            Previsualización y asignación de IVA ({Math.min(resultadoValidacion.filasValidas.length, 12)} de {resultadoValidacion.filasValidas.length} cuentas):
+                                        </span>
+                                        {habilitarIvaAutomatico && (
+                                            <span style={{ fontSize: "11.5px", color: "#2D6A4F" }}>
+                                                {cuentasConIvaMarcadas.size} cuenta(s) con IVA marcado
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div style={{ maxHeight: "200px", overflowY: "auto", border: "1px solid #DDE3E0", borderRadius: "4px" }}>
                                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                                             <thead>
-                                                <tr style={{ background: "#EAF5EE", color: "#173B35", textAlign: "left" }}>
+                                                <tr style={{ background: "#EAF5EE", color: "#173B35", textAlign: "left", position: "sticky", top: 0, zIndex: 1 }}>
                                                     <th style={{ padding: "6px 8px" }}>Código</th>
                                                     <th style={{ padding: "6px 8px" }}>Nombre</th>
                                                     <th style={{ padding: "6px 8px" }}>Tipo</th>
                                                     <th style={{ padding: "6px 8px" }}>Nivel</th>
                                                     <th style={{ padding: "6px 8px" }}>Padre</th>
                                                     <th style={{ padding: "6px 8px" }}>Asientos</th>
+                                                    {habilitarIvaAutomatico && (
+                                                        <th style={{ padding: "6px 8px", textAlign: "center", minWidth: "80px" }}>Lleva IVA</th>
+                                                    )}
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {resultadoValidacion.filasValidas.slice(0, 5).map((f, i) => (
-                                                    <tr key={i} style={{ borderTop: "1px solid #EEE" }}>
-                                                        <td style={{ padding: "5px 8px", fontFamily: "var(--mono)", fontWeight: "600", color: "#1B4332" }}>{f.codigo}</td>
-                                                        <td style={{ padding: "5px 8px", color: "#1C2321" }}>{f.nombre}</td>
-                                                        <td style={{ padding: "5px 8px" }}>{f.tipo}</td>
-                                                        <td style={{ padding: "5px 8px" }}>{f.nivel}</td>
-                                                        <td style={{ padding: "5px 8px" }}>{f.cuenta_padre_codigo || "-"}</td>
-                                                        <td style={{ padding: "5px 8px", color: f.permite_movimientos ? "#2E7D32" : "#667" }}>
-                                                            {f.permite_movimientos ? "Sí" : "No"}
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {resultadoValidacion.filasValidas.slice(0, 12).map((f, i) => {
+                                                    const esMarcada = cuentasConIvaMarcadas.has(String(f.codigo));
+                                                    return (
+                                                        <tr key={i} style={{ borderTop: "1px solid #EEE", background: esMarcada ? "#F9FCFA" : "transparent" }}>
+                                                            <td style={{ padding: "5px 8px", fontFamily: "var(--mono)", fontWeight: "600", color: "#1B4332" }}>{f.codigo}</td>
+                                                            <td style={{ padding: "5px 8px", color: "#1C2321" }}>{f.nombre}</td>
+                                                            <td style={{ padding: "5px 8px" }}>{f.tipo}</td>
+                                                            <td style={{ padding: "5px 8px" }}>{f.nivel}</td>
+                                                            <td style={{ padding: "5px 8px" }}>{f.cuenta_padre_codigo || "-"}</td>
+                                                            <td style={{ padding: "5px 8px", color: f.permite_movimientos ? "#2E7D32" : "#667" }}>
+                                                                {f.permite_movimientos ? "Sí" : "No"}
+                                                            </td>
+                                                            {habilitarIvaAutomatico && (
+                                                                <td style={{ padding: "5px 8px", textAlign: "center" }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={esMarcada}
+                                                                        onChange={() => alternarCuentaIva(f.codigo)}
+                                                                        title={esMarcada ? "Esta cuenta calculará IVA en Nuevo Asiento" : "Marcar para que aplique IVA"}
+                                                                        style={{ accentColor: "#1B4332", cursor: "pointer" }}
+                                                                    />
+                                                                </td>
+                                                            )}
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>

@@ -568,10 +568,38 @@ export function RatiosFinancieros({ empresaNombre = "Empresa" }) {
 
             {/* Estado de Carga y Errores */}
             {cargando && (
-                <div style={{ padding: "40px 20px", textAlign: "center", background: "var(--panel, #FFFFFF)", borderRadius: "10px", border: "1px solid var(--border, #DDE3E0)" }}>
-                    <p style={{ margin: 0, fontSize: "15px", color: "var(--accent, #1B4332)", fontWeight: 700 }}>
+                <div style={{
+                    padding: "36px 20px",
+                    textAlign: "center",
+                    background: "#f0fdf4",
+                    borderRadius: "10px",
+                    border: "1.5px solid #a7f3d0",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "10px",
+                    boxShadow: "0 2px 8px rgba(5, 150, 105, 0.08)"
+                }}>
+                    <div style={{
+                        width: "30px",
+                        height: "30px",
+                        border: "3px solid #d1fae5",
+                        borderTopColor: "#059669",
+                        borderRadius: "50%",
+                        animation: "spin 0.8s linear infinite"
+                    }} />
+                    <p style={{ margin: 0, fontSize: "15px", color: "#065f46", fontWeight: 700 }}>
                         Calculando ratios financieros con datos contables reales...
                     </p>
+                    <span style={{ fontSize: "12px", color: "#047857" }}>
+                        Consultando Libro Mayor, Balances y Kardex del período
+                    </span>
+                    <style>{`
+                        @keyframes spin {
+                            to { transform: rotate(360deg); }
+                        }
+                    `}</style>
                 </div>
             )}
 

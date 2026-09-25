@@ -19,7 +19,8 @@ import ModalConfiguracionIva from "./ModalConfiguracionIva";
 import { 
     inicializarConfiguracionIva, 
     cuentaAplicaIva, 
-    alternarIvaCuenta 
+    alternarIvaCuenta,
+    restablecerIvaSugerido 
 } from "../utils/configuracionIva";
 
 function CatalogoCuentas({ usuario }) {
@@ -649,9 +650,17 @@ function manejarExportacionExcel() {
                             usuario={usuario}
                             alCerrar={() => setModalPredeterminadoAbierto(false)}
                             alCargarExitoso={async (resultado) => {
-                                setMensajeExito(resultado.mensaje);
                                 await recargarCuentas();
-                                setTimeout(() => setMensajeExito(""), 4000);
+                                // Forzar reinicialización del IVA para que las cuentas
+                                // del catálogo predeterminado ya vengan con su IVA asignado
+                                const datosActualizados = await obtenerCuentas(usuario?.empresa_id);
+                                const nuevaConfIva = restablecerIvaSugerido(usuario?.empresa_id, datosActualizados || []);
+                                setConfigIva(nuevaConfIva);
+                                const cuentasConIvaCount = (nuevaConfIva?.codigosConIva || []).length;
+                                setMensajeExito(
+                                    `${resultado.mensaje} Se configuró IVA (13%) automáticamente en ${cuentasConIvaCount} cuenta(s).`
+                                );
+                                setTimeout(() => setMensajeExito(""), 5000);
                             }}
                         />
                     )}

@@ -158,9 +158,6 @@ export default function AuditoriaPage({ usuario, empresaNombre = "Empresa" }) {
     const [error, setError] = useState(null);
     const [usuariosLista, setUsuariosLista] = useState([]);
 
-    // Modal de detalles
-    const [logSeleccionado, setLogSeleccionado] = useState(null);
-    const [tabModal, setTabModal] = useState("comparacion"); // 'comparacion', 'anteriores', 'nuevos'
     const [modalSqlAbierto, setModalSqlAbierto] = useState(false);
     const [copiadoSql, setCopiadoSql] = useState(false);
 
@@ -349,35 +346,6 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
         setTimeout(() => setCopiadoSql(false), 2500);
     };
 
-    // Cálculo de diferencias entre datos anteriores y nuevos
-    const diferencias = useMemo(() => {
-        if (!logSeleccionado) return [];
-        const antes = logSeleccionado.datos_anteriores || {};
-        const despues = logSeleccionado.datos_nuevos || {};
-
-        const todasClaves = Array.from(new Set([...Object.keys(antes), ...Object.keys(despues)]));
-        const diffs = [];
-
-        for (const k of todasClaves) {
-            const valAntes = antes[k];
-            const valDespues = despues[k];
-            const strAntes = JSON.stringify(valAntes);
-            const strDespues = JSON.stringify(valDespues);
-
-            if (strAntes !== strDespues) {
-                diffs.push({
-                    campo: k,
-                    antes: valAntes,
-                    despues: valDespues,
-                    modificado: valAntes !== undefined && valDespues !== undefined,
-                    creado: valAntes === undefined,
-                    eliminado: valDespues === undefined
-                });
-            }
-        }
-        return diffs;
-    }, [logSeleccionado]);
-
     return (
         <section className="view-section auditoria-page">
             <style>{`
@@ -469,21 +437,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                     border-color: #6ee7b7;
                 }
 
-                .auditoria-page .btn-detalles {
-                    background-color: #f0fdf4;
-                    border: 1.5px solid #a7f3d0;
-                    color: #065f46;
-                    font-weight: 600;
-                    padding: 5px 12px;
-                    border-radius: 6px;
-                    font-size: 12px;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                }
-                .auditoria-page .btn-detalles:hover {
-                    background-color: #dcfce7;
-                    border-color: #34d399;
-                }
+
 
                 .auditoria-page .btn-paginacion {
                     background-color: #f0fdf4;
@@ -879,7 +833,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                     <div style={{ flex: 1, minWidth: "220px" }}>
                         <input
                             type="text"
-                            placeholder="Buscar en descripción, usuario o ID..."
+                            placeholder="Buscar en descripción o usuario..."
                             value={busqueda}
                             onChange={e => setBusqueda(e.target.value)}
                             className="input-auditoria"
@@ -937,22 +891,20 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                             >
                                 Entidad {ordenCampo === "entidad_afectada" && (ordenDir === "asc" ? "▲" : "▼")}
                             </th>
-                            <th style={{ padding: "11px 12px", textAlign: "left", color: "#065f46" }}>ID</th>
                             <th style={{ padding: "11px 12px", textAlign: "left", color: "#065f46" }}>Descripción</th>
                             <th style={{ padding: "11px 12px", textAlign: "center", whiteSpace: "nowrap", color: "#065f46" }}>Resultado</th>
-                            <th style={{ padding: "11px 12px", textAlign: "center", color: "#065f46" }}>Detalles</th>
                         </tr>
                     </thead>
                     <tbody>
                         {cargando ? (
                             <tr>
-                                <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "#047857" }}>
+                                <td colSpan="6" style={{ textAlign: "center", padding: "30px", color: "#047857" }}>
                                     Cargando registros de auditoría...
                                 </td>
                             </tr>
                         ) : logs.length === 0 ? (
                             <tr>
-                                <td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "#065f46" }}>
+                                <td colSpan="6" style={{ textAlign: "center", padding: "30px", color: "#065f46" }}>
                                     No se encontraron eventos de auditoría con los filtros aplicados.
                                 </td>
                             </tr>
@@ -1013,10 +965,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                                 {log.entidad_afectada}
                                             </span>
                                         </td>
-                                        <td style={{ padding: "10px 12px", fontFamily: "monospace", color: "#4b5563" }}>
-                                            {log.entidad_id || "-"}
-                                        </td>
-                                        <td style={{ padding: "10px 12px", maxWidth: "320px", wordBreak: "break-word", color: "#1f2937" }}>
+                                        <td style={{ padding: "10px 12px", wordBreak: "break-word", color: "#1f2937" }}>
                                             {log.descripcion}
                                         </td>
                                         <td style={{ padding: "10px 12px", textAlign: "center" }}>
@@ -1033,15 +982,6 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                                             >
                                                 {cfgResultado.etiqueta}
                                             </span>
-                                        </td>
-                                        <td style={{ padding: "10px 12px", textAlign: "center" }}>
-                                            <button
-                                                className="btn-detalles"
-                                                onClick={() => setLogSeleccionado(log)}
-                                                title="Ver detalle completo y diferencias de datos"
-                                            >
-                                                Ver detalles
-                                            </button>
                                         </td>
                                     </tr>
                                 );
@@ -1087,214 +1027,7 @@ CREATE POLICY "Insercion para autenticados en logs_auditoria" ON public.logs_aud
                 </div>
             </div>
 
-            {/* Modal "Ver Detalles" del Log */}
-            {logSeleccionado && (
-                <div
-                    className="modal-overlay"
-                    style={{
-                        position: "fixed",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: "rgba(0,0,0,0.55)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 9999,
-                        padding: "16px"
-                    }}
-                    onClick={() => setLogSeleccionado(null)}
-                >
-                    <div
-                        className="modal-content"
-                        style={{
-                            background: "var(--card-bg, #ffffff)",
-                            borderRadius: "12px",
-                            maxWidth: "750px",
-                            width: "100%",
-                            maxHeight: "90vh",
-                            overflowY: "auto",
-                            padding: "24px",
-                            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
-                            border: "1px solid var(--border-color, #e5e7eb)"
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        {/* Cabecera del modal */}
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-                            <div>
-                                <span style={{ fontSize: "12px", color: "var(--text-muted, #6b7280)" }}>
-                                    Registro de Auditoría #{logSeleccionado.id}
-                                </span>
-                                <h2 style={{ fontSize: "18px", margin: "4px 0" }}>
-                                    {logSeleccionado.descripcion}
-                                </h2>
-                            </div>
-                            <button
-                                onClick={() => setLogSeleccionado(null)}
-                                style={{
-                                    background: "none",
-                                    border: "none",
-                                    fontSize: "22px",
-                                    cursor: "pointer",
-                                    color: "var(--text-muted, #6b7280)"
-                                }}
-                            >
-                                ✕
-                            </button>
-                        </div>
 
-                        {/* Metadatos */}
-                        <div
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                                gap: "10px",
-                                padding: "12px",
-                                background: "var(--bg-secondary, #f9fafb)",
-                                borderRadius: "8px",
-                                marginBottom: "16px",
-                                fontSize: "12px"
-                            }}
-                        >
-                            <div>
-                                <span style={{ color: "var(--text-muted, #6b7280)", display: "block" }}>Fecha y Hora</span>
-                                <strong>{new Date(logSeleccionado.fecha_hora).toLocaleString("es-ES")}</strong>
-                            </div>
-                            <div>
-                                <span style={{ color: "var(--text-muted, #6b7280)", display: "block" }}>Usuario Responsable</span>
-                                <strong>{logSeleccionado.usuario_nombre} (ID: {logSeleccionado.usuario_id || "N/A"})</strong>
-                            </div>
-                            <div>
-                                <span style={{ color: "var(--text-muted, #6b7280)", display: "block" }}>Acción / Entidad</span>
-                                <strong>{logSeleccionado.tipo_accion?.toUpperCase()} en {logSeleccionado.entidad_afectada} #{logSeleccionado.entidad_id || "N/A"}</strong>
-                            </div>
-                            <div>
-                                <span style={{ color: "var(--text-muted, #6b7280)", display: "block" }}>Dirección IP</span>
-                                <strong style={{ fontFamily: "monospace" }}>{logSeleccionado.ip_usuario || "127.0.0.1"}</strong>
-                            </div>
-                            <div>
-                                <span style={{ color: "var(--text-muted, #6b7280)", display: "block" }}>Resultado</span>
-                                <strong>{logSeleccionado.resultado}</strong>
-                            </div>
-                        </div>
-
-                        {/* Detalles de error si existió */}
-                        {logSeleccionado.detalles_error && (
-                            <div
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: "6px",
-                                    background: "rgba(239, 68, 68, 0.1)",
-                                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                                    color: "#dc2626",
-                                    fontSize: "13px",
-                                    marginBottom: "16px"
-                                }}
-                            >
-                                <strong>Detalle del error capturado:</strong>
-                                <p style={{ margin: "4px 0 0 0", fontFamily: "monospace" }}>{logSeleccionado.detalles_error}</p>
-                            </div>
-                        )}
-
-                        {/* Pestañas de Vista de Datos */}
-                        <div style={{ display: "flex", gap: "8px", borderBottom: "1.5px solid #d1fae5", marginBottom: "14px", paddingBottom: "4px" }}>
-                            <button
-                                className={`chip-rango ${tabModal === "comparacion" ? "is-active" : ""}`}
-                                onClick={() => setTabModal("comparacion")}
-                            >
-                                Comparación / Diferencias ({diferencias.length})
-                            </button>
-                            <button
-                                className={`chip-rango ${tabModal === "anteriores" ? "is-active" : ""}`}
-                                onClick={() => setTabModal("anteriores")}
-                            >
-                                Datos Anteriores
-                            </button>
-                            <button
-                                className={`chip-rango ${tabModal === "nuevos" ? "is-active" : ""}`}
-                                onClick={() => setTabModal("nuevos")}
-                            >
-                                Datos Nuevos
-                            </button>
-                        </div>
-
-                        {/* Contenido de la pestaña */}
-                        {tabModal === "comparacion" && (
-                            <div>
-                                {diferencias.length === 0 ? (
-                                    <p style={{ color: "#065f46", fontSize: "13px", textAlign: "center", padding: "20px" }}>
-                                        No se detectaron diferencias clave o es un registro de creación pura.
-                                    </p>
-                                ) : (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                        {diferencias.map(diff => (
-                                            <div
-                                                key={diff.campo}
-                                                style={{
-                                                    padding: "10px",
-                                                    borderRadius: "8px",
-                                                    background: "#f0fdf4",
-                                                    border: "1.5px solid #a7f3d0",
-                                                    fontSize: "12px"
-                                                }}
-                                            >
-                                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                                                    <strong style={{ color: "#065f46" }}>Campo: {diff.campo}</strong>
-                                                    <span style={{ fontSize: "11px", fontWeight: "600", color: diff.modificado ? "#047857" : diff.creado ? "#059669" : "#14532d" }}>
-                                                        {diff.modificado ? "Modificado" : diff.creado ? "Creado" : "Eliminado"}
-                                                    </span>
-                                                </div>
-                                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                                                    <div style={{ background: "rgba(20, 83, 45, 0.06)", padding: "8px", borderRadius: "6px", border: "1px solid rgba(20, 83, 45, 0.2)" }}>
-                                                        <span style={{ fontSize: "11px", color: "#14532d", fontWeight: "600", display: "block", marginBottom: "3px" }}>Antes:</span>
-                                                        <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#1f2937" }}>
-                                                            {JSON.stringify(diff.antes, null, 2)}
-                                                        </pre>
-                                                    </div>
-                                                    <div style={{ background: "rgba(16, 185, 129, 0.1)", padding: "8px", borderRadius: "6px", border: "1px solid rgba(16, 185, 129, 0.3)" }}>
-                                                        <span style={{ fontSize: "11px", color: "#047857", fontWeight: "600", display: "block", marginBottom: "3px" }}>Después:</span>
-                                                        <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#064e3b" }}>
-                                                            {JSON.stringify(diff.despues, null, 2)}
-                                                        </pre>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {tabModal === "anteriores" && (
-                            <div style={{ background: "#f0fdf4", border: "1.5px solid #a7f3d0", padding: "12px", borderRadius: "8px" }}>
-                                <pre style={{ margin: 0, fontSize: "12px", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#1f2937" }}>
-                                    {logSeleccionado.datos_anteriores
-                                        ? JSON.stringify(logSeleccionado.datos_anteriores, null, 2)
-                                        : "No aplican datos anteriores para esta acción."}
-                                </pre>
-                            </div>
-                        )}
-
-                        {tabModal === "nuevos" && (
-                            <div style={{ background: "#f0fdf4", border: "1.5px solid #a7f3d0", padding: "12px", borderRadius: "8px" }}>
-                                <pre style={{ margin: 0, fontSize: "12px", whiteSpace: "pre-wrap", wordBreak: "break-all", color: "#064e3b" }}>
-                                    {logSeleccionado.datos_nuevos
-                                        ? JSON.stringify(logSeleccionado.datos_nuevos, null, 2)
-                                        : "No aplican datos nuevos para esta acción."}
-                                </pre>
-                            </div>
-                        )}
-
-                        <div style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}>
-                            <button className="btn-exportar" onClick={() => setLogSeleccionado(null)}>
-                                Cerrar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Modal de Script SQL para Supabase */}
             {modalSqlAbierto && (

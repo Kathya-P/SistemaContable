@@ -46,9 +46,9 @@
     --bg: #16171d;
     --border: #2e303a;
     --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
+    --accent: #10b981;
+    --accent-bg: rgba(16, 185, 129, 0.15);
+    --accent-border: rgba(16, 185, 129, 0.5);
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
@@ -1107,10 +1107,10 @@ tr:last-child td {
     --panel: #1f2937;
     --border: #374151;
     --code-bg: #1f2937;
-    --accent: #f0abfc;
-    --accent-strong: #d946ef;
-    --accent-soft: rgba(217, 70, 239, 0.15);
-    --accent-border: rgba(240, 171, 252, 0.35);
+    --accent: #10b981;
+    --accent-strong: #059669;
+    --accent-soft: rgba(16, 185, 129, 0.15);
+    --accent-border: rgba(16, 185, 129, 0.35);
     --social-bg: rgba(31, 41, 55, 0.7);
   }
 }

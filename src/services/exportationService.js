@@ -525,13 +525,12 @@ export function exportarAuditoriaPDF({ logs = [], empresa = "Empresa" } = {}) {
     const documento = crearDocumento("Auditoria del Sistema", "Registro de operaciones y accesos", empresa);
     agregarTabla(documento, {
         startY: 28,
-        head: [["Fecha / Hora", "Usuario", "Accion", "Entidad", "ID", "Descripcion", "Resultado"]],
+        head: [["Fecha / Hora", "Usuario", "Acción", "Entidad", "Descripción", "Resultado"]],
         body: logs.map(log => [
             log.fecha_hora ? new Date(log.fecha_hora).toLocaleString("es-ES") : "-",
             log.usuario_nombre || "",
             log.tipo_accion || "",
             log.entidad_afectada || "",
-            log.entidad_id || "",
             log.descripcion || "",
             log.resultado || ""
         ]),
@@ -801,7 +800,7 @@ export function exportarUsuariosExcel({ usuarios = [], empresa = "Empresa" } = {
 }
 
 export function exportarAuditoriaExcel({ logs = [], empresa = "Empresa" } = {}) {
-    exportarLibroExcel("Auditoria_del_Sistema", [{ nombreHoja: "Auditoría", filas: [["Fecha / Hora", "Usuario", "Acción", "Entidad", "ID", "Descripción", "Resultado"], ...logs.map(log => [log.fecha_hora ? new Date(log.fecha_hora).toLocaleString("es-ES") : "-", log.usuario_nombre, log.tipo_accion, log.entidad_afectada, log.entidad_id || "", log.descripcion, log.resultado])], anchos: [22, 28, 18, 18, 12, 60, 18] }], empresa);
+    exportarLibroExcel("Auditoria_del_Sistema", [{ nombreHoja: "Auditoría", filas: [["Fecha / Hora", "Usuario", "Acción", "Entidad", "Descripción", "Resultado"], ...logs.map(log => [log.fecha_hora ? new Date(log.fecha_hora).toLocaleString("es-ES") : "-", log.usuario_nombre, log.tipo_accion, log.entidad_afectada, log.descripcion, log.resultado])], anchos: [22, 28, 18, 18, 65, 18] }], empresa);
 }
 
 export function exportarNuevoAsientoExcel({ detalles = [], cuentasPorId, fecha, concepto, empresa = "Empresa" } = {}) {

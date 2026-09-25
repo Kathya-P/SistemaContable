@@ -9,8 +9,9 @@ import {
     TIPOS_VALIDOS, 
     NIVELES_VALIDOS 
 } from "../services/cuentasService";
-import { exportarCatalogoCuentasPDF } from "../services/exportationService";
+import { exportarCatalogoCuentasPDF, exportarCatalogoCuentasExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
+import ExportarExcelButton from "./ExportarExcelButton";
 import ModalCuenta from "./ModalCuenta";
 import ModalImportarCatalogo from "./ModalImportarCatalogo";
 import ModalCatalogoPredeterminado from "./ModalCatalogoPredeterminado";
@@ -563,6 +564,11 @@ function manejarExportacionExcel() {
                         reporte="Catálogo de Cuentas"
                         disabled={!cuentasFiltradas.length}
                     />
+                    <ExportarExcelButton
+                    onExport={manejarExportacionExcel}
+                    reporte="Catálogo de Cuentas"
+                    disabled={!cuentasFiltradas.length}
+                />
                 </div>
             </div>
 

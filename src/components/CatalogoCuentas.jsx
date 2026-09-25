@@ -561,6 +561,7 @@ function manejarExportacionExcel() {
 
                     <ExportarPdfButton
                         onExport={manejarExportacionPDF}
+                        onExportExcel={manejarExportacionExcel}
                         reporte="Catálogo de Cuentas"
                         disabled={!cuentasFiltradas.length}
                     />

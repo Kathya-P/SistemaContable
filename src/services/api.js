@@ -4,8 +4,15 @@ import { supabase } from "../lib/supabase";
 const API_URL = "/api";
 
 export async function solicitarApi(ruta, opciones = {}) {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    let token = null;
+    if (supabase && supabase.auth) {
+        try {
+            const { data } = await supabase.auth.getSession();
+            token = data?.session?.access_token;
+        } catch {
+            // Ignorar error al obtener sesión
+        }
+    }
     const headers = {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

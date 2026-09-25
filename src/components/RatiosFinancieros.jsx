@@ -1040,7 +1040,7 @@ export function RatiosFinancieros({ empresaNombre = "Empresa" }) {
                                 if (!cce || !d) return null;
 
                                 return (
-                                    <div style={{ marginTop: "22px", padding: "18px 20px", borderRadius: "10px", background: "#f0fdf4", border: "1.5px solid #a7f3d0" }}>
+                                    <div className="cce-breakdown" style={{ marginTop: "22px", padding: "18px 20px", borderRadius: "10px", background: "#f0fdf4", border: "1.5px solid #a7f3d0" }}>
                                         <h4 style={{ margin: "0 0 6px 0", fontSize: "15px", fontWeight: 800, color: "#064e3b" }}>
                                             Desglose del Ciclo de Conversión de Efectivo (CCE)
                                         </h4>

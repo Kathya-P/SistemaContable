@@ -54,15 +54,66 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
         }
     }, [cuentaSeleccionada, abierto]);
 
-    // Filtrar cuentas dinámicamente en tiempo real según lo escrito
+    // Filtrar y ordenar cuentas dinámicamente según lo escrito (priorizando coincidencias por inicio de nombre/palabra/código)
     const cuentasFiltradas = useMemo(() => {
-        const termino = busqueda.trim().toLowerCase();
+        const normalizar = (txt) =>
+            String(txt || "")
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .trim();
+
+        const termino = normalizar(busqueda);
         if (!termino) return cuentas;
-        return cuentas.filter(c => {
-            const cod = String(c.codigo || "").toLowerCase();
-            const nom = String(c.nombre || "").toLowerCase();
-            return cod.includes(termino) || nom.includes(termino);
+
+        const resultados = [];
+
+        for (const c of cuentas) {
+            const cod = normalizar(c.codigo);
+            const nom = normalizar(c.nombre);
+            const palabras = nom.split(/[\s\-_/.,;:()]+/);
+
+            let prioridad = -1;
+
+            if (nom.startsWith(termino)) {
+                // 1. El nombre empieza exactamente con la letra/término (ej. "a" -> "Alquileres", "i" -> "IVA crédito fiscal")
+                prioridad = 1;
+            } else if (palabras.some(p => p.startsWith(termino))) {
+                // 2. Alguna palabra dentro del nombre empieza con el término (ej. "credito" en "IVA crédito fiscal")
+                prioridad = 2;
+            } else if (cod.startsWith(termino)) {
+                // 3. El código contable empieza con el término (ej. "11" -> "110101")
+                prioridad = 3;
+            } else if (termino.length > 2 && (nom.includes(termino) || cod.includes(termino))) {
+                // 4. Coincidencias intermedias solo cuando se han escrito 3 o más caracteres
+                prioridad = 4;
+            }
+
+            if (prioridad !== -1) {
+                resultados.push({ cuenta: c, prioridad, nom });
+            }
+        }
+
+        // Si no hubo coincidencia por inicio de palabra, buscar por inclusión general
+        if (resultados.length === 0) {
+            for (const c of cuentas) {
+                const cod = normalizar(c.codigo);
+                const nom = normalizar(c.nombre);
+                if (nom.includes(termino) || cod.includes(termino)) {
+                    resultados.push({ cuenta: c, prioridad: 5, nom });
+                }
+            }
+        }
+
+        // Ordenar primero por prioridad (1 = mejor) y luego alfabéticamente
+        resultados.sort((a, b) => {
+            if (a.prioridad !== b.prioridad) {
+                return a.prioridad - b.prioridad;
+            }
+            return a.nom.localeCompare(b.nom, "es");
         });
+
+        return resultados.map(r => r.cuenta);
     }, [cuentas, busqueda]);
 
     // Cerrar al hacer clic fuera del componente

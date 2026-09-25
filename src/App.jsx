@@ -126,15 +126,12 @@ function App(){
     const [usuario, setUsuario] = useState(() =>
         !supabaseConfigurado ? { id: 1, nombre: "Contador Principal", rol: "ADMIN", empresa_id: 1, estado: true } : null
     );
-    const [empresaActual, setEmpresaActual] = useState(null);
+    const [empresaActual, setEmpresaActual] = useState(() =>
+        !supabaseConfigurado ? { nombre_empresa: "Empresa demo" } : null
+    );
     const [errorUsuario, setErrorUsuario] = useState("");
     const [permisos, setPermisos] = useState(() =>
-        !supabaseConfigurado ? {
-            puede_ver_catalogo: true,
-            puede_crear_asientos: true,
-            puede_ver_reportes: true,
-            puede_gestionar_usuarios: true
-        } : {}
+        !supabaseConfigurado ? PERMISOS_PREDETERMINADOS : {}
     );
 
     useEffect(() => {
@@ -196,16 +193,11 @@ function App(){
 
     // permisos del rol del usuario logueado (tabla roles_permisos)
     useEffect(() => {
-        if(!usuario){
+        if(!usuario || !supabaseConfigurado){
             return undefined;
         }
 
         let cancelado = false;
-
-        if(!supabaseConfigurado){
-            setPermisos(PERMISOS_PREDETERMINADOS);
-            return undefined;
-        }
 
         solicitarApi("/permisos")
             .then(datos => {
@@ -226,13 +218,7 @@ function App(){
     }, [usuario]);
 
     useEffect(() => {
-        if(!usuario){
-            setEmpresaActual(null);
-            return undefined;
-        }
-
-        if(!supabaseConfigurado){
-            setEmpresaActual({ nombre_empresa: "Empresa demo" });
+        if(!usuario || !supabaseConfigurado){
             return undefined;
         }
 
@@ -267,9 +253,12 @@ function App(){
     async function cerrarSesion() {
         localStorage.removeItem("conta_demo_user_id");
         if(supabase){
-            try { await supabase.auth.signOut(); } catch {}
+            try { await supabase.auth.signOut(); } catch {
+                // Ignorar error al cerrar sesión
+            }
         }
         setUsuario(null);
+        setEmpresaActual(null);
         setSesion(null);
         setPermisos({});
         setVista("inicio");
@@ -323,7 +312,7 @@ function App(){
 
         const empresaNombre = empresaActual?.nombre_empresa || "Empresa";
         if(vista === "dashboard") return <Dashboard cambiarVista={setVista} empresaNombre={empresaNombre} />;
-        if(vista === "cuentas") return <CatalogoCuentas empresaNombre={empresaNombre} />;
+        if(vista === "cuentas") return <CatalogoCuentas usuario={usuario} empresaNombre={empresaNombre} />;
         if(vista === "asiento") return <NuevoAsiento usuario={usuario} empresaNombre={empresaNombre} onCreated={() => setVista("diario")} />;
         if(vista === "diario") return <LibroDiario empresaNombre={empresaNombre} />;
         if(vista === "mayor") return <LibroMayor empresaNombre={empresaNombre} />;

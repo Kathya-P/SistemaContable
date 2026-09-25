@@ -240,7 +240,7 @@ apiRouter.get("/health", (_req, res) => {
     });
 });
 
-const TIPOS_VALIDOS_CATALOGO = ["ACTIVO", "PASIVO", "PATRIMONIO", "INGRESO", "GASTO", "ORDEN", "CONTINGENTE", "COSTO"];
+const TIPOS_VALIDOS_CATALOGO = ["ACTIVO", "PASIVO", "PATRIMONIO", "INGRESO", "GASTO", "COSTO"];
 const NIVELES_VALIDOS_CATALOGO = ["GRUPO", "SUBGRUPO", "CUENTA", "SUBCUENTA"];
 const CATALOGO_PREDETERMINADO = [
     { codigo: "1", nombre: "ACTIVO", tipo: "ACTIVO", nivel: "GRUPO", padre: null },

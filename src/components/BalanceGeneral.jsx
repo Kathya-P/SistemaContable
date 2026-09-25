@@ -279,7 +279,7 @@ export function BalanceGeneral({ empresa, empresaNombre = "Empresa", fechaDesde:
     };
 
     return (
-        <div className="bg-section-container" style={{ maxWidth: "1280px", margin: "0 auto", padding: "20px 16px", color: "#1e293b", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+        <div className={`bg-section-container balance-nivel-${nivel}`} style={{ maxWidth: "1280px", margin: "0 auto", padding: "20px 16px", color: "#1e293b", fontFamily: "system-ui, -apple-system, sans-serif" }}>
             
             {/* ================= BARRA SUPERIOR DE FILTROS Y CONTROLES ================= */}
             <div 

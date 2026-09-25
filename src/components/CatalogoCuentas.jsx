@@ -563,11 +563,6 @@ function manejarExportacionExcel() {
                         reporte="Catálogo de Cuentas"
                         disabled={!cuentasFiltradas.length}
                     />
-                    <ExportarExcelButton
-                    onExport={manejarExportacionExcel}
-                    reporte="Catálogo de Cuentas"
-                    disabled={!cuentasFiltradas.length}
-                />
                 </div>
             </div>
 

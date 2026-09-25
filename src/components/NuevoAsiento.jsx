@@ -1,5 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { crearAsiento } from "../services/asientosService";
+import {
+    crearAsiento,
+    crearAsientoRecurrente,
+    desactivarAsientoRecurrente,
+    obtenerAsientosRecurrentesPendientes,
+    omitirAsientoRecurrente,
+    procesarAsientoRecurrente
+} from "../services/asientosService";
 import { obtenerCuentas } from "../services/cuentasService";
 import { obtenerEmpresas } from "../services/empresasService";
 import { supabaseConfigurado } from "../lib/supabase";
@@ -114,6 +121,9 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
     const [guardando, setGuardando] = useState(false);
     const [mensaje, setMensaje] = useState("");
     const [error, setError] = useState("");
+    const [repetirMensual, setRepetirMensual] = useState(false);
+    const [pendientes, setPendientes] = useState([]);
+    const [recurrentePendienteId, setRecurrentePendienteId] = useState(null);
 
     useEffect(() => {
         async function cargarDatos(){
@@ -127,6 +137,11 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                 const [empresasCargadas, cuentasCargadas] = await Promise.all([obtenerEmpresas(), obtenerCuentas()]);
                 setEmpresas(empresasCargadas);
                 setCuentas(cuentasCargadas);
+                try {
+                    setPendientes(await obtenerAsientosRecurrentesPendientes());
+                } catch (errorPendientes) {
+                    console.warn("No se pudieron cargar asientos recurrentes pendientes:", errorPendientes);
+                }
             }catch(error){
                 console.error("Error cargando datos del asiento:", error);
                 setError("No se pudieron cargar empresas y cuentas para el asiento.");
@@ -223,6 +238,41 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
         setDetalles(lineas => lineas.length > 2 ? lineas.filter((_, lineaIndice) => lineaIndice !== indice) : lineas);
     }
 
+    function revisarPendiente(pendiente) {
+        setFecha(pendiente.fecha_propuesta);
+        setConcepto(pendiente.concepto || "");
+        setModoIva(pendiente.modo_iva || "incluido");
+        setDetalles((pendiente.detalles || []).map(detalle => ({
+            cuenta_id: String(detalle.cuenta_id),
+            debe: detalle.debe === "0" ? "" : String(detalle.debe || ""),
+            haber: detalle.haber === "0" ? "" : String(detalle.haber || "")
+        })));
+        setRecurrentePendienteId(pendiente.id);
+        setRepetirMensual(true);
+        setMensaje("Propuesta recurrente cargada para revisión. Aún no se ha registrado.");
+        setError("");
+    }
+
+    async function omitirPendiente(id) {
+        try {
+            await omitirAsientoRecurrente(id);
+            setPendientes(await obtenerAsientosRecurrentesPendientes());
+            setMensaje("La propuesta recurrente fue omitida para este mes.");
+        } catch (errorOmitir) {
+            setError(errorOmitir.message || "No se pudo omitir la propuesta recurrente.");
+        }
+    }
+
+    async function desactivarPendiente(id) {
+        try {
+            await desactivarAsientoRecurrente(id);
+            setPendientes(await obtenerAsientosRecurrentesPendientes());
+            setMensaje("La recurrencia fue desactivada.");
+        } catch (errorDesactivar) {
+            setError(errorDesactivar.message || "No se pudo desactivar la recurrencia.");
+        }
+    }
+
     async function guardarAsiento(evento){
         evento.preventDefault();
         setError("");
@@ -290,10 +340,45 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
             );
 
             const numeroPartida = resultado?.numero_partida ?? resultado?.asiento?.numero_partida ?? "";
-            setMensaje(numeroPartida ? `Asiento guardado correctamente. Partida ${numeroPartida}.` : "Asiento guardado correctamente.");
+            const idAsiento = resultado?.id ?? resultado?.asiento?.id ?? resultado?.asiento_id ?? null;
+            let mensajeRecurrencia = "";
+            const teniaRecurrencia = Boolean(recurrentePendienteId || repetirMensual);
+
+            try {
+                if (recurrentePendienteId) {
+                    await procesarAsientoRecurrente(recurrentePendienteId, idAsiento);
+                } else if (repetirMensual) {
+                    await crearAsientoRecurrente({
+                        empresa_id: empresaId,
+                        concepto: quitarPrefijoConcepto(concepto),
+                        fecha_base: fecha,
+                        dia_recurrencia: Number(fecha.slice(-2)),
+                        modo_iva: modoIva,
+                        detalles: detalles.map(detalle => ({
+                            cuenta_id: detalle.cuenta_id,
+                            debe: detalle.debe || 0,
+                            haber: detalle.haber || 0,
+                            descripcion: ""
+                        }))
+                    });
+                }
+            } catch (errorRecurrencia) {
+                mensajeRecurrencia = ` El asiento se guardó, pero no se pudo actualizar la recurrencia: ${errorRecurrencia.message}`;
+            }
+
+            setMensaje(`${numeroPartida ? `Asiento guardado correctamente. Partida ${numeroPartida}.` : "Asiento guardado correctamente."}${mensajeRecurrencia}`);
             setDetalles([nuevaLinea(), nuevaLinea()]);
             setConcepto("");
             setGenerarConcepto(false);
+            setRepetirMensual(false);
+            setRecurrentePendienteId(null);
+            if (teniaRecurrencia) {
+                try {
+                    setPendientes(await obtenerAsientosRecurrentesPendientes());
+                } catch (errorPendientes) {
+                    console.warn("No se pudieron actualizar los pendientes recurrentes:", errorPendientes);
+                }
+            }
         }catch(error){
             console.error("Error guardando asiento:", error);
             setError(error.message || "No se pudo guardar el asiento.");
@@ -331,6 +416,41 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                 </div>
             </div>
 
+            {pendientes.length > 0 && (
+                <section className="recurring-pending" aria-labelledby="recurring-pending-title">
+                    <div className="recurring-pending-heading">
+                        <div>
+                            <p className="eyebrow">Revisión pendiente</p>
+                            <h2 id="recurring-pending-title">Asientos recurrentes pendientes</h2>
+                        </div>
+                        <span>{pendientes.length} propuesta{pendientes.length === 1 ? "" : "s"}</span>
+                    </div>
+                    <div className="recurring-pending-list">
+                        {pendientes.map(pendiente => (
+                            <article className="recurring-pending-item" key={pendiente.id}>
+                                <div>
+                                    <strong>{pendiente.concepto}</strong>
+                                    <span>Fecha propuesta: {pendiente.fecha_propuesta}</span>
+                                    <span>Empresa: {empresaNombre}</span>
+                                    <span>Debe: $ {Number(pendiente.total_debe || 0).toFixed(2)} · Haber: $ {Number(pendiente.total_haber || 0).toFixed(2)}</span>
+                                </div>
+                                <div className="recurring-pending-actions">
+                                    <button type="button" className="button-primary" onClick={() => revisarPendiente(pendiente)}>
+                                        Revisar
+                                    </button>
+                                    <button type="button" className="button-secondary" onClick={() => omitirPendiente(pendiente.id)}>
+                                        Omitir
+                                    </button>
+                                    <button type="button" className="button-secondary" onClick={() => desactivarPendiente(pendiente.id)}>
+                                        Desactivar recurrencia
+                                    </button>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                </section>
+            )}
+
             <form onSubmit={guardarAsiento} className="entry-form">
                 <div className="company-step is-complete">
                     <div className="company-step-heading">
@@ -366,6 +486,11 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                             <input type="checkbox" checked={generarConcepto} onChange={evento => alternarConceptoAutomatico(evento.target.checked)} />
                             <button type="button" className="button-secondary" onClick={() => setConcepto(conceptoAutomatico(detalles, modoIva))}>Generar concepto</button>
                         </span>
+                    </label>
+                    <label className="concept-option recurring-option">
+                        <span>Repetir automáticamente el próximo mes</span>
+                        <input type="checkbox" checked={repetirMensual} onChange={evento => setRepetirMensual(evento.target.checked)} />
+                        <small>Se preparará para revisión antes de registrarse.</small>
                     </label>
                 </div> : null}
 

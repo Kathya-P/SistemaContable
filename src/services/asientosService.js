@@ -31,3 +31,34 @@ export async function crearAsiento(asiento, detalles){
     });
 }
 
+export async function obtenerAsientosRecurrentesPendientes(fecha) {
+    const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : "";
+    return solicitarApi(`/asientos-recurrentes/pendientes${query}`);
+}
+
+export async function crearAsientoRecurrente(recurrente) {
+    return solicitarApi("/asientos-recurrentes", {
+        method: "POST",
+        body: JSON.stringify({ recurrente })
+    });
+}
+
+export async function procesarAsientoRecurrente(ocurrenciaId, asientoId) {
+    return solicitarApi(`/asientos-recurrentes/ocurrencias/${ocurrenciaId}/procesar`, {
+        method: "POST",
+        body: JSON.stringify({ asiento_id: asientoId })
+    });
+}
+
+export async function omitirAsientoRecurrente(ocurrenciaId) {
+    return solicitarApi(`/asientos-recurrentes/ocurrencias/${ocurrenciaId}/omitir`, {
+        method: "POST"
+    });
+}
+
+export async function desactivarAsientoRecurrente(ocurrenciaId) {
+    return solicitarApi(`/asientos-recurrentes/ocurrencias/${ocurrenciaId}/desactivar`, {
+        method: "PATCH"
+    });
+}
+

@@ -2148,6 +2148,272 @@ tr:last-child td {
   color: #ffffff !important;
 }
 
+/* Componentes con estilos inline: ultimo pase de contraste del modo oscuro. */
+.app-shell.tema-oscuro {
+  --dark-bg: #0d1117;
+  --dark-surface: #161b22;
+  --dark-elevated: #1f2937;
+  --dark-border: #2d3748;
+  --dark-text: #f8fafc;
+  --dark-muted: #cbd5e1;
+  --dark-subtle: #94a3b8;
+  --dark-green: #22c55e;
+  --dark-green-deep: #166534;
+  --dark-blue: #1e293b;
+  --dark-blue-hover: #273449;
+}
+
+/* Dashboard: resumen del sistema */
+.app-shell.tema-oscuro .control-panel .ledger-line,
+.app-shell.tema-oscuro .control-panel .panel-heading {
+  background: transparent !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .control-panel .ledger-line > span {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .control-panel .ledger-line strong,
+.app-shell.tema-oscuro .control-panel .panel-link {
+  color: var(--dark-green) !important;
+}
+
+.app-shell.tema-oscuro .control-panel .ledger-line:hover {
+  background: var(--dark-blue) !important;
+}
+
+/* Catalogo: acciones superiores */
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading > div:last-child .button-secondary,
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading > div:last-child .button-primary {
+  background: var(--dark-blue) !important;
+  border: 1px solid var(--dark-border) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading > div:last-child .button-primary:first-child {
+  background: var(--dark-green-deep) !important;
+  border-color: var(--dark-green) !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading > div:last-child .button-secondary:hover,
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading > div:last-child .button-primary:hover {
+  background: var(--dark-blue-hover) !important;
+  border-color: #4b5563 !important;
+  color: #ffffff !important;
+}
+
+.app-shell.tema-oscuro .catalogo-cuentas-section .section-heading > div:last-child .button-primary:first-child:hover {
+  background: #15803d !important;
+  border-color: var(--dark-green) !important;
+}
+
+/* Modales de catalogos: los estilos inline claros quedan neutralizados aqui. */
+.app-shell.tema-oscuro .modal-overlay {
+  background: rgba(3, 7, 18, 0.82) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo {
+  background: var(--dark-surface) !important;
+  color: var(--dark-text) !important;
+  border-color: var(--dark-border) !important;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo .modal-header,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo .modal-footer {
+  border-color: var(--dark-border) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo h3,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo strong,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo label,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo td,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo th {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo p,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo span,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo small {
+  color: var(--dark-muted) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo > div > div,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo textarea,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo code {
+  background: var(--dark-elevated) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo input,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo textarea {
+  background: var(--dark-bg) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo input::placeholder,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo textarea::placeholder {
+  color: var(--dark-subtle) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo table,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo thead,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo tbody,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo tr,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo td,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo th {
+  background: var(--dark-bg) !important;
+  border-color: var(--dark-border) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo thead tr {
+  background: var(--dark-green-deep) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo .button-secondary,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo .btn-cerrar {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo .button-secondary:hover,
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo .btn-cerrar:hover {
+  background: var(--dark-blue-hover) !important;
+  color: #ffffff !important;
+}
+
+.app-shell.tema-oscuro .modal-contenido.modal-catalogo .button-primary {
+  background: var(--dark-green) !important;
+  border-color: var(--dark-green) !important;
+  color: #ffffff !important;
+}
+
+/* Ratios: desglose del CCE */
+.app-shell.tema-oscuro .ratios-container .cce-breakdown {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-green-deep) !important;
+  color: var(--dark-muted) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .cce-breakdown h4 {
+  color: var(--dark-green) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .cce-breakdown > p {
+  color: var(--dark-muted) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .cce-breakdown > div > div {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-border) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .cce-breakdown > div > div span,
+.app-shell.tema-oscuro .ratios-container .cce-breakdown > div > div strong {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .ratios-container .cce-breakdown > div > span {
+  color: var(--dark-green) !important;
+}
+
+/* Auditoria: etiquetas y barras del grafico por tipo */
+.app-shell.tema-oscuro .auditoria-page .graficos-auditoria-container > div:nth-child(2) span,
+.app-shell.tema-oscuro .auditoria-page .graficos-auditoria-container > div:nth-child(2) strong {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .graficos-auditoria-container > div:nth-child(2) > div > div > div:nth-child(2) {
+  background: #263449 !important;
+}
+
+.app-shell.tema-oscuro .auditoria-page .graficos-auditoria-container > div:nth-child(2) > div > div > div:nth-child(2) > div {
+  background: var(--dark-green) !important;
+}
+
+/* Balance General: fondos, comprobacion, montos y Nivel 3 */
+.app-shell.tema-oscuro .bg-section-container,
+.app-shell.tema-oscuro .bg-section-container .bg-controls-bar,
+.app-shell.tema-oscuro .bg-section-container .bg-sheet-paper {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-validation-card {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-green-deep) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-validation-card span,
+.app-shell.tema-oscuro .bg-validation-card div {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-validation-card button {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-validation-card button:hover {
+  background: var(--dark-blue-hover) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper table td,
+.app-shell.tema-oscuro .bg-sheet-paper table th,
+.app-shell.tema-oscuro .bg-sheet-paper table span,
+.app-shell.tema-oscuro .bg-sheet-paper table strong {
+  color: var(--dark-text) !important;
+  border-color: var(--dark-border) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper table td > div {
+  background: var(--dark-elevated) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper table td > div > div > span:first-child {
+  color: var(--dark-subtle) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper table td > div > div > div span,
+.app-shell.tema-oscuro .bg-sheet-paper table td > div > div > div strong {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper table td > div[style*="background"] {
+  border-color: var(--dark-border) !important;
+}
+
+.app-shell.tema-oscuro .bg-sheet-paper table tr:hover td > div {
+  background: var(--dark-blue-hover) !important;
+}
+
+/* Selector de niveles y controles de expansion: sin botones blancos. */
+.app-shell.tema-oscuro .bg-controls-bar button {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar button:hover {
+  background: var(--dark-blue-hover) !important;
+  color: #ffffff !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > button[style*="background"] {
+  background: #15803d !important;
+  border-color: var(--dark-green) !important;
+  color: #ffffff !important;
+}
+
+.app-shell.tema-oscuro .bg-controls-bar > div:nth-child(2) > div:first-child > button:hover[style*="background"] {
+  background: var(--dark-green) !important;
+}
+
 .app-shell.tema-oscuro .bg-controls-bar > div:first-child > form > div:nth-child(5) > button:focus-visible {
   border-color: #3b82f6 !important;
   outline: none;
@@ -2181,6 +2447,83 @@ tr:last-child td {
 
 .app-shell.tema-oscuro .bg-validation-card > div:last-child > div > strong {
   color: #f0f6fc !important;
+}
+
+/* Balance General: ajustes solicitados por nivel. */
+.app-shell.tema-oscuro .balance-nivel-0 .bg-validation-card {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-green-deep) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-0 .bg-validation-card,
+.app-shell.tema-oscuro .balance-nivel-0 .bg-validation-card strong {
+  color: var(--dark-green) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-2 .bg-sheet-paper table td > div > div:last-child,
+.app-shell.tema-oscuro .balance-nivel-2 .bg-sheet-paper table tfoot td:last-child,
+.app-shell.tema-oscuro .balance-nivel-2 .bg-sheet-paper table td:last-child {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-3 .bg-sheet-paper h4 {
+  color: var(--dark-green) !important;
+  border-color: var(--dark-green-deep) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-3 .bg-sheet-paper table td > div > div:last-child,
+.app-shell.tema-oscuro .balance-nivel-3 .bg-sheet-paper table tfoot td:last-child,
+.app-shell.tema-oscuro .balance-nivel-3 .bg-sheet-paper table td:last-child {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-3 .bg-sheet-paper table td > div > div > div {
+  background: var(--dark-blue) !important;
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-3 .bg-sheet-paper table td > div > div > div span[style*="background"],
+.app-shell.tema-oscuro .balance-nivel-3 .bg-sheet-paper table td > div > div > div small {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-green) !important;
+}
+
+/* Unificar los acentos verdes de Nivel 0 y Nivel 2 con la vista analitica. */
+.app-shell.tema-oscuro .balance-nivel-0 .bg-sheet-paper table td:first-child,
+.app-shell.tema-oscuro .balance-nivel-0 .bg-sheet-paper table tfoot td:first-child {
+  color: var(--dark-green) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-0 .bg-sheet-paper table td:last-child {
+  color: var(--dark-text) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-2 .bg-sheet-paper h4,
+.app-shell.tema-oscuro .balance-nivel-2 .bg-sheet-paper table tfoot td:first-child {
+  color: var(--dark-green) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-2 .bg-sheet-paper table td > div > div > span:first-child,
+.app-shell.tema-oscuro .balance-nivel-2 .bg-sheet-paper table td > div > div > div small {
+  color: var(--dark-green) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-2 .bg-sheet-paper table td > div > div > div span[style*="background"] {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-border) !important;
+  color: var(--dark-green) !important;
+}
+
+/* Comprobacion del Nivel 0: reemplaza el fondo claro inline solo en dark mode. */
+.app-shell.tema-oscuro .balance-nivel-0 .bg-sheet-paper > div > div {
+  background: var(--dark-blue) !important;
+  border-color: var(--dark-green-deep) !important;
+  color: var(--dark-green) !important;
+}
+
+.app-shell.tema-oscuro .balance-nivel-0 .bg-sheet-paper > div > div strong {
+  color: var(--dark-green) !important;
 }
 
 .login-page {
@@ -2953,6 +3296,133 @@ body {
   background: #FFFFFF;
   border: 1px solid #DDE3E0;
   border-radius: 12px;
+}
+
+.recurring-pending {
+  margin-bottom: 18px;
+  padding: 18px;
+  background: #F6F7F8;
+  border: 1px solid #DDE3E0;
+  border-radius: 10px;
+}
+
+.recurring-pending-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.recurring-pending-heading h2 {
+  margin: 3px 0 0;
+  color: #1C2321;
+  font-size: 17px;
+}
+
+.recurring-pending-heading > span {
+  color: #5F6B67;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.recurring-pending-list {
+  display: grid;
+  gap: 10px;
+}
+
+.recurring-pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  background: #FFFFFF;
+  border: 1px solid #DDE3E0;
+  border-radius: 8px;
+}
+
+.recurring-pending-item > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.recurring-pending-item strong {
+  color: #1C2321;
+  font-size: 14px;
+}
+
+.recurring-pending-item span {
+  color: #5F6B67;
+  font-size: 12px;
+}
+
+.recurring-pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
+.recurring-pending-actions button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.recurring-option {
+  align-content: start;
+  grid-template-columns: 1fr auto;
+  gap: 5px 10px;
+}
+
+.recurring-option input {
+  width: auto;
+  margin: 0;
+}
+
+.recurring-option small {
+  grid-column: 1 / -1;
+  color: #6E7974;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.app-shell.tema-oscuro .recurring-pending {
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro .recurring-pending-heading h2,
+.app-shell.tema-oscuro .recurring-pending-item strong {
+  color: var(--gh-text) !important;
+}
+
+.app-shell.tema-oscuro .recurring-pending-heading > span,
+.app-shell.tema-oscuro .recurring-pending-item span,
+.app-shell.tema-oscuro .recurring-option small {
+  color: var(--gh-text-muted) !important;
+}
+
+.app-shell.tema-oscuro .recurring-pending-item {
+  background: var(--gh-surface-elevated);
+  border-color: var(--gh-border);
+}
+
+.app-shell.tema-oscuro .recurring-pending-actions .button-secondary {
+  background: var(--gh-surface);
+  border-color: var(--gh-border);
+  color: var(--gh-text);
+}
+
+@media (max-width: 760px) {
+  .recurring-pending-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recurring-pending-actions {
+    justify-content: flex-start;
+  }
 }
 
 .company-step {

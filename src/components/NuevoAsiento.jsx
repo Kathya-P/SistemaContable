@@ -184,10 +184,10 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                         padding: "7px 46px 7px 10px",
                         fontSize: "13px",
                         border: "1.5px solid",
-                        borderColor: abierto ? "#059669" : "var(--border, #DDE3E0)",
+                        borderColor: abierto ? "#059669" : "#d1d5db",
                         borderRadius: "4px",
-                        background: "var(--panel, #FFFFFF)",
-                        color: "var(--text, #1f2937)",
+                        background: "#ffffff",
+                        color: "#1f2937",
                         outline: "none",
                         boxShadow: abierto ? "0 0 0 2px rgba(16, 185, 129, 0.2)" : "none",
                         transition: "border-color 0.15s, box-shadow 0.15s"
@@ -269,10 +269,10 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                         minWidth: "290px",
                         maxHeight: "230px",
                         overflowY: "auto",
-                        background: "var(--panel, #ffffff)",
-                        border: "1.5px solid var(--accent, #a7f3d0)",
+                        background: "#ffffff",
+                        border: "1.5px solid #a7f3d0",
                         borderRadius: "8px",
-                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 4px 6px -2px rgba(0,0,0,0.05)",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0,0,0,0.05)",
                         zIndex: 9999,
                         padding: "5px"
                     }}
@@ -304,8 +304,8 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                                         alignItems: "center",
                                         justifyContent: "space-between",
                                         gap: "8px",
-                                        background: esResaltada ? "rgba(16, 185, 129, 0.15)" : esSeleccionada ? "rgba(16, 185, 129, 0.08)" : "transparent",
-                                        color: esResaltada || esSeleccionada ? "var(--accent, #065f46)" : "inherit",
+                                        background: esResaltada ? "#ecfdf5" : esSeleccionada ? "#f0fdf4" : "transparent",
+                                        color: esResaltada || esSeleccionada ? "#065f46" : "#1f2937",
                                         fontWeight: esSeleccionada ? "600" : "normal",
                                         transition: "background-color 0.1s"
                                     }}

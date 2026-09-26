@@ -32,12 +32,22 @@ export async function crearAsiento(asiento, detalles){
 }
 
 // ==========================================
-// Rectificar asiento contable (solo el más reciente)
+// Rectificar o modificar asiento contable
 // ==========================================
-export async function rectificarAsiento(id, { concepto, motivo, detalles }){
+export async function rectificarAsiento(id, { concepto, motivo, detalles, fecha }){
     return solicitarApi(`/asientos/${id}/rectificar`, {
         method: "PUT",
-        body: JSON.stringify({ concepto, motivo, detalles })
+        body: JSON.stringify({ concepto, motivo, detalles, fecha })
+    });
+}
+
+// ==========================================
+// Eliminar asiento contable del período
+// ==========================================
+export async function eliminarAsiento(id, motivo = "Eliminación de asiento contable"){
+    return solicitarApi(`/asientos/${id}`, {
+        method: "DELETE",
+        body: JSON.stringify({ motivo })
     });
 }
 

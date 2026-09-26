@@ -170,7 +170,7 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
     };
 
     return (
-        <div ref={contenedorRef} style={{ position: "relative", width: "100%", zIndex: abierto ? 100 : "auto" }}>
+        <div ref={contenedorRef} className="selector-subcuenta-wrapper" style={{ position: "relative", width: "100%", zIndex: abierto ? 100 : "auto" }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <input
                     ref={inputRef}
@@ -178,15 +178,16 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                     value={busqueda}
                     placeholder="Escribir código o nombre..."
                     autoComplete="off"
+                    className="selector-subcuenta-input"
                     style={{
                         width: "100%",
                         padding: "7px 46px 7px 10px",
                         fontSize: "13px",
                         border: "1.5px solid",
-                        borderColor: abierto ? "#059669" : "#DDE3E0",
+                        borderColor: abierto ? "#059669" : "var(--border, #DDE3E0)",
                         borderRadius: "4px",
-                        background: "#FFFFFF",
-                        color: "#1f2937",
+                        background: "var(--panel, #FFFFFF)",
+                        color: "var(--text, #1f2937)",
                         outline: "none",
                         boxShadow: abierto ? "0 0 0 2px rgba(16, 185, 129, 0.2)" : "none",
                         transition: "border-color 0.15s, box-shadow 0.15s"
@@ -259,6 +260,7 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
             {abierto && (
                 <div
                     ref={listaRef}
+                    className="selector-subcuenta-menu"
                     style={{
                         position: "absolute",
                         top: "calc(100% + 4px)",
@@ -267,8 +269,8 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                         minWidth: "290px",
                         maxHeight: "230px",
                         overflowY: "auto",
-                        background: "#ffffff",
-                        border: "1.5px solid #a7f3d0",
+                        background: "var(--panel, #ffffff)",
+                        border: "1.5px solid var(--accent, #a7f3d0)",
                         borderRadius: "8px",
                         boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 4px 6px -2px rgba(0,0,0,0.05)",
                         zIndex: 9999,
@@ -287,6 +289,7 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                             return (
                                 <div
                                     key={cuenta.id}
+                                    className={`selector-subcuenta-item ${esResaltada ? "is-highlighted" : ""} ${esSeleccionada ? "is-selected" : ""}`}
                                     onMouseDown={(e) => {
                                         e.preventDefault();
                                         seleccionar(cuenta);
@@ -301,8 +304,8 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                                         alignItems: "center",
                                         justifyContent: "space-between",
                                         gap: "8px",
-                                        background: esResaltada ? "#ecfdf5" : esSeleccionada ? "#f0fdf4" : "transparent",
-                                        color: esResaltada || esSeleccionada ? "#065f46" : "#1f2937",
+                                        background: esResaltada ? "rgba(16, 185, 129, 0.15)" : esSeleccionada ? "rgba(16, 185, 129, 0.08)" : "transparent",
+                                        color: esResaltada || esSeleccionada ? "var(--accent, #065f46)" : "inherit",
                                         fontWeight: esSeleccionada ? "600" : "normal",
                                         transition: "background-color 0.1s"
                                     }}
@@ -312,7 +315,7 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                                             fontFamily: "monospace",
                                             fontWeight: "700",
                                             color: "#047857",
-                                            background: "#d1fae5",
+                                            background: "rgba(16, 185, 129, 0.2)",
                                             padding: "2px 6px",
                                             borderRadius: "4px",
                                             fontSize: "11px",

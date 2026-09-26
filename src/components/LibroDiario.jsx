@@ -149,11 +149,17 @@ function gruposDeAsiento(asiento) {
 function interpretarCambiosAsiento(asientoOriginal, lineasActuales, catalogoMap) {
     const lineasOrig = asientoOriginal.detalle_asientos || [];
 
+    const obtenerInfoCuenta = (cuentaId, cuentaObj) => {
+        const item = catalogoMap.get(String(cuentaId)) || catalogoMap.get(String(cuentaObj?.codigo)) || cuentaObj;
+        const cod = String(item?.codigo || cuentaObj?.codigo || cuentaId || "");
+        const nom = item?.nombre || cuentaObj?.nombre || "Cuenta";
+        return { cod, nom };
+    };
+
     // Mapear cuentas originales con importes netos
     const origMap = new Map();
     lineasOrig.forEach(d => {
-        const cod = d.cuentas?.codigo || String(d.cuenta_id);
-        const nom = d.cuentas?.nombre || catalogoMap.get(cod)?.nombre || catalogoMap.get(String(d.cuenta_id))?.nombre || "Cuenta";
+        const { cod, nom } = obtenerInfoCuenta(d.cuenta_id, d.cuentas);
         const debe = Number(d.debe || 0);
         const haber = Number(d.haber || 0);
         if (!origMap.has(cod)) {
@@ -168,9 +174,7 @@ function interpretarCambiosAsiento(asientoOriginal, lineasActuales, catalogoMap)
     const actMap = new Map();
     lineasActuales.forEach(l => {
         if (!l.cuenta_id) return;
-        const cuentaObj = catalogoMap.get(String(l.cuenta_id));
-        const cod = cuentaObj?.codigo || String(l.cuenta_id);
-        const nom = cuentaObj?.nombre || "Cuenta";
+        const { cod, nom } = obtenerInfoCuenta(l.cuenta_id);
         const debe = parseFloat(l.debe) || 0;
         const haber = parseFloat(l.haber) || 0;
         if (!actMap.has(cod)) {
@@ -182,15 +186,11 @@ function interpretarCambiosAsiento(asientoOriginal, lineasActuales, catalogoMap)
     });
 
     const cuentasMontoModificado = [];
-    const cuentasNuevas = [];
-    const cuentasQuitadas = [];
 
-    // Detectar cuentas modificadas o agregadas
+    // Detectar exclusivamente las cuentas cuyos montos cambiaron
     for (const [cod, act] of actMap.entries()) {
         const orig = origMap.get(cod);
-        if (!orig) {
-            cuentasNuevas.push(act.nombre);
-        } else {
+        if (orig) {
             const difDebe = Math.abs(act.debe - orig.debe);
             const difHaber = Math.abs(act.haber - orig.haber);
             if (difDebe > 0.005 || difHaber > 0.005) {
@@ -205,38 +205,20 @@ function interpretarCambiosAsiento(asientoOriginal, lineasActuales, catalogoMap)
         }
     }
 
-    // Detectar cuentas eliminadas
-    for (const [cod, orig] of origMap.entries()) {
-        if (!actMap.has(cod)) {
-            cuentasQuitadas.push(orig.nombre);
-        }
-    }
-
-    const fragmentos = [];
-
     if (cuentasMontoModificado.length > 0) {
         if (cuentasMontoModificado.length === 1) {
             const m = cuentasMontoModificado[0];
-            fragmentos.push(`Corrección de monto en ${m.nombre} (de $${m.antes.toFixed(2)} a $${m.despues.toFixed(2)})`);
-        } else {
-            const nombres = cuentasMontoModificado.map(c => c.nombre).join(" y ");
-            fragmentos.push(`Ajuste de importes en ${nombres}`);
+            return `Corrección de monto en ${m.nombre} (de $${m.antes.toFixed(2)} a $${m.despues.toFixed(2)})`;
         }
+        if (cuentasMontoModificado.length === 2) {
+            const [m1, m2] = cuentasMontoModificado;
+            return `Ajuste de montos en ${m1.nombre} (de $${m1.antes.toFixed(2)} a $${m1.despues.toFixed(2)}) y ${m2.nombre} (de $${m2.antes.toFixed(2)} a $${m2.despues.toFixed(2)})`;
+        }
+        const nombres = cuentasMontoModificado.map(c => c.nombre).join(" y ");
+        return `Ajuste de importes en ${nombres}`;
     }
 
-    if (cuentasNuevas.length > 0) {
-        fragmentos.push(`Inclusión de ${cuentasNuevas.join(", ")}`);
-    }
-
-    if (cuentasQuitadas.length > 0) {
-        fragmentos.push(`Exclusión de ${cuentasQuitadas.join(", ")}`);
-    }
-
-    if (fragmentos.length === 0) {
-        return "Corrección de redacción de concepto y regularización de partida";
-    }
-
-    return fragmentos.join("; ");
+    return "Corrección de redacción de concepto y regularización de partida";
 }
 
 // ==========================================================

@@ -31,6 +31,16 @@ export async function crearAsiento(asiento, detalles){
     });
 }
 
+// ==========================================
+// Rectificar asiento contable (solo el más reciente)
+// ==========================================
+export async function rectificarAsiento(id, { concepto, motivo, detalles }){
+    return solicitarApi(`/asientos/${id}/rectificar`, {
+        method: "PUT",
+        body: JSON.stringify({ concepto, motivo, detalles })
+    });
+}
+
 export async function obtenerAsientosRecurrentesPendientes(fecha) {
     const query = fecha ? `?fecha=${encodeURIComponent(fecha)}` : "";
     return solicitarApi(`/asientos-recurrentes/pendientes${query}`);

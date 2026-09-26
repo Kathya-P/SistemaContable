@@ -118,7 +118,7 @@ export default function Sidebar({ vista, cambiarVista, grupos, colapsado, altern
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
-                <button className="brand" onClick={() => cambiarVista("inicio")} title="ContaCabal - Ir al inicio">
+                <button className="brand" onClick={() => cambiarVista("dashboard")} title="ContaCabal - Ir al Dashboard">
                     <LogoMarca colapsado={colapsado} />
                 </button>
                 <button

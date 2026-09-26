@@ -1,11 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
     crearAsiento,
-    crearAsientoRecurrente,
-    desactivarAsientoRecurrente,
-    obtenerAsientosRecurrentesPendientes,
-    omitirAsientoRecurrente,
-    procesarAsientoRecurrente
+    obtenerAsientosGuardados,
+    guardarPlantillaAsiento,
+    eliminarAsientoGuardado
 } from "../services/asientosService";
 import { obtenerCuentas } from "../services/cuentasService";
 import { obtenerEmpresas } from "../services/empresasService";
@@ -13,6 +11,61 @@ import { supabaseConfigurado } from "../lib/supabase";
 import { calcularAsiento } from "../utils/asientoIva";
 import { exportarNuevoAsientoPDF, exportarNuevoAsientoExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
+
+function IconoBookmark({ size = 16, className = "" }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+        </svg>
+    );
+}
+
+function IconoCarpeta({ size = 16, className = "" }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+    );
+}
+
+function IconoLupa({ size = 15, className = "" }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+    );
+}
+
+function IconoCerrar({ size = 16, className = "" }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+    );
+}
+
+function IconoBasura({ size = 15, className = "" }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+        </svg>
+    );
+}
+
+function IconoCargar({ size = 15, className = "" }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        </svg>
+    );
+}
 
 const nuevaLinea = () => ({
     cuenta_id: "",
@@ -430,9 +483,10 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
     const [guardando, setGuardando] = useState(false);
     const [mensaje, setMensaje] = useState("");
     const [error, setError] = useState("");
-    const [repetirMensual, setRepetirMensual] = useState(false);
-    const [pendientes, setPendientes] = useState([]);
-    const [recurrentePendienteId, setRecurrentePendienteId] = useState(null);
+    const [guardarComoPlantilla, setGuardarComoPlantilla] = useState(false);
+    const [asientosGuardados, setAsientosGuardados] = useState([]);
+    const [drawerGuardadosAbierto, setDrawerGuardadosAbierto] = useState(false);
+    const [busquedaGuardados, setBusquedaGuardados] = useState("");
 
     useEffect(() => {
         async function cargarDatos(){
@@ -443,14 +497,14 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
             }
 
             try{
-                const [empresasCargadas, cuentasCargadas] = await Promise.all([obtenerEmpresas(), obtenerCuentas()]);
+                const [empresasCargadas, cuentasCargadas, guardadosCargados] = await Promise.all([
+                    obtenerEmpresas(),
+                    obtenerCuentas(),
+                    obtenerAsientosGuardados()
+                ]);
                 setEmpresas(empresasCargadas);
                 setCuentas(cuentasCargadas);
-                try {
-                    setPendientes(await obtenerAsientosRecurrentesPendientes());
-                } catch (errorPendientes) {
-                    console.warn("No se pudieron cargar asientos recurrentes pendientes:", errorPendientes);
-                }
+                setAsientosGuardados(guardadosCargados || []);
             }catch(error){
                 console.error("Error cargando datos del asiento:", error);
                 setError("No se pudieron cargar empresas y cuentas para el asiento.");
@@ -547,40 +601,44 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
         setDetalles(lineas => lineas.length > 2 ? lineas.filter((_, lineaIndice) => lineaIndice !== indice) : lineas);
     }
 
-    function revisarPendiente(pendiente) {
-        setFecha(pendiente.fecha_propuesta);
-        setConcepto(pendiente.concepto || "");
-        setModoIva(pendiente.modo_iva || "incluido");
-        setDetalles((pendiente.detalles || []).map(detalle => ({
+    // Cargar esqueleto en el asiento (mantiene la fecha del momento y todo editable)
+    function cargarEsqueleto(plantilla) {
+        setConcepto(plantilla.concepto || "");
+        setModoIva(plantilla.modo_iva || "incluido");
+        setDetalles((plantilla.detalles || []).map(detalle => ({
             cuenta_id: String(detalle.cuenta_id),
-            debe: detalle.debe === "0" ? "" : String(detalle.debe || ""),
-            haber: detalle.haber === "0" ? "" : String(detalle.haber || "")
+            debe: detalle.debe === "0" || detalle.debe === 0 ? "" : String(detalle.debe || ""),
+            haber: detalle.haber === "0" || detalle.haber === 0 ? "" : String(detalle.haber || "")
         })));
-        setRecurrentePendienteId(pendiente.id);
-        setRepetirMensual(true);
-        setMensaje("Propuesta recurrente cargada para revisión. Aún no se ha registrado.");
+        setDrawerGuardadosAbierto(false);
+        setMensaje(`Esqueleto "${plantilla.concepto}" cargado. Puedes editar las cuentas y montos o registrarlo con la fecha actual.`);
         setError("");
     }
 
-    async function omitirPendiente(id) {
-        try {
-            await omitirAsientoRecurrente(id);
-            setPendientes(await obtenerAsientosRecurrentesPendientes());
-            setMensaje("La propuesta recurrente fue omitida para este mes.");
-        } catch (errorOmitir) {
-            setError(errorOmitir.message || "No se pudo omitir la propuesta recurrente.");
-        }
+    async function manejarEliminarEsqueleto(id, conceptoItem, e) {
+        e?.stopPropagation?.();
+        if (!window.confirm(`¿Deseas eliminar el asiento guardado "${conceptoItem}"?`)) return;
+        await eliminarAsientoGuardado(id);
+        setAsientosGuardados(prev => prev.filter(item => String(item.id) !== String(id)));
     }
 
-    async function desactivarPendiente(id) {
-        try {
-            await desactivarAsientoRecurrente(id);
-            setPendientes(await obtenerAsientosRecurrentesPendientes());
-            setMensaje("La recurrencia fue desactivada.");
-        } catch (errorDesactivar) {
-            setError(errorDesactivar.message || "No se pudo desactivar la recurrencia.");
-        }
-    }
+    const plantillasFiltradas = useMemo(() => {
+        const q = busquedaGuardados.trim().toLowerCase();
+        if (!q) return asientosGuardados;
+        return asientosGuardados.filter(item => {
+            const coincideConcepto = String(item.concepto || "").toLowerCase().includes(q);
+            const coincideCuentas = (item.detalles || []).some(d => {
+                const cObj = cuentasPorId.get(String(d.cuenta_id));
+                return (
+                    (cObj?.nombre && cObj.nombre.toLowerCase().includes(q)) ||
+                    (cObj?.codigo && cObj.codigo.includes(q)) ||
+                    (d.cuenta_nombre && d.cuenta_nombre.toLowerCase().includes(q)) ||
+                    (d.cuenta_codigo && d.cuenta_codigo.includes(q))
+                );
+            });
+            return coincideConcepto || coincideCuentas;
+        });
+    }, [asientosGuardados, busquedaGuardados, cuentasPorId]);
 
     async function guardarAsiento(evento){
         evento.preventDefault();
@@ -593,7 +651,7 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
         }
 
         if(detalles.filter(detalle => detalle.cuenta_id).length < 2){
-            setError("Debe haber al menos dos líneas válidas para guardar el asiento.");
+            setError("Debe haber al menos dos líneas válidas para registrar el asiento.");
             return;
         }
 
@@ -633,6 +691,13 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
 
         try{
             setGuardando(true);
+            const lineasParaAsiento = calculo.lineas.map(linea => ({
+                cuenta_id: linea.cuenta.id,
+                descripcion: linea.origen === "iva" ? "IVA automático" : "",
+                debe: linea.lado === "debe" ? linea.centavos / 100 : 0,
+                haber: linea.lado === "haber" ? linea.centavos / 100 : 0
+            }));
+
             const resultado = await crearAsiento(
                 {
                     empresa_id: empresaId,
@@ -640,57 +705,41 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                     concepto: quitarPrefijoConcepto(concepto)
                 },
                 // se guardan las líneas reales, con el IVA y la línea de cuadre ya calculados
-                calculo.lineas.map(linea => ({
-                    cuenta_id: linea.cuenta.id,
-                    descripcion: linea.origen === "iva" ? "IVA automático" : "",
-                    debe: linea.lado === "debe" ? linea.centavos / 100 : 0,
-                    haber: linea.lado === "haber" ? linea.centavos / 100 : 0
-                }))
+                lineasParaAsiento
             );
 
             const numeroPartida = resultado?.numero_partida ?? resultado?.asiento?.numero_partida ?? "";
-            const idAsiento = resultado?.id ?? resultado?.asiento?.id ?? resultado?.asiento_id ?? null;
-            let mensajeRecurrencia = "";
-            const teniaRecurrencia = Boolean(recurrentePendienteId || repetirMensual);
 
-            try {
-                if (recurrentePendienteId) {
-                    await procesarAsientoRecurrente(recurrentePendienteId, idAsiento);
-                } else if (repetirMensual) {
-                    await crearAsientoRecurrente({
-                        empresa_id: empresaId,
+            let notaGuardado = "";
+            if (guardarComoPlantilla) {
+                try {
+                    await guardarPlantillaAsiento({
                         concepto: quitarPrefijoConcepto(concepto),
-                        fecha_base: fecha,
-                        dia_recurrencia: Number(fecha.slice(-2)),
                         modo_iva: modoIva,
-                        detalles: detalles.map(detalle => ({
-                            cuenta_id: detalle.cuenta_id,
-                            debe: detalle.debe || 0,
-                            haber: detalle.haber || 0,
-                            descripcion: ""
+                        detalles: lineasParaAsiento.map(l => ({
+                            cuenta_id: l.cuenta_id,
+                            cuenta_codigo: cuentasPorId.get(String(l.cuenta_id))?.codigo || "",
+                            cuenta_nombre: cuentasPorId.get(String(l.cuenta_id))?.nombre || "",
+                            debe: l.debe,
+                            haber: l.haber
                         }))
                     });
+                    const actualizados = await obtenerAsientosGuardados();
+                    setAsientosGuardados(actualizados);
+                    notaGuardado = " Además, el esqueleto del asiento se guardó para futuros registros.";
+                } catch (errGuardar) {
+                    console.warn("No se pudo guardar la plantilla del asiento:", errGuardar);
                 }
-            } catch (errorRecurrencia) {
-                mensajeRecurrencia = ` El asiento se guardó, pero no se pudo actualizar la recurrencia: ${errorRecurrencia.message}`;
             }
 
-            setMensaje(`${numeroPartida ? `Asiento guardado correctamente. Partida ${numeroPartida}.` : "Asiento guardado correctamente."}${mensajeRecurrencia}`);
+            setMensaje(`${numeroPartida ? `Asiento registrado correctamente. Partida ${numeroPartida}.` : "Asiento registrado correctamente."}${notaGuardado}`);
             setDetalles([nuevaLinea(), nuevaLinea()]);
             setConcepto("");
             setGenerarConcepto(false);
-            setRepetirMensual(false);
-            setRecurrentePendienteId(null);
-            if (teniaRecurrencia) {
-                try {
-                    setPendientes(await obtenerAsientosRecurrentesPendientes());
-                } catch (errorPendientes) {
-                    console.warn("No se pudieron actualizar los pendientes recurrentes:", errorPendientes);
-                }
-            }
+            setGuardarComoPlantilla(false);
         }catch(error){
-            console.error("Error guardando asiento:", error);
-            setError(error.message || "No se pudo guardar el asiento.");
+            console.error("Error registrando asiento:", error);
+            setError(error.message || "No se pudo registrar el asiento.");
         }finally{
             setGuardando(false);
         }
@@ -719,46 +768,25 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                     <p className="eyebrow">Registro contable</p>
                     <h1>Nuevo asiento</h1>
                 </div>
-                <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Nuevo Asiento" disabled={!empresaId || !detalles.length} />
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                    <button
+                        type="button"
+                        className="btn-ver-guardados"
+                        onClick={() => setDrawerGuardadosAbierto(true)}
+                        title="Ver asientos guardados y esqueletos para reutilizar"
+                    >
+                        <IconoCarpeta size={16} />
+                        <span>Ver guardados</span>
+                        {asientosGuardados.length > 0 && (
+                            <span className="badge-guardados-contador">{asientosGuardados.length}</span>
+                        )}
+                    </button>
+                    <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Nuevo Asiento" disabled={!empresaId || !detalles.length} />
+                </div>
                 <div className={estaBalanceado ? "balance-status is-balanced" : "balance-status"}>
                     Debe {totalDebe.toLocaleString()} / Haber {totalHaber.toLocaleString()} · {estaBalanceado ? "Cuadra" : `No cuadra (${diferencia.toFixed(2)})`}
                 </div>
             </div>
-
-            {pendientes.length > 0 && (
-                <section className="recurring-pending" aria-labelledby="recurring-pending-title">
-                    <div className="recurring-pending-heading">
-                        <div>
-                            <p className="eyebrow">Revisión pendiente</p>
-                            <h2 id="recurring-pending-title">Asientos recurrentes pendientes</h2>
-                        </div>
-                        <span>{pendientes.length} propuesta{pendientes.length === 1 ? "" : "s"}</span>
-                    </div>
-                    <div className="recurring-pending-list">
-                        {pendientes.map(pendiente => (
-                            <article className="recurring-pending-item" key={pendiente.id}>
-                                <div>
-                                    <strong>{pendiente.concepto}</strong>
-                                    <span>Fecha propuesta: {pendiente.fecha_propuesta}</span>
-                                    <span>Empresa: {empresaNombre}</span>
-                                    <span>Debe: $ {Number(pendiente.total_debe || 0).toFixed(2)} · Haber: $ {Number(pendiente.total_haber || 0).toFixed(2)}</span>
-                                </div>
-                                <div className="recurring-pending-actions">
-                                    <button type="button" className="button-primary" onClick={() => revisarPendiente(pendiente)}>
-                                        Revisar
-                                    </button>
-                                    <button type="button" className="button-secondary" onClick={() => omitirPendiente(pendiente.id)}>
-                                        Omitir
-                                    </button>
-                                    <button type="button" className="button-secondary" onClick={() => desactivarPendiente(pendiente.id)}>
-                                        Desactivar recurrencia
-                                    </button>
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-                </section>
-            )}
 
             <form onSubmit={guardarAsiento} className="entry-form">
                 <div className="company-step is-complete">
@@ -796,10 +824,13 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                             <button type="button" className="button-secondary" onClick={() => setConcepto(conceptoAutomatico(detalles, modoIva))}>Generar concepto</button>
                         </span>
                     </label>
-                    <label className="concept-option recurring-option">
-                        <span>Repetir automáticamente el próximo mes</span>
-                        <input type="checkbox" checked={repetirMensual} onChange={evento => setRepetirMensual(evento.target.checked)} />
-                        <small>Se preparará para revisión antes de registrarse.</small>
+                    <label className="concept-option template-option">
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <IconoBookmark size={15} />
+                            <span>Guardar asiento</span>
+                        </span>
+                        <input type="checkbox" checked={guardarComoPlantilla} onChange={evento => setGuardarComoPlantilla(evento.target.checked)} />
+                        <small>Guarda la estructura (cuentas y montos) como esqueleto editable para reutilizarlo cuando quieras.</small>
                     </label>
                 </div> : null}
 
@@ -937,7 +968,7 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                             className="button-primary"
                             disabled={!puedeGuardar || guardando}
                         >
-                            {guardando ? "Guardando..." : "Guardar asiento"}
+                            {guardando ? "Registrando..." : "Registrar asiento"}
                         </button>
                         <button type="button" className="button-secondary" onClick={() => onCreated?.()}>
                             Ver Libro Diario
@@ -945,6 +976,193 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                     </div>
                 )}
             </form>
+
+            {/* Menú lateral derecho con Asientos Guardados (Esqueletos) */}
+            {drawerGuardadosAbierto && (
+                <div
+                    className="drawer-overlay"
+                    onClick={() => setDrawerGuardadosAbierto(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Asientos guardados"
+                >
+                    <aside
+                        className="drawer-guardados"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Cabecera del Drawer */}
+                        <div className="drawer-header">
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <div className="drawer-header-icon">
+                                    <IconoBookmark size={20} />
+                                </div>
+                                <div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                        <h3 className="drawer-title">Asientos Guardados</h3>
+                                        {asientosGuardados.length > 0 && (
+                                            <span className="badge-guardados-header">{asientosGuardados.length}</span>
+                                        )}
+                                    </div>
+                                    <p className="drawer-subtitle">
+                                        Selecciona un esqueleto para cargarlo en el formulario
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="drawer-close-btn"
+                                onClick={() => setDrawerGuardadosAbierto(false)}
+                                title="Cerrar panel"
+                                aria-label="Cerrar panel"
+                            >
+                                <IconoCerrar size={18} />
+                            </button>
+                        </div>
+
+                        {/* Buscador de asientos guardados */}
+                        <div className="drawer-search-box">
+                            <span className="drawer-search-icon">
+                                <IconoLupa size={15} />
+                            </span>
+                            <input
+                                type="text"
+                                className="drawer-search-input"
+                                placeholder="Buscar por comentario o cuenta..."
+                                value={busquedaGuardados}
+                                onChange={e => setBusquedaGuardados(e.target.value)}
+                                autoFocus
+                            />
+                            {busquedaGuardados && (
+                                <button
+                                    type="button"
+                                    className="drawer-search-clear"
+                                    onClick={() => setBusquedaGuardados("")}
+                                    title="Limpiar búsqueda"
+                                    aria-label="Limpiar búsqueda"
+                                >
+                                    <IconoCerrar size={14} />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Lista de plantillas guardadas */}
+                        <div className="drawer-list">
+                            {plantillasFiltradas.length === 0 ? (
+                                <div className="drawer-empty">
+                                    <div className="drawer-empty-icon">
+                                        <IconoCarpeta size={42} />
+                                    </div>
+                                    <h3>{busquedaGuardados ? "Sin coincidencias" : "No hay asientos guardados"}</h3>
+                                    <p>
+                                        {busquedaGuardados
+                                            ? `No se encontraron esqueletos que coincidan con "${busquedaGuardados}".`
+                                            : 'Al registrar un asiento, activa la casilla "Guardar asiento" para almacenar aquí su estructura con cuentas y montos.'}
+                                    </p>
+                                </div>
+                            ) : (
+                                plantillasFiltradas.map(plantilla => {
+                                    const totalDebePlantilla = (plantilla.detalles || []).reduce(
+                                        (sum, d) => sum + (Number(d.debe) || 0),
+                                        0
+                                    );
+                                    const totalHaberPlantilla = (plantilla.detalles || []).reduce(
+                                        (sum, d) => sum + (Number(d.haber) || 0),
+                                        0
+                                    );
+                                    const montoMaximo = Math.max(totalDebePlantilla, totalHaberPlantilla);
+
+                                    return (
+                                        <div
+                                            key={plantilla.id}
+                                            className="plantilla-card"
+                                            onClick={() => cargarEsqueleto(plantilla)}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={e => {
+                                                if (e.key === "Enter" || e.key === " ") {
+                                                    cargarEsqueleto(plantilla);
+                                                }
+                                            }}
+                                        >
+                                            <div className="plantilla-card-top">
+                                                <h4 className="plantilla-title">{plantilla.concepto || "Sin comentario"}</h4>
+                                                <button
+                                                    type="button"
+                                                    className="btn-eliminar-plantilla"
+                                                    onClick={e => manejarEliminarEsqueleto(plantilla.id, plantilla.concepto, e)}
+                                                    title="Eliminar este esqueleto"
+                                                    aria-label="Eliminar esqueleto"
+                                                >
+                                                    <IconoBasura size={15} />
+                                                </button>
+                                            </div>
+
+                                            <div className="plantilla-meta-row">
+                                                <span className="plantilla-tag-iva">
+                                                    {plantilla.modo_iva === "incluido"
+                                                        ? "IVA Incluido"
+                                                        : plantilla.modo_iva === "mas"
+                                                        ? "Más IVA"
+                                                        : "Sin IVA"}
+                                                </span>
+                                                <span className="plantilla-tag-lineas">
+                                                    {(plantilla.detalles || []).length} cuentas
+                                                </span>
+                                                {montoMaximo > 0 && (
+                                                    <span className="plantilla-tag-monto">
+                                                        $ {montoMaximo.toFixed(2)}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Preview de cuentas y montos */}
+                                            {Array.isArray(plantilla.detalles) && plantilla.detalles.length > 0 && (
+                                                <div className="plantilla-detalles-preview">
+                                                    {plantilla.detalles.map((det, idx) => {
+                                                        const cuentaObj = cuentasPorId.get(String(det.cuenta_id));
+                                                        const cod = cuentaObj?.codigo || det.cuenta_codigo || "";
+                                                        const nom = cuentaObj?.nombre || det.cuenta_nombre || `Cuenta #${det.cuenta_id}`;
+                                                        const dMonto = Number(det.debe) || 0;
+                                                        const hMonto = Number(det.haber) || 0;
+                                                        const tieneMonto = dMonto > 0 || hMonto > 0;
+
+                                                        return (
+                                                            <div key={idx} className="plantilla-detalle-linea">
+                                                                <span className="plantilla-linea-nombre" title={`${cod} ${nom}`}>
+                                                                    <strong>{cod}</strong> {nom}
+                                                                </span>
+                                                                {tieneMonto && (
+                                                                    <span className="plantilla-linea-monto">
+                                                                        {dMonto > 0 ? `D: $${dMonto.toFixed(2)}` : `H: $${hMonto.toFixed(2)}`}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            <div className="plantilla-card-footer">
+                                                <button
+                                                    type="button"
+                                                    className="btn-usar-esqueleto"
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        cargarEsqueleto(plantilla);
+                                                    }}
+                                                >
+                                                    <IconoCargar size={14} />
+                                                    <span>Usar este esqueleto</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </aside>
+                </div>
+            )}
         </section>
     );
 }

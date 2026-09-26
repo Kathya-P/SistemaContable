@@ -1,5 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
     crearAsiento,
     crearAsientoRecurrente,
@@ -35,51 +34,13 @@ function quitarPrefijoConcepto(texto) {
 }
 
 // Selector dinámico y autocompletable de subcuentas contables
-function SelectorSubcuenta({ value, cuentas = [], onChange }) {
+export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
     const [abierto, setAbierto] = useState(false);
     const [busqueda, setBusqueda] = useState("");
     const [indiceResaltado, setIndiceResaltado] = useState(0);
-    const [posicion, setPosicion] = useState(null);
-    const [oscuro, setOscuro] = useState(false);
     const contenedorRef = useRef(null);
     const inputRef = useRef(null);
     const listaRef = useRef(null);
-
-    // El menú se dibuja en un portal fuera de .app-shell, así que no hereda sus
-    // variables CSS de tema. Detectamos el modo activo directamente en el DOM.
-    useEffect(() => {
-        if (!abierto) return;
-        const shell = document.querySelector(".app-shell");
-        setOscuro(Boolean(shell?.classList.contains("tema-oscuro")));
-    }, [abierto]);
-
-    // Calcula dónde debe dibujarse el menú (coordenadas de pantalla), para poder
-    // sacarlo del contenedor de la tabla mediante un portal y que no se recorte.
-    const actualizarPosicion = useCallback(() => {
-        if (!contenedorRef.current) return;
-        const rect = contenedorRef.current.getBoundingClientRect();
-        const espacioAbajo = window.innerHeight - rect.bottom;
-        const abrirHaciaArriba = espacioAbajo < 240 && rect.top > 240;
-
-        setPosicion({
-            left: rect.left,
-            width: rect.width,
-            top: abrirHaciaArriba ? undefined : rect.bottom + 4,
-            bottom: abrirHaciaArriba ? window.innerHeight - rect.top + 4 : undefined
-        });
-    }, []);
-
-    useEffect(() => {
-        if (!abierto) return;
-        actualizarPosicion();
-        // "true" para capturar el scroll de cualquier contenedor interno (no solo la ventana)
-        window.addEventListener("scroll", actualizarPosicion, true);
-        window.addEventListener("resize", actualizarPosicion);
-        return () => {
-            window.removeEventListener("scroll", actualizarPosicion, true);
-            window.removeEventListener("resize", actualizarPosicion);
-        };
-    }, [abierto, actualizarPosicion]);
 
     const cuentaSeleccionada = useMemo(
         () => cuentas.find(c => String(c.id) === String(value)),
@@ -155,12 +116,10 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
         return resultados.map(r => r.cuenta);
     }, [cuentas, busqueda]);
 
-    // Cerrar al hacer clic fuera del componente (el menú vive en un portal, así que se revisan ambos)
+    // Cerrar al hacer clic fuera del componente
     useEffect(() => {
         const manejarClicFuera = (e) => {
-            const dentroContenedor = contenedorRef.current?.contains(e.target);
-            const dentroMenu = listaRef.current?.contains(e.target);
-            if (!dentroContenedor && !dentroMenu) {
+            if (contenedorRef.current && !contenedorRef.current.contains(e.target)) {
                 setAbierto(false);
                 setBusqueda(cuentaSeleccionada ? `${cuentaSeleccionada.codigo} - ${cuentaSeleccionada.nombre}` : "");
             }
@@ -224,10 +183,10 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                         padding: "7px 46px 7px 10px",
                         fontSize: "13px",
                         border: "1.5px solid",
-                        borderColor: abierto ? "var(--gh-accent-strong, #059669)" : "var(--gh-border, #DDE3E0)",
+                        borderColor: abierto ? "#059669" : "#DDE3E0",
                         borderRadius: "4px",
-                        background: "var(--gh-bg, #FFFFFF)",
-                        color: "var(--gh-text, #1f2937)",
+                        background: "#FFFFFF",
+                        color: "#1f2937",
                         outline: "none",
                         boxShadow: abierto ? "0 0 0 2px rgba(16, 185, 129, 0.2)" : "none",
                         transition: "border-color 0.15s, box-shadow 0.15s"
@@ -262,7 +221,7 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                             style={{
                                 background: "none",
                                 border: "none",
-                                color: "var(--gh-text-subtle, #9ca3af)",
+                                color: "#9ca3af",
                                 cursor: "pointer",
                                 padding: "2px 4px",
                                 fontSize: "15px",
@@ -284,7 +243,7 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                         style={{
                             background: "none",
                             border: "none",
-                            color: "var(--gh-accent-strong, #059669)",
+                            color: "#059669",
                             cursor: "pointer",
                             padding: "2px 4px",
                             fontSize: "10px",
@@ -296,41 +255,34 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                 </div>
             </div>
 
-            {/* Menú desplegable dinámico flotante — se dibuja en un portal sobre <body> para que
-                nunca quede recortado por el scroll o el overflow de la tabla que lo contiene.
-                Al vivir fuera de .app-shell no hereda las variables --gh-*, así que aquí
-                elegimos colores explícitos según el booleano "oscuro" detectado en el DOM. */}
-            {abierto && posicion && createPortal(
+            {/* Menú desplegable dinámico flotante */}
+            {abierto && (
                 <div
                     ref={listaRef}
                     style={{
-                        position: "fixed",
-                        top: posicion.top,
-                        bottom: posicion.bottom,
-                        left: posicion.left,
-                        width: posicion.width,
+                        position: "absolute",
+                        top: "calc(100% + 4px)",
+                        left: 0,
+                        right: 0,
                         minWidth: "290px",
                         maxHeight: "230px",
                         overflowY: "auto",
-                        background: oscuro ? "#161b22" : "#ffffff",
-                        border: oscuro ? "1.5px solid #30363d" : "1.5px solid #a7f3d0",
+                        background: "#ffffff",
+                        border: "1.5px solid #a7f3d0",
                         borderRadius: "8px",
-                        boxShadow: oscuro
-                            ? "0 10px 25px -5px rgba(0, 0, 0, 0.55), 0 4px 6px -2px rgba(0,0,0,0.3)"
-                            : "0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 4px 6px -2px rgba(0,0,0,0.05)",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 4px 6px -2px rgba(0,0,0,0.05)",
                         zIndex: 9999,
                         padding: "5px"
                     }}
                 >
                     {cuentasFiltradas.length === 0 ? (
-                        <div style={{ padding: "12px 14px", fontSize: "12px", color: oscuro ? "#8b949e" : "#6b7280", textAlign: "center" }}>
+                        <div style={{ padding: "12px 14px", fontSize: "12px", color: "#6b7280", textAlign: "center" }}>
                             No se encontraron subcuentas con "{busqueda}"
                         </div>
                     ) : (
                         cuentasFiltradas.map((cuenta, idx) => {
                             const esSeleccionada = String(cuenta.id) === String(value);
                             const esResaltada = idx === indiceResaltado;
-                            const activa = esResaltada || esSeleccionada;
 
                             return (
                                 <div
@@ -349,12 +301,8 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                                         alignItems: "center",
                                         justifyContent: "space-between",
                                         gap: "8px",
-                                        background: oscuro
-                                            ? (activa ? "#21262d" : "transparent")
-                                            : (esResaltada ? "#ecfdf5" : esSeleccionada ? "#f0fdf4" : "transparent"),
-                                        color: oscuro
-                                            ? (activa ? "#3fb950" : "#f0f6fc")
-                                            : (activa ? "#065f46" : "#1f2937"),
+                                        background: esResaltada ? "#ecfdf5" : esSeleccionada ? "#f0fdf4" : "transparent",
+                                        color: esResaltada || esSeleccionada ? "#065f46" : "#1f2937",
                                         fontWeight: esSeleccionada ? "600" : "normal",
                                         transition: "background-color 0.1s"
                                     }}
@@ -363,8 +311,8 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                                         <span style={{
                                             fontFamily: "monospace",
                                             fontWeight: "700",
-                                            color: oscuro ? "#3fb950" : "#047857",
-                                            background: oscuro ? "rgba(46, 160, 67, 0.15)" : "#d1fae5",
+                                            color: "#047857",
+                                            background: "#d1fae5",
                                             padding: "2px 6px",
                                             borderRadius: "4px",
                                             fontSize: "11px",
@@ -377,7 +325,7 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                                         </span>
                                     </div>
                                     {esSeleccionada && (
-                                        <span style={{ color: oscuro ? "#3fb950" : "#059669", fontWeight: "700", fontSize: "14px" }}>
+                                        <span style={{ color: "#059669", fontWeight: "700", fontSize: "14px" }}>
                                             ✓
                                         </span>
                                     )}
@@ -385,8 +333,7 @@ function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                             );
                         })
                     )}
-                </div>,
-                document.body
+                </div>
             )}
         </div>
     );
@@ -857,7 +804,7 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
 
                 {empresaId && <>
                     <div className="detail-header">
-                        <h2 style={{ color: "var(--gh-accent-strong, #1b4332)" }}>Detalle del asiento</h2>
+                        <h2>Detalle del asiento</h2>
                         <button type="button" className="button-secondary" onClick={agregarLinea}>Agregar línea</button>
                     </div>
 
@@ -868,14 +815,14 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                         {modoIva === "sin" && "Sin IVA: no se agrega ninguna línea de IVA. "}
                         Puedes dejar sin importe una sola línea (por ejemplo Proveedores o Caja) y se completa sola con lo que falta para cuadrar.
                         {calculo.infoIva?.cuentaCredito && (
-                            <span style={{ display: "block", marginTop: "3px", color: "var(--gh-accent-strong, #1b4332)", fontSize: "11px" }}>
+                            <span style={{ display: "block", marginTop: "3px", color: "#1B4332", fontSize: "11px" }}>
                                 • Cuenta Crédito Fiscal activa: <strong>{calculo.infoIva.cuentaCredito.codigo} - {calculo.infoIva.cuentaCredito.nombre}</strong>
                                 {calculo.infoIva.cuentaDebito && ` | Cuenta Débito Fiscal activa: ${calculo.infoIva.cuentaDebito.codigo} - ${calculo.infoIva.cuentaDebito.nombre}`}
                             </span>
                         )}
                     </p>
 
-                    <div className="detail-table-shell">
+                    <div className="detail-table-shell" style={{ minHeight: "300px" }}>
                         <table className="entry-detail-table">
                         <thead>
                             <tr>
@@ -927,7 +874,7 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
 
                     {vistaPrevia.length > 0 && (
                         <>
-                            <h2 style={{ color: "var(--gh-accent-strong, #1b4332)" }}>Vista del asiento</h2>
+                            <h2>Vista del asiento</h2>
                             <div className="detail-table-shell">
                                 <table className="entry-detail-table entry-preview">
                                     <thead>
@@ -943,7 +890,7 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                                             <Fragment key={`${lado}-${mayor.id}`}>
                                                 <tr className="parent-row">
                                                     <td>{mayor.codigo} - {mayor.nombre}{etiquetaOrigen(origen)}</td>
-                                                    <td style={{ color: "var(--gh-text-subtle, #9ca3af)" }}>{hijas.length > 0 ? "—" : ""}</td>
+                                                    <td></td>
                                                     <td>{lado === "debe" ? dineroC(total) : ""}</td>
                                                     <td>{lado === "haber" ? dineroC(total) : ""}</td>
                                                 </tr>

@@ -2141,9 +2141,9 @@ const _asientosEnMemoria = [
 ];
 
 // ==========================================================
-// Rectificación de Asientos (Código de Comercio El Salvador)
-// Solo se permite rectificar el asiento más reciente para mantener
-// la correlatividad y la inalterabilidad de los saldos anteriores.
+// Rectificación y Modificación de Asientos Contables
+// Permite modificar asientos contables del período manteniendo
+// el historial y la fecha de modificación en la auditoría.
 // ==========================================================
 async function procesarRectificacionAsiento(req, res) {
     try {
@@ -2151,16 +2151,16 @@ async function procesarRectificacionAsiento(req, res) {
         await exigirPermiso(usuario, "puede_crear_asientos");
 
         const asientoId = req.params.id;
-        const { concepto, motivo, detalles } = req.body || {};
+        const { concepto, motivo, detalles, fecha } = req.body || {};
 
         if (!String(concepto || "").trim()) {
             throw new Error("El concepto es obligatorio para rectificar el asiento.");
         }
         if (!String(motivo || "").trim()) {
-            throw new Error("Debe especificar el motivo de la rectificación según la normativa contable.");
+            throw new Error("Debe especificar el motivo de la rectificación o modificación.");
         }
         if (!Array.isArray(detalles) || detalles.length < 2) {
-            throw new Error("El asiento rectificado debe contener al menos 2 líneas.");
+            throw new Error("El asiento debe contener al menos 2 líneas.");
         }
 
         const totalDebe = detalles.reduce((sum, d) => sum + Number(d.debe || 0), 0);
@@ -2173,12 +2173,7 @@ async function procesarRectificacionAsiento(req, res) {
             throw new Error("El monto total del asiento debe ser mayor a cero.");
         }
 
-        const fechaHoy = new Date().toLocaleDateString("es-SV");
-        const notaRectificacion = `[Rectificado el ${fechaHoy} por ${usuario.nombre}: ${String(motivo).trim()}]`;
-        let nuevoConceptoConNota = String(concepto).trim();
-        if (!nuevoConceptoConNota.includes("[Rectificado")) {
-            nuevoConceptoConNota = `${nuevoConceptoConNota} ${notaRectificacion}`.trim();
-        }
+        const nuevoConcepto = String(concepto).trim();
 
         // Si no hay Supabase configurado, procesar en memoria
         if (!getSupabaseUrl() || !getSupabaseKey()) {
@@ -2189,21 +2184,11 @@ async function procesarRectificacionAsiento(req, res) {
                 throw err;
             }
 
-            // Validar que sea el asiento más reciente
-            const ultimoAsiento = [..._asientosEnMemoria].sort((a, b) => {
-                return Number(b.numero_partida || b.id) - Number(a.numero_partida || a.id);
-            })[0];
-
-            if (ultimoAsiento && String(ultimoAsiento.id) !== String(asientoId)) {
-                const err = new Error(
-                    `No se puede rectificar este asiento. Según el Código de Comercio de El Salvador, solo se permite rectificar el asiento más reciente (#${ultimoAsiento.numero_partida}). Los asientos anteriores ya se encuentran cerrados y auditados.`
-                );
-                err.statusCode = 400;
-                throw err;
-            }
-
             const asientoActual = _asientosEnMemoria[idx];
+            const nuevaFecha = (fecha && String(fecha).trim()) ? String(fecha).trim() : asientoActual.fecha;
+
             const datosAnteriores = {
+                fecha: asientoActual.fecha,
                 concepto: asientoActual.concepto,
                 lineas: (asientoActual.detalle_asientos || []).map(d => ({
                     cuenta_id: d.cuenta_id,
@@ -2218,7 +2203,8 @@ async function procesarRectificacionAsiento(req, res) {
             };
 
             const datosNuevos = {
-                concepto: nuevoConceptoConNota,
+                fecha: nuevaFecha,
+                concepto: nuevoConcepto,
                 motivo: String(motivo).trim(),
                 lineas: detalles.map(d => ({
                     cuenta_id: d.cuenta_id,
@@ -2256,7 +2242,8 @@ async function procesarRectificacionAsiento(req, res) {
 
             _asientosEnMemoria[idx] = {
                 ...asientoActual,
-                concepto: nuevoConceptoConNota,
+                fecha: nuevaFecha,
+                concepto: nuevoConcepto,
                 detalle_asientos: nuevoDetalle,
                 rectificado: true,
                 rectificacion_historial: {
@@ -2276,7 +2263,7 @@ async function procesarRectificacionAsiento(req, res) {
                 tipo_accion: "editar",
                 entidad_afectada: "Asiento",
                 entidad_id: String(asientoActual.numero_partida || asientoId),
-                descripcion: `Rectificó asiento #${asientoActual.numero_partida}: ${String(motivo).trim()}`,
+                descripcion: `Modificó asiento #${asientoActual.numero_partida}: ${String(motivo).trim()}`,
                 datos_anteriores: datosAnteriores,
                 datos_nuevos: datosNuevos,
                 resultado: "exitoso",
@@ -2285,7 +2272,7 @@ async function procesarRectificacionAsiento(req, res) {
 
             return res.json({
                 ok: true,
-                mensaje: `Asiento #${asientoActual.numero_partida} rectificado exitosamente.`,
+                mensaje: `Asiento #${asientoActual.numero_partida} modificado exitosamente.`,
                 asiento: _asientosEnMemoria[idx]
             });
         }
@@ -2293,24 +2280,7 @@ async function procesarRectificacionAsiento(req, res) {
         // Modo Supabase conectado
         exigirClaveDeEscritura();
 
-        // 1. Validar que sea el asiento más reciente
-        const { data: ultimoAsiento, error: errUltimo } = await supabase
-            .from("asientos")
-            .select("id, numero_partida, fecha")
-            .eq("empresa_id", usuario.empresa_id)
-            .order("numero_partida", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-        if (ultimoAsiento && String(ultimoAsiento.id) !== String(asientoId)) {
-            const err = new Error(
-                `No se puede rectificar este asiento. Según el Código de Comercio de El Salvador, solo se permite rectificar el asiento más reciente (#${ultimoAsiento.numero_partida}). Los asientos anteriores ya se encuentran cerrados y auditados.`
-            );
-            err.statusCode = 400;
-            throw err;
-        }
-
-        // 2. Obtener datos actuales para auditoría
+        // 1. Obtener datos actuales para auditoría
         const { data: asientoActual, error: errActual } = await supabase
             .from("asientos")
             .select(`
@@ -2327,7 +2297,10 @@ async function procesarRectificacionAsiento(req, res) {
             throw err;
         }
 
+        const nuevaFecha = (fecha && String(fecha).trim()) ? String(fecha).trim() : asientoActual.fecha;
+
         const datosAnteriores = {
+            fecha: asientoActual.fecha,
             concepto: asientoActual.concepto,
             lineas: (asientoActual.detalle_asientos || []).map(d => ({
                 cuenta_id: d.cuenta_id,
@@ -2342,7 +2315,8 @@ async function procesarRectificacionAsiento(req, res) {
         };
 
         const datosNuevos = {
-            concepto: nuevoConceptoConNota,
+            fecha: nuevaFecha,
+            concepto: nuevoConcepto,
             motivo: String(motivo).trim(),
             lineas: detalles.map(d => ({
                 cuenta_id: d.cuenta_id,
@@ -2358,18 +2332,19 @@ async function procesarRectificacionAsiento(req, res) {
             usuario_modificacion: usuario.nombre
         };
 
-        // 3. Actualizar cabecera del asiento
+        // 2. Actualizar cabecera del asiento
         const { error: errUpdateAsiento } = await supabase
             .from("asientos")
             .update({
-                concepto: nuevoConceptoConNota
+                concepto: nuevoConcepto,
+                fecha: nuevaFecha
             })
             .eq("id", asientoId)
             .eq("empresa_id", usuario.empresa_id);
 
         if (errUpdateAsiento) throw errUpdateAsiento;
 
-        // 4. Reemplazar líneas en detalle_asientos
+        // 3. Reemplazar líneas en detalle_asientos
         await supabase
             .from("detalle_asientos")
             .delete()
@@ -2389,7 +2364,7 @@ async function procesarRectificacionAsiento(req, res) {
 
         if (errInsertLineas) throw errInsertLineas;
 
-        // 5. Registrar en auditoría
+        // 4. Registrar en auditoría
         await registrarAuditoria({
             supabaseClient: supabase,
             empresa_id: usuario.empresa_id,
@@ -2398,7 +2373,7 @@ async function procesarRectificacionAsiento(req, res) {
             tipo_accion: "editar",
             entidad_afectada: "Asiento",
             entidad_id: String(asientoActual.numero_partida || asientoId),
-            descripcion: `Rectificó asiento #${asientoActual.numero_partida}: ${String(motivo).trim()}`,
+            descripcion: `Modificó asiento #${asientoActual.numero_partida}: ${String(motivo).trim()}`,
             datos_anteriores: datosAnteriores,
             datos_nuevos: datosNuevos,
             resultado: "exitoso",
@@ -2407,10 +2382,11 @@ async function procesarRectificacionAsiento(req, res) {
 
         return res.json({
             ok: true,
-            mensaje: `Asiento #${asientoActual.numero_partida} rectificado exitosamente.`,
+            mensaje: `Asiento #${asientoActual.numero_partida} modificado exitosamente.`,
             asiento: {
                 ...asientoActual,
-                concepto: nuevoConceptoConNota,
+                fecha: nuevaFecha,
+                concepto: nuevoConcepto,
                 rectificado: true,
                 rectificacion_historial: {
                     fecha: new Date().toISOString(),
@@ -2426,9 +2402,150 @@ async function procesarRectificacionAsiento(req, res) {
     }
 }
 
+// ==========================================================
+// Eliminación de Asiento Contable
+// Permite eliminar un asiento dentro del período contable abierto,
+// registrando la acción en la auditoría con sus datos previos.
+// ==========================================================
+async function procesarEliminacionAsiento(req, res) {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
+        const asientoId = req.params.id;
+        const { motivo } = req.body || {};
+
+        // Si no hay Supabase configurado, procesar en memoria
+        if (!getSupabaseUrl() || !getSupabaseKey()) {
+            const idx = _asientosEnMemoria.findIndex(a => String(a.id) === String(asientoId));
+            if (idx === -1) {
+                const err = new Error("Asiento no encontrado.");
+                err.statusCode = 404;
+                throw err;
+            }
+
+            const asientoActual = _asientosEnMemoria[idx];
+            const datosAnteriores = {
+                id: asientoActual.id,
+                numero_partida: asientoActual.numero_partida,
+                fecha: asientoActual.fecha,
+                concepto: asientoActual.concepto,
+                lineas: (asientoActual.detalle_asientos || []).map(d => ({
+                    cuenta_id: d.cuenta_id,
+                    cuenta_codigo: d.cuentas?.codigo || "",
+                    cuenta_nombre: d.cuentas?.nombre || "",
+                    descripcion: d.descripcion || "",
+                    debe: Number(d.debe || 0),
+                    haber: Number(d.haber || 0)
+                })),
+                total_debe: (asientoActual.detalle_asientos || []).reduce((acc, d) => acc + Number(d.debe || 0), 0),
+                total_haber: (asientoActual.detalle_asientos || []).reduce((acc, d) => acc + Number(d.haber || 0), 0)
+            };
+
+            // Eliminar de la memoria
+            _asientosEnMemoria.splice(idx, 1);
+
+            await registrarAuditoria({
+                supabaseClient: null,
+                empresa_id: usuario.empresa_id,
+                usuario_id: usuario.id,
+                usuario_nombre: usuario.nombre,
+                tipo_accion: "eliminar",
+                entidad_afectada: "Asiento",
+                entidad_id: String(asientoActual.numero_partida || asientoId),
+                descripcion: `Eliminó asiento #${asientoActual.numero_partida}: ${String(motivo || "Eliminación contable directa").trim()}`,
+                datos_anteriores: datosAnteriores,
+                datos_nuevos: null,
+                resultado: "exitoso",
+                req
+            });
+
+            return res.json({
+                ok: true,
+                mensaje: `Asiento #${asientoActual.numero_partida} eliminado exitosamente.`
+            });
+        }
+
+        // Modo Supabase conectado
+        exigirClaveDeEscritura();
+
+        const { data: asientoActual, error: errActual } = await supabase
+            .from("asientos")
+            .select(`
+                id, fecha, numero_partida, concepto, empresa_id,
+                detalle_asientos(cuenta_id, descripcion, debe, haber, cuentas(id, codigo, nombre))
+            `)
+            .eq("id", asientoId)
+            .eq("empresa_id", usuario.empresa_id)
+            .maybeSingle();
+
+        if (errActual || !asientoActual) {
+            const err = new Error("Asiento no encontrado.");
+            err.statusCode = 404;
+            throw err;
+        }
+
+        const datosAnteriores = {
+            id: asientoActual.id,
+            numero_partida: asientoActual.numero_partida,
+            fecha: asientoActual.fecha,
+            concepto: asientoActual.concepto,
+            lineas: (asientoActual.detalle_asientos || []).map(d => ({
+                cuenta_id: d.cuenta_id,
+                cuenta_codigo: d.cuentas?.codigo || "",
+                cuenta_nombre: d.cuentas?.nombre || "",
+                descripcion: d.descripcion || "",
+                debe: Number(d.debe || 0),
+                haber: Number(d.haber || 0)
+            })),
+            total_debe: (asientoActual.detalle_asientos || []).reduce((acc, d) => acc + Number(d.debe || 0), 0),
+            total_haber: (asientoActual.detalle_asientos || []).reduce((acc, d) => acc + Number(d.haber || 0), 0)
+        };
+
+        // Eliminar líneas primero
+        await supabase
+            .from("detalle_asientos")
+            .delete()
+            .eq("asiento_id", asientoId);
+
+        // Eliminar cabecera del asiento
+        const { error: errDelete } = await supabase
+            .from("asientos")
+            .delete()
+            .eq("id", asientoId)
+            .eq("empresa_id", usuario.empresa_id);
+
+        if (errDelete) throw errDelete;
+
+        // Registrar en auditoría
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "eliminar",
+            entidad_afectada: "Asiento",
+            entidad_id: String(asientoActual.numero_partida || asientoId),
+            descripcion: `Eliminó asiento #${asientoActual.numero_partida}: ${String(motivo || "Eliminación contable directa").trim()}`,
+            datos_anteriores: datosAnteriores,
+            datos_nuevos: null,
+            resultado: "exitoso",
+            req
+        }).catch(e => console.warn("Error auditoría eliminación:", e.message));
+
+        return res.json({
+            ok: true,
+            mensaje: `Asiento #${asientoActual.numero_partida} eliminado exitosamente.`
+        });
+    } catch (error) {
+        return responderError(res, error);
+    }
+}
+
 apiRouter.put("/asientos/:id/rectificar", procesarRectificacionAsiento);
 apiRouter.patch("/asientos/:id/rectificar", procesarRectificacionAsiento);
 apiRouter.put("/asientos/:id", procesarRectificacionAsiento);
+apiRouter.delete("/asientos/:id", procesarEliminacionAsiento);
 
 apiRouter.get("/libro-diario", async (req, res) => {
     try {

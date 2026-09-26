@@ -77,46 +77,8 @@ const PERMISOS_PREDETERMINADOS = {
     puede_gestionar_usuarios: false
 };
 
-function Inicio({ cambiarVista }){
-    return(
-        <section className="welcome-section">
-            <div className="hero-layout">
-                <div className="hero-copy">
-                    <p className="eyebrow">Panel de gestión contable</p>
-                    <h1>Controlá la información contable de tu empresa.</h1>
-                    <p className="welcome-copy">Administrá el catálogo de cuentas, registrá partidas y consultá los movimientos desde un espacio centralizado.</p>
-                    <div className="hero-actions">
-                        <button className="button-primary" onClick={() => cambiarVista("asiento")}>Registrar asiento</button>
-                        <button className="button-secondary" onClick={() => cambiarVista("diario")}>Ver Libro Diario</button>
-                        <button className="button-secondary" onClick={() => cambiarVista("kardex")}>Ver Kardex</button>
-                    </div>
-                </div>
-
-                <aside className="control-panel" aria-label="Resumen del sistema">
-                    <div className="panel-heading">
-                        <span>Resumen del sistema</span>
-                        <span className="panel-period">Actual</span>
-                    </div>
-                    <div className="panel-ledger">
-                        <div className="ledger-line"><span>Catálogo de cuentas</span><strong>Consultar</strong></div>
-                        <div className="ledger-line"><span>Asientos contables</span><strong>Registrar</strong></div>
-                        <div className="ledger-line"><span>Libro Diario</span><strong>Revisar</strong></div>
-                    </div>
-                    <button className="panel-link" onClick={() => cambiarVista("kardex")}>Abrir Kardex de inventario</button>
-                </aside>
-            </div>
-
-            <div className="metrics-row">
-                <div><strong>Catálogo</strong><span>Estructura contable</span></div>
-                <div><strong>Asientos</strong><span>Registro de operaciones</span></div>
-                <div><strong>Diario</strong><span>Consulta de movimientos</span></div>
-            </div>
-        </section>
-    );
-}
-
 function App(){
-    const [vista, setVista] = useState("inicio");
+    const [vista, setVista] = useState("dashboard");
     const [temaOscuro, setTemaOscuro] = useState(() => localStorage.getItem("tema") === "oscuro");
     const [menuColapsado, setMenuColapsado] = useState(() => localStorage.getItem("menu") === "colapsado");
     const [sesion, setSesion] = useState(() =>
@@ -261,7 +223,7 @@ function App(){
         setEmpresaActual(null);
         setSesion(null);
         setPermisos({});
-        setVista("inicio");
+        setVista("dashboard");
     }
 
     if(cargandoSesion){
@@ -296,7 +258,7 @@ function App(){
         }
 
         const empresaNombre = empresaActual?.nombre_empresa || "Empresa";
-        if(vista === "dashboard") return <Dashboard cambiarVista={setVista} empresaNombre={empresaNombre} />;
+        if(vista === "dashboard") return <Dashboard cambiarVista={setVista} usuario={usuario} empresaNombre={empresaNombre} />;
         if(vista === "cuentas") return <CatalogoCuentas usuario={usuario} empresaNombre={empresaNombre} />;
         if(vista === "asiento") return <NuevoAsiento usuario={usuario} empresaNombre={empresaNombre} onCreated={() => setVista("diario")} />;
         if(vista === "diario") return <LibroDiario empresaNombre={empresaNombre} />;
@@ -308,7 +270,7 @@ function App(){
         if(vista === "tablaComparativa") return <TablaComparativa usuario={usuario} empresaNombre={empresaNombre} />;
         if(vista === "usuarios") return <GestionUsuarios usuario={usuario} empresaNombre={empresaNombre} />;
         if(vista === "auditoria") return <AuditoriaPage usuario={usuario} empresaNombre={empresaNombre} />;
-        return <Inicio cambiarVista={setVista} />;
+        return <Dashboard cambiarVista={setVista} usuario={usuario} empresaNombre={empresaNombre} />;
     }
 
     // filtra grupos e items según los permisos del usuario

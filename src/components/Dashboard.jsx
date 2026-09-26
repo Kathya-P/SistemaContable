@@ -6,7 +6,6 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { solicitarApi } from "../services/api";
 import ExportarPdfButton from "./ExportarPdfButton";
 import { exportarDashboardPDF, exportarDashboardExcel } from "../services/exportationService";
-import { supabaseConfigurado } from "../lib/supabase";
 
 function moneda(valor) {
 	return Number(valor || 0).toLocaleString("es-SV", {
@@ -97,14 +96,6 @@ function Dashboard({ cambiarVista, empresaNombre = "Empresa" }) {
 
 	useEffect(() => {
 		async function cargarDatos() {
-			if (!supabaseConfigurado) {
-				setCargando(false);
-				setError(
-					"Configura Supabase para mostrar los movimientos contables."
-				);
-				return;
-			}
-
 			try {
 				const anioActual = new Date().getFullYear();
 				const desde = `${anioActual}-01-01`;

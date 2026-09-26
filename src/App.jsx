@@ -193,7 +193,7 @@ function App(){
 
     // permisos del rol del usuario logueado (tabla roles_permisos)
     useEffect(() => {
-        if(!usuario || !supabaseConfigurado){
+        if(!usuario){
             return undefined;
         }
 
@@ -218,7 +218,7 @@ function App(){
     }, [usuario]);
 
     useEffect(() => {
-        if(!usuario || !supabaseConfigurado){
+        if(!usuario){
             return undefined;
         }
 
@@ -269,22 +269,7 @@ function App(){
     }
 
     if(supabaseConfigurado && !sesion){
-        return (
-            <Login 
-                onAccesoRapido={(u) => {
-                    localStorage.setItem("conta_demo_user_id", String(u.id));
-                    setSesion({ esDemo: true, user: { id: `demo-${u.id}`, email: u.correo } });
-                    setUsuario(u);
-                    setPermisos({
-                        puede_ver_catalogo: true,
-                        puede_crear_asientos: true,
-                        puede_ver_reportes: true,
-                        puede_gestionar_usuarios: u.rol === "ADMIN"
-                    });
-                    setVista("balanceGeneral");
-                }} 
-            />
-        );
+        return <Login />;
     }
 
     if(errorUsuario){

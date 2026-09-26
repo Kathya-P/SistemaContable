@@ -9,6 +9,7 @@ import {
     TIPOS_VALIDOS, 
     NIVELES_VALIDOS 
 } from "../services/cuentasService";
+import { obtenerEmpresas } from "../services/empresasService";
 import { exportarCatalogoCuentasPDF, exportarCatalogoCuentasExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 import ExportarExcelButton from "./ExportarExcelButton";
@@ -28,6 +29,7 @@ function CatalogoCuentas({ usuario }) {
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
     const [mensajeExito, setMensajeExito] = useState("");
+    const [nombreEmpresa, setNombreEmpresa] = useState("");
 
     // Configuración y gestión de IVA
     const [configIva, setConfigIva] = useState(null);
@@ -108,7 +110,21 @@ function CatalogoCuentas({ usuario }) {
                 }
             }
         }
+
+        async function cargarNombreEmpresa() {
+            if (!usuario?.empresa_id) return;
+            try {
+                const empresas = await obtenerEmpresas();
+                if (!cancelado && empresas?.[0]?.nombre_empresa) {
+                    setNombreEmpresa(empresas[0].nombre_empresa);
+                }
+            } catch (err) {
+                console.error("No se pudo obtener el nombre de la empresa:", err);
+            }
+        }
+
         cargar();
+        cargarNombreEmpresa();
         return () => { cancelado = true; };
     }, []);
 
@@ -278,11 +294,11 @@ function CatalogoCuentas({ usuario }) {
     }
 
 function manejarExportacionPDF() {
-    exportarCatalogoCuentasPDF({ cuentas: cuentasFiltradas });
+    exportarCatalogoCuentasPDF({ cuentas: cuentasFiltradas, empresa: nombreEmpresa || "Empresa" });
 }
 
 function manejarExportacionExcel() {
-    exportarCatalogoCuentasExcel({ cuentas });
+    exportarCatalogoCuentasExcel({ cuentas, empresa: nombreEmpresa || "Empresa" });
 }
 
     // Render recursivo de nodo en el árbol

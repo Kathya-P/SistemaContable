@@ -97,13 +97,13 @@ useEffect(() => {
             <div className="section-heading">
                 <div>
                     <p className="eyebrow">Administración</p>
-                    <h1>Usuarios de la empresa</h1>
+                    <h1 style={{ margin: "2px 0 6px" }}>Usuarios de la empresa</h1>
                 </div>
                 <ExportarPdfButton onExport={manejarExportacionPDF} onExportExcel={manejarExportacionExcel} reporte="Usuarios" disabled={!usuarios.length} />
             </div>
 
-            <form onSubmit={crearUsuario} className="entry-form">
-                <h2>Nuevo usuario</h2>
+            <form onSubmit={crearUsuario} className="entry-form" style={{ marginTop: "18px" }}>
+                <h2 style={{ marginTop: 0 }}>Nuevo usuario</h2>
                 <p className="form-help">El usuario tendrá acceso únicamente a tu empresa.</p>
 
                 <div className="form-grid">
@@ -135,9 +135,15 @@ useEffect(() => {
                 </button>
             </form>
 
-            <h2>Equipo</h2>
-            <div className="detail-table-shell">
-                <table className="entry-detail-table">
+            <h2 style={{ marginTop: "28px" }}>Equipo</h2>
+            <div className="detail-table-shell" style={{ overflowX: "auto" }}>
+                <table className="entry-detail-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
+                    <colgroup>
+                        <col style={{ width: "26%" }} />
+                        <col style={{ width: "30%" }} />
+                        <col style={{ width: "18%" }} />
+                        <col style={{ width: "26%" }} />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Nombre</th>
@@ -152,19 +158,24 @@ useEffect(() => {
 
                             return (
                                 <tr key={fila.id}>
-                                    <td>{fila.nombre}{esYo ? " (tú)" : ""}</td>
-                                    <td>{fila.correo}</td>
+                                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={fila.nombre}>
+                                        {fila.nombre}{esYo ? " (tú)" : ""}
+                                    </td>
+                                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={fila.correo}>
+                                        {fila.correo}
+                                    </td>
                                     <td>
                                         <select
                                             value={fila.rol}
                                             disabled={esYo}
                                             onChange={evento => actualizar(fila.id, { rol: evento.target.value })}
                                             aria-label={`Rol de ${fila.nombre}`}
+                                            style={{ width: "100%" }}
                                         >
                                             {ROLES.map(rol => <option key={rol} value={rol}>{rol}</option>)}
                                         </select>
                                     </td>
-                                    <td>
+                                    <td style={{ whiteSpace: "nowrap" }}>
                                         {fila.estado ? "Activo" : "Inactivo"}{" "}
                                         <button
                                             type="button"
@@ -182,9 +193,18 @@ useEffect(() => {
                 </table>
             </div>
 
-            <h2>Qué puede hacer cada rol</h2>
-            <div className="detail-table-shell">
-                <table className="entry-detail-table">
+            <h2 style={{ marginTop: "28px" }}>Qué puede hacer cada rol</h2>
+            <div className="detail-table-shell" style={{ overflowX: "auto" }}>
+                <table className="entry-detail-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
+                    <colgroup>
+                        <col style={{ width: "16%" }} />
+                        <col style={{ width: "14%" }} />
+                        <col style={{ width: "18%" }} />
+                        <col style={{ width: "14%" }} />
+                        <col style={{ width: "12%" }} />
+                        <col style={{ width: "13%" }} />
+                        <col style={{ width: "13%" }} />
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Rol</th>

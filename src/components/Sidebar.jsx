@@ -1,5 +1,78 @@
 import { useState } from "react";
 
+function LogoMarca({ colapsado }){
+    const [errorImagen, setErrorImagen] = useState(false);
+
+    if (errorImagen) {
+        return (
+            <>
+                <span className="brand-mark">SC</span>
+                {!colapsado && <span className="brand-name">ContaCabal</span>}
+            </>
+        );
+    }
+
+    if (colapsado) {
+        return (
+            <div
+                className="brand-logo-collapsed"
+                title="ContaCabal"
+                style={{
+                    width: "36px",
+                    height: "36px",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-start",
+                    borderRadius: "6px",
+                    flexShrink: 0
+                }}
+            >
+                {/* Al estar colapsado, recorta la imagen para mostrar únicamente el librito izquierdo sin el texto */}
+                <img
+                    src="/logo2.png"
+                    alt="ContaCabal"
+                    style={{
+                        height: "70px",
+                        width: "auto",
+                        maxWidth: "none",
+                        objectFit: "cover",
+                        objectPosition: "center",
+                        display: "block"
+                    }}
+                    onError={() => setErrorImagen(true)}
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div
+            className="brand-logo-expanded"
+            style={{
+                display: "flex",
+                alignItems: "center",
+                maxWidth: "200px",
+                height: "38px"
+            }}
+        >
+            {/* Logo completo (icono del librito + nombre ya incluidos en la imagen, sin texto HTML duplicado) */}
+            <img
+                src="/logo2.png"
+                alt="ContaCabal"
+                style={{
+                    height: "70px",
+                    maxWidth: "190px",
+                    objectFit: "contain",
+                    objectPosition: "center",
+                    display: "block"
+                }}
+                onError={() => setErrorImagen(true)}
+            />
+        </div>
+    );
+}
+
 function IconoSvg({ nombre }){
     const props = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true };
     switch(nombre){
@@ -45,9 +118,8 @@ export default function Sidebar({ vista, cambiarVista, grupos, colapsado, altern
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
-                <button className="brand" onClick={() => cambiarVista("inicio")}>
-                    <span className="brand-mark">SC</span>
-                    <span className="brand-name">ContaCabal</span>
+                <button className="brand" onClick={() => cambiarVista("inicio")} title="ContaCabal - Ir al inicio">
+                    <LogoMarca colapsado={colapsado} />
                 </button>
                 <button
                     className="sidebar-toggle"

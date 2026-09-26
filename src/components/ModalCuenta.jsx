@@ -201,12 +201,7 @@ function ModalCuenta({ abierto, cuenta, cuentaPadreInicial, cuentas = [], usuari
                 </div>
 
                 {tieneMovimientos && (
-                    <div style={{
-                        background: "#FFF3D6",
-                        border: "1px solid #E0B460",
-                        color: "#7A4A00",
-                        padding: "10px 14px",
-                        borderRadius: "6px",
+                    <div className="message-warning" style={{
                         fontSize: "13px",
                         margin: "16px 0 8px",
                         display: "flex",
@@ -215,7 +210,7 @@ function ModalCuenta({ abierto, cuenta, cuentaPadreInicial, cuentas = [], usuari
                     }}>
                         <div>
                             <strong>Cuenta con movimientos contables registrados:</strong>
-                            <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#6A3E00" }}>
+                            <p style={{ margin: "2px 0 0", fontSize: "12px" }}>
                                 Por integridad del libro diario y mayor, no se permite cambiar su tipo, código ni nivel, ni eliminarla. Puedes modificar su nombre o inactivarla.
                             </p>
                         </div>

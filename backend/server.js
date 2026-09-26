@@ -67,6 +67,11 @@ function exigirClaveDeEscritura() {
 }
 
 async function obtenerUsuarioAutenticado(req) {
+    // Fallback: usuario demo si no hay Supabase configurado
+    if (!getSupabaseUrl() || !getSupabaseKey()) {
+        return { id: 1, empresa_id: 1, nombre: "no se", rol: "ADMIN", estado: true };
+    }
+
     const encabezado = req.headers.authorization || "";
     const token = encabezado.startsWith("Bearer ") ? encabezado.slice(7) : "";
 
@@ -130,6 +135,9 @@ async function obtenerUsuarioAutenticado(req) {
 
 // Lee la tabla roles_permisos y bloquea la acción si el rol no la tiene.
 async function exigirPermiso(usuario, permiso) {
+    if (!getSupabaseUrl() || !getSupabaseKey()) {
+        return true;
+    }
     const { data, error } = await supabase
         .from("roles_permisos")
         .select(permiso)
@@ -304,6 +312,21 @@ apiRouter.get("/cuentas", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_ver_catalogo");
+
+        if (!getSupabaseUrl() || !getSupabaseKey()) {
+            const hijosSet = new Set(CATALOGO_PREDETERMINADO.map(c => c.padre).filter(Boolean));
+            return res.json(CATALOGO_PREDETERMINADO.map(c => ({
+                id: c.codigo,
+                codigo: c.codigo,
+                nombre: c.nombre,
+                tipo: c.tipo,
+                nivel: c.nivel,
+                cuenta_padre_id: c.padre,
+                naturaleza: derivarNaturaleza(c.tipo),
+                permite_movimientos: !hijosSet.has(c.codigo),
+                estado: true
+            })));
+        }
 
         const { data: cuentas, error } = await supabase
             .from("cuentas")
@@ -1133,6 +1156,12 @@ apiRouter.get("/usuarios", async (req, res) => {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_gestionar_usuarios");
 
+        if (!getSupabaseUrl() || !getSupabaseKey()) {
+            return res.json([
+                { id: 1, nombre: "no se", correo: "admin@contacabal.com", rol: "ADMIN", estado: true }
+            ]);
+        }
+
         const { data, error } = await supabase
             .from("usuarios")
             .select("id, nombre, correo, rol, estado")
@@ -1885,10 +1914,530 @@ apiRouter.get("/asientos/:id", async (req, res) => {
     }
 });
 
+// ==========================================================
+// Búfer en memoria de asientos contables (resguardo y demo)
+// ==========================================================
+const _asientosEnMemoria = [
+    {
+        id: 1,
+        empresa_id: 1,
+        numero_partida: 1,
+        fecha: "2026-01-01",
+        concepto: "Inventario inicial aportado por socios",
+        estado: "CONTABILIZADO",
+        detalle_asientos: [
+            {
+                cuenta_id: "1103",
+                descripcion: "Inventario inicial",
+                debe: 6000,
+                haber: 0,
+                cuentas: { id: "1103", codigo: "1103", nombre: "Inventario de mercadería", cuenta_padre_id: "11", cuenta_padre: { id: "11", codigo: "11", nombre: "ACTIVO CORRIENTE" } }
+            },
+            {
+                cuenta_id: "3101",
+                descripcion: "Aporte de capital",
+                debe: 0,
+                haber: 6000,
+                cuentas: { id: "3101", codigo: "3101", nombre: "Capital social", cuenta_padre_id: "31", cuenta_padre: { id: "31", codigo: "31", nombre: "CAPITAL" } }
+            }
+        ]
+    },
+    {
+        id: 3,
+        empresa_id: 1,
+        numero_partida: 3,
+        fecha: "2026-01-05",
+        concepto: "Compras de mercadería al crédito (precio incluye IVA).",
+        estado: "CONTABILIZADO",
+        detalle_asientos: [
+            {
+                cuenta_id: "4101",
+                descripcion: "Compras gravadas",
+                debe: 8849,
+                haber: 0,
+                cuentas: { id: "4101", codigo: "4101", nombre: "Compras", cuenta_padre_id: "41", cuenta_padre: { id: "41", codigo: "41", nombre: "COSTOS" } }
+            },
+            {
+                cuenta_id: "1105",
+                descripcion: "Crédito fiscal 13%",
+                debe: 1150.37,
+                haber: 0,
+                cuentas: { id: "1105", codigo: "1105", nombre: "IVA crédito fiscal", cuenta_padre_id: "11", cuenta_padre: { id: "11", codigo: "11", nombre: "ACTIVO CORRIENTE" } }
+            },
+            {
+                cuenta_id: "210101",
+                descripcion: "Proveedores varios",
+                debe: 0,
+                haber: 9999.37,
+                cuentas: { id: "210101", codigo: "210101", nombre: "Proveedores", cuenta_padre_id: "2101", cuenta_padre: { id: "2101", codigo: "2101", nombre: "Cuentas por pagar" } }
+            }
+        ]
+    },
+    {
+        id: 4,
+        empresa_id: 1,
+        numero_partida: 4,
+        fecha: "2026-01-08",
+        concepto: "Devolución sobre compra",
+        estado: "CONTABILIZADO",
+        detalle_asientos: [
+            {
+                cuenta_id: "210101",
+                descripcion: "Abono proveedores",
+                debe: 885,
+                haber: 0,
+                cuentas: { id: "210101", codigo: "210101", nombre: "Proveedores", cuenta_padre_id: "2101", cuenta_padre: { id: "2101", codigo: "2101", nombre: "Cuentas por pagar" } }
+            },
+            {
+                cuenta_id: "1103",
+                descripcion: "Salida mercadería devuelta",
+                debe: 0,
+                haber: 885,
+                cuentas: { id: "1103", codigo: "1103", nombre: "Inventario de mercadería", cuenta_padre_id: "11", cuenta_padre: { id: "11", codigo: "11", nombre: "ACTIVO CORRIENTE" } }
+            }
+        ]
+    },
+    {
+        id: 5,
+        empresa_id: 1,
+        numero_partida: 5,
+        fecha: "2026-01-10",
+        concepto: "Ventas de mercadería al contado",
+        estado: "CONTABILIZADO",
+        detalle_asientos: [
+            {
+                cuenta_id: "110102",
+                descripcion: "Ingreso en Bancos",
+                debe: 10620,
+                haber: 0,
+                cuentas: { id: "110102", codigo: "110102", nombre: "Bancos", cuenta_padre_id: "1101", cuenta_padre: { id: "1101", codigo: "1101", nombre: "Efectivo y equivalente" } }
+            },
+            {
+                cuenta_id: "5101",
+                descripcion: "Ingresos por ventas",
+                debe: 0,
+                haber: 9398.23,
+                cuentas: { id: "5101", codigo: "5101", nombre: "Ventas", cuenta_padre_id: "51", cuenta_padre: { id: "51", codigo: "51", nombre: "INGRESOS OPERACIONALES" } }
+            },
+            {
+                cuenta_id: "2102",
+                descripcion: "Débito fiscal 13%",
+                debe: 0,
+                haber: 1221.77,
+                cuentas: { id: "2102", codigo: "2102", nombre: "IVA débito fiscal", cuenta_padre_id: "21", cuenta_padre: { id: "21", codigo: "21", nombre: "PASIVO CORRIENTE" } }
+            }
+        ]
+    },
+    {
+        id: 10,
+        empresa_id: 1,
+        numero_partida: 10,
+        fecha: "2026-02-15",
+        concepto: "Compra de activo fijo, parte al contado y parte a crédito (precio incluye IVA).",
+        estado: "CONTABILIZADO",
+        detalle_asientos: [
+            {
+                cuenta_id: "120101",
+                descripcion: "Mobiliario y equipo",
+                debe: 1000,
+                haber: 0,
+                cuentas: { id: "120101", codigo: "120101", nombre: "Mobiliario y equipo de oficina", cuenta_padre_id: "1201", cuenta_padre: { id: "1201", codigo: "1201", nombre: "Propiedad, planta y equipo" } }
+            },
+            {
+                cuenta_id: "110101",
+                descripcion: "Pago contado en efectivo",
+                debe: 0,
+                haber: 500,
+                cuentas: { id: "110101", codigo: "110101", nombre: "Caja", cuenta_padre_id: "1101", cuenta_padre: { id: "1101", codigo: "1101", nombre: "Efectivo y equivalente" } }
+            },
+            {
+                cuenta_id: "210102",
+                descripcion: "Crédito a proveedores de equipo",
+                debe: 0,
+                haber: 500,
+                cuentas: { id: "210102", codigo: "210102", nombre: "Acreedores varios", cuenta_padre_id: "2101", cuenta_padre: { id: "2101", codigo: "2101", nombre: "Cuentas por pagar" } }
+            }
+        ]
+    },
+    {
+        id: 11,
+        empresa_id: 1,
+        numero_partida: 11,
+        fecha: "2026-02-18",
+        concepto: "Préstamo bancario recibido.",
+        estado: "CONTABILIZADO",
+        detalle_asientos: [
+            {
+                cuenta_id: "110102",
+                descripcion: "Desembolso préstamo en banco",
+                debe: 5000,
+                haber: 0,
+                cuentas: { id: "110102", codigo: "110102", nombre: "Bancos", cuenta_padre_id: "1101", cuenta_padre: { id: "1101", codigo: "1101", nombre: "Efectivo y equivalente" } }
+            },
+            {
+                cuenta_id: "2103",
+                descripcion: "Obligación financiera bancaria",
+                debe: 0,
+                haber: 5000,
+                cuentas: { id: "2103", codigo: "2103", nombre: "Préstamos bancarios", cuenta_padre_id: "21", cuenta_padre: { id: "21", codigo: "21", nombre: "PASIVO CORRIENTE" } }
+            }
+        ]
+    },
+    {
+        id: 12,
+        empresa_id: 1,
+        numero_partida: 12,
+        fecha: "2026-02-20",
+        concepto: "Venta de mercadería al contado (precio incluye IVA).",
+        estado: "CONTABILIZADO",
+        detalle_asientos: [
+            {
+                cuenta_id: "110102",
+                descripcion: "Depósito en Bancos",
+                debe: 4425,
+                haber: 0,
+                cuentas: { id: "110102", codigo: "110102", nombre: "Bancos", cuenta_padre_id: "1101", cuenta_padre: { id: "1101", codigo: "1101", nombre: "Efectivo y equivalente" } }
+            },
+            {
+                cuenta_id: "5101",
+                descripcion: "Venta gravada",
+                debe: 0,
+                haber: 3915.93,
+                cuentas: { id: "5101", codigo: "5101", nombre: "Ventas", cuenta_padre_id: "51", cuenta_padre: { id: "51", codigo: "51", nombre: "INGRESOS OPERACIONALES" } }
+            },
+            {
+                cuenta_id: "2102",
+                descripcion: "IVA débito 13%",
+                debe: 0,
+                haber: 509.07,
+                cuentas: { id: "2102", codigo: "2102", nombre: "IVA débito fiscal", cuenta_padre_id: "21", cuenta_padre: { id: "21", codigo: "21", nombre: "PASIVO CORRIENTE" } }
+            }
+        ]
+    },
+    {
+        id: 13,
+        empresa_id: 1,
+        numero_partida: 13,
+        fecha: "2026-09-25",
+        concepto: "Ajuste manual",
+        estado: "CONTABILIZADO",
+        detalle_asientos: [
+            {
+                cuenta_id: "110102",
+                descripcion: "Ajuste de fondos en bancos",
+                debe: 100,
+                haber: 0,
+                cuentas: { id: "110102", codigo: "110102", nombre: "Bancos", cuenta_padre_id: "1101", cuenta_padre: { id: "1101", codigo: "1101", nombre: "Efectivo y equivalente" } }
+            },
+            {
+                cuenta_id: "210101",
+                descripcion: "Ajuste saldo con proveedores",
+                debe: 0,
+                haber: 100,
+                cuentas: { id: "210101", codigo: "210101", nombre: "Proveedores", cuenta_padre_id: "2101", cuenta_padre: { id: "2101", codigo: "2101", nombre: "Cuentas por pagar" } }
+            }
+        ]
+    }
+];
+
+// ==========================================================
+// Rectificación de Asientos (Código de Comercio El Salvador)
+// Solo se permite rectificar el asiento más reciente para mantener
+// la correlatividad y la inalterabilidad de los saldos anteriores.
+// ==========================================================
+async function procesarRectificacionAsiento(req, res) {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_crear_asientos");
+
+        const asientoId = req.params.id;
+        const { concepto, motivo, detalles } = req.body || {};
+
+        if (!String(concepto || "").trim()) {
+            throw new Error("El concepto es obligatorio para rectificar el asiento.");
+        }
+        if (!String(motivo || "").trim()) {
+            throw new Error("Debe especificar el motivo de la rectificación según la normativa contable.");
+        }
+        if (!Array.isArray(detalles) || detalles.length < 2) {
+            throw new Error("El asiento rectificado debe contener al menos 2 líneas.");
+        }
+
+        const totalDebe = detalles.reduce((sum, d) => sum + Number(d.debe || 0), 0);
+        const totalHaber = detalles.reduce((sum, d) => sum + Number(d.haber || 0), 0);
+
+        if (Math.abs(totalDebe - totalHaber) >= 0.005) {
+            throw new Error(`La partida no cuadra: Total Debe ($${totalDebe.toFixed(2)}) no es igual a Total Haber ($${totalHaber.toFixed(2)}).`);
+        }
+        if (totalDebe <= 0) {
+            throw new Error("El monto total del asiento debe ser mayor a cero.");
+        }
+
+        const fechaHoy = new Date().toLocaleDateString("es-SV");
+        const notaRectificacion = `[Rectificado el ${fechaHoy} por ${usuario.nombre}: ${String(motivo).trim()}]`;
+        let nuevoConceptoConNota = String(concepto).trim();
+        if (!nuevoConceptoConNota.includes("[Rectificado")) {
+            nuevoConceptoConNota = `${nuevoConceptoConNota} ${notaRectificacion}`.trim();
+        }
+
+        // Si no hay Supabase configurado, procesar en memoria
+        if (!getSupabaseUrl() || !getSupabaseKey()) {
+            const idx = _asientosEnMemoria.findIndex(a => String(a.id) === String(asientoId));
+            if (idx === -1) {
+                const err = new Error("Asiento no encontrado.");
+                err.statusCode = 404;
+                throw err;
+            }
+
+            // Validar que sea el asiento más reciente
+            const ultimoAsiento = [..._asientosEnMemoria].sort((a, b) => {
+                return Number(b.numero_partida || b.id) - Number(a.numero_partida || a.id);
+            })[0];
+
+            if (ultimoAsiento && String(ultimoAsiento.id) !== String(asientoId)) {
+                const err = new Error(
+                    `No se puede rectificar este asiento. Según el Código de Comercio de El Salvador, solo se permite rectificar el asiento más reciente (#${ultimoAsiento.numero_partida}). Los asientos anteriores ya se encuentran cerrados y auditados.`
+                );
+                err.statusCode = 400;
+                throw err;
+            }
+
+            const asientoActual = _asientosEnMemoria[idx];
+            const datosAnteriores = {
+                concepto: asientoActual.concepto,
+                lineas: (asientoActual.detalle_asientos || []).map(d => ({
+                    cuenta_id: d.cuenta_id,
+                    cuenta_codigo: d.cuentas?.codigo || "",
+                    cuenta_nombre: d.cuentas?.nombre || "",
+                    descripcion: d.descripcion || "",
+                    debe: Number(d.debe || 0),
+                    haber: Number(d.haber || 0)
+                })),
+                total_debe: (asientoActual.detalle_asientos || []).reduce((acc, d) => acc + Number(d.debe || 0), 0),
+                total_haber: (asientoActual.detalle_asientos || []).reduce((acc, d) => acc + Number(d.haber || 0), 0)
+            };
+
+            const datosNuevos = {
+                concepto: nuevoConceptoConNota,
+                motivo: String(motivo).trim(),
+                lineas: detalles.map(d => ({
+                    cuenta_id: d.cuenta_id,
+                    cuenta_codigo: d.cuentas?.codigo || d.cuenta_codigo || "",
+                    cuenta_nombre: d.cuentas?.nombre || d.cuenta_nombre || "",
+                    descripcion: d.descripcion || "",
+                    debe: Number(d.debe || 0),
+                    haber: Number(d.haber || 0)
+                })),
+                total_debe: totalDebe,
+                total_haber: totalHaber,
+                fecha_modificacion: new Date().toISOString(),
+                usuario_modificacion: usuario.nombre
+            };
+
+            const nuevoDetalle = detalles.map(d => {
+                const codigoStr = String(d.cuentas?.codigo || d.cuenta_codigo || d.cuenta_id || "");
+                const catItem = CATALOGO_PREDETERMINADO.find(c => c.codigo === codigoStr || String(c.codigo) === String(d.cuenta_id));
+                const padreItem = catItem?.padre ? CATALOGO_PREDETERMINADO.find(c => c.codigo === catItem.padre) : null;
+
+                return {
+                    cuenta_id: d.cuenta_id,
+                    descripcion: d.descripcion || "",
+                    debe: Number(d.debe || 0),
+                    haber: Number(d.haber || 0),
+                    cuentas: {
+                        id: d.cuenta_id,
+                        codigo: catItem?.codigo || codigoStr,
+                        nombre: catItem?.nombre || d.cuentas?.nombre || d.cuenta_nombre || "Cuenta",
+                        cuenta_padre_id: catItem?.padre || null,
+                        cuenta_padre: padreItem ? { id: padreItem.codigo, codigo: padreItem.codigo, nombre: padreItem.nombre } : null
+                    }
+                };
+            });
+
+            _asientosEnMemoria[idx] = {
+                ...asientoActual,
+                concepto: nuevoConceptoConNota,
+                detalle_asientos: nuevoDetalle,
+                rectificado: true,
+                rectificacion_historial: {
+                    fecha: new Date().toISOString(),
+                    usuario: usuario.nombre,
+                    motivo: String(motivo).trim(),
+                    datos_anteriores: datosAnteriores,
+                    datos_nuevos: datosNuevos
+                }
+            };
+
+            await registrarAuditoria({
+                supabaseClient: null,
+                empresa_id: usuario.empresa_id,
+                usuario_id: usuario.id,
+                usuario_nombre: usuario.nombre,
+                tipo_accion: "editar",
+                entidad_afectada: "Asiento",
+                entidad_id: String(asientoActual.numero_partida || asientoId),
+                descripcion: `Rectificó asiento #${asientoActual.numero_partida}: ${String(motivo).trim()}`,
+                datos_anteriores: datosAnteriores,
+                datos_nuevos: datosNuevos,
+                resultado: "exitoso",
+                req
+            });
+
+            return res.json({
+                ok: true,
+                mensaje: `Asiento #${asientoActual.numero_partida} rectificado exitosamente.`,
+                asiento: _asientosEnMemoria[idx]
+            });
+        }
+
+        // Modo Supabase conectado
+        exigirClaveDeEscritura();
+
+        // 1. Validar que sea el asiento más reciente
+        const { data: ultimoAsiento, error: errUltimo } = await supabase
+            .from("asientos")
+            .select("id, numero_partida, fecha")
+            .eq("empresa_id", usuario.empresa_id)
+            .order("numero_partida", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (ultimoAsiento && String(ultimoAsiento.id) !== String(asientoId)) {
+            const err = new Error(
+                `No se puede rectificar este asiento. Según el Código de Comercio de El Salvador, solo se permite rectificar el asiento más reciente (#${ultimoAsiento.numero_partida}). Los asientos anteriores ya se encuentran cerrados y auditados.`
+            );
+            err.statusCode = 400;
+            throw err;
+        }
+
+        // 2. Obtener datos actuales para auditoría
+        const { data: asientoActual, error: errActual } = await supabase
+            .from("asientos")
+            .select(`
+                id, fecha, numero_partida, concepto, empresa_id,
+                detalle_asientos(cuenta_id, descripcion, debe, haber, cuentas(id, codigo, nombre))
+            `)
+            .eq("id", asientoId)
+            .eq("empresa_id", usuario.empresa_id)
+            .maybeSingle();
+
+        if (errActual || !asientoActual) {
+            const err = new Error("Asiento no encontrado.");
+            err.statusCode = 404;
+            throw err;
+        }
+
+        const datosAnteriores = {
+            concepto: asientoActual.concepto,
+            lineas: (asientoActual.detalle_asientos || []).map(d => ({
+                cuenta_id: d.cuenta_id,
+                cuenta_codigo: d.cuentas?.codigo || "",
+                cuenta_nombre: d.cuentas?.nombre || "",
+                descripcion: d.descripcion || "",
+                debe: Number(d.debe || 0),
+                haber: Number(d.haber || 0)
+            })),
+            total_debe: (asientoActual.detalle_asientos || []).reduce((acc, d) => acc + Number(d.debe || 0), 0),
+            total_haber: (asientoActual.detalle_asientos || []).reduce((acc, d) => acc + Number(d.haber || 0), 0)
+        };
+
+        const datosNuevos = {
+            concepto: nuevoConceptoConNota,
+            motivo: String(motivo).trim(),
+            lineas: detalles.map(d => ({
+                cuenta_id: d.cuenta_id,
+                cuenta_codigo: d.cuentas?.codigo || d.cuenta_codigo || "",
+                cuenta_nombre: d.cuentas?.nombre || d.cuenta_nombre || "",
+                descripcion: d.descripcion || "",
+                debe: Number(d.debe || 0),
+                haber: Number(d.haber || 0)
+            })),
+            total_debe: totalDebe,
+            total_haber: totalHaber,
+            fecha_modificacion: new Date().toISOString(),
+            usuario_modificacion: usuario.nombre
+        };
+
+        // 3. Actualizar cabecera del asiento
+        const { error: errUpdateAsiento } = await supabase
+            .from("asientos")
+            .update({
+                concepto: nuevoConceptoConNota
+            })
+            .eq("id", asientoId)
+            .eq("empresa_id", usuario.empresa_id);
+
+        if (errUpdateAsiento) throw errUpdateAsiento;
+
+        // 4. Reemplazar líneas en detalle_asientos
+        await supabase
+            .from("detalle_asientos")
+            .delete()
+            .eq("asiento_id", asientoId);
+
+        const nuevasLineas = detalles.map(d => ({
+            asiento_id: Number(asientoId),
+            cuenta_id: Number(d.cuenta_id),
+            descripcion: d.descripcion || "",
+            debe: Number(d.debe || 0),
+            haber: Number(d.haber || 0)
+        }));
+
+        const { error: errInsertLineas } = await supabase
+            .from("detalle_asientos")
+            .insert(nuevasLineas);
+
+        if (errInsertLineas) throw errInsertLineas;
+
+        // 5. Registrar en auditoría
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "editar",
+            entidad_afectada: "Asiento",
+            entidad_id: String(asientoActual.numero_partida || asientoId),
+            descripcion: `Rectificó asiento #${asientoActual.numero_partida}: ${String(motivo).trim()}`,
+            datos_anteriores: datosAnteriores,
+            datos_nuevos: datosNuevos,
+            resultado: "exitoso",
+            req
+        }).catch(e => console.warn("Error auditoría rectificación:", e.message));
+
+        return res.json({
+            ok: true,
+            mensaje: `Asiento #${asientoActual.numero_partida} rectificado exitosamente.`,
+            asiento: {
+                ...asientoActual,
+                concepto: nuevoConceptoConNota,
+                rectificado: true,
+                rectificacion_historial: {
+                    fecha: new Date().toISOString(),
+                    usuario: usuario.nombre,
+                    motivo: String(motivo).trim(),
+                    datos_anteriores: datosAnteriores,
+                    datos_nuevos: datosNuevos
+                }
+            }
+        });
+    } catch (error) {
+        return responderError(res, error);
+    }
+}
+
+apiRouter.put("/asientos/:id/rectificar", procesarRectificacionAsiento);
+apiRouter.patch("/asientos/:id/rectificar", procesarRectificacionAsiento);
+apiRouter.put("/asientos/:id", procesarRectificacionAsiento);
+
 apiRouter.get("/libro-diario", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(usuario, "puede_ver_reportes");
+
+        if (!getSupabaseUrl() || !getSupabaseKey()) {
+            return res.json(_asientosEnMemoria);
+        }
 
         const { data: cuentas, error: errorCuentas } = await supabase
         .from("cuentas")
@@ -2648,7 +3197,7 @@ export { app, apiRouter };
 export default app;
 
 // Si se ejecuta directamente (ej. node backend/server.js) y no en Vercel, abrir puerto
-const isDirectRun = process.argv[1] && (process.argv[1].endsWith("server.js") || process.argv[1].endsWith("server.ts"));
+const isDirectRun = process.argv[1] && (process.argv[1].endsWith("backend/server.js") || process.argv[1].endsWith("backend/server.ts"));
 if (isDirectRun && !process.env.VERCEL) {
     app.listen(puerto, "0.0.0.0", () => {
         console.log(`API contable escuchando en http://localhost:${puerto}`);

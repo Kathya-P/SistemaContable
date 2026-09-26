@@ -601,14 +601,75 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
         setDetalles(lineas => lineas.length > 2 ? lineas.filter((_, lineaIndice) => lineaIndice !== indice) : lineas);
     }
 
+// Normaliza los detalles de una plantilla / esqueleto.
+// Si un esqueleto fue guardado previamente con el IVA ya desglosado en líneas separadas,
+// reintegra el IVA a la cuenta operativa base (en modo "incluido") y elimina la línea redundante de IVA,
+// para que al cargarlo en el formulario no se duplique el IVA ni se recalcule dos veces.
+function normalizarPlantillaDetalles(plantilla, cuentasPorId) {
+    if (!plantilla) return [];
+    const modo = plantilla.modo_iva || "incluido";
+    const detalles = Array.isArray(plantilla.detalles) ? plantilla.detalles : [];
+
+    if (modo === "sin") {
+        return detalles;
+    }
+
+    const esCuentaIva = (d) => {
+        const cuenta = cuentasPorId.get(String(d.cuenta_id));
+        const nom = (cuenta?.nombre || d.cuenta_nombre || "").toLowerCase();
+        const cod = String(cuenta?.codigo || d.cuenta_codigo || "").trim();
+        const desc = (d.descripcion || "").toLowerCase();
+        return (
+            desc.includes("iva") ||
+            nom.includes("crédito fiscal") ||
+            nom.includes("credito fiscal") ||
+            nom.includes("débito fiscal") ||
+            nom.includes("debito fiscal") ||
+            cod === "1105" ||
+            cod === "2102" ||
+            cod.startsWith("1105") ||
+            cod.startsWith("2102")
+        );
+    };
+
+    const lineasIva = detalles.filter(esCuentaIva);
+    const lineasNoIva = detalles.filter(d => !esCuentaIva(d)).map(d => ({ ...d }));
+
+    // Si la plantilla contiene líneas de IVA separadas
+    if (lineasIva.length > 0 && lineasNoIva.length >= 1) {
+        if (modo === "incluido") {
+            // Reintegrar el IVA a la cuenta operativa correspondiente (ej. Compras en Debe o Ventas en Haber)
+            lineasIva.forEach(ivaItem => {
+                const debeIva = normalizarNumero(ivaItem.debe);
+                const haberIva = normalizarNumero(ivaItem.haber);
+                const lado = debeIva > 0 ? "debe" : "haber";
+                const montoIva = debeIva > 0 ? debeIva : haberIva;
+
+                const destino = lineasNoIva.find(item => normalizarNumero(item[lado]) > 0);
+                if (destino) {
+                    const actual = normalizarNumero(destino[lado]);
+                    destino[lado] = Number((actual + montoIva).toFixed(2));
+                }
+            });
+        }
+        return lineasNoIva;
+    }
+
+    return detalles;
+}
+
     // Cargar esqueleto en el asiento (mantiene la fecha del momento y todo editable)
     function cargarEsqueleto(plantilla) {
+        const modo = plantilla.modo_iva || "incluido";
         setConcepto(plantilla.concepto || "");
-        setModoIva(plantilla.modo_iva || "incluido");
-        setDetalles((plantilla.detalles || []).map(detalle => ({
+        setModoIva(modo);
+
+        const detallesNormalizados = normalizarPlantillaDetalles(plantilla, cuentasPorId);
+
+        setDetalles(detallesNormalizados.map(detalle => ({
             cuenta_id: String(detalle.cuenta_id),
-            debe: detalle.debe === "0" || detalle.debe === 0 ? "" : String(detalle.debe || ""),
-            haber: detalle.haber === "0" || detalle.haber === 0 ? "" : String(detalle.haber || "")
+            debe: detalle.debe === "0" || detalle.debe === 0 || !detalle.debe ? "" : String(detalle.debe),
+            haber: detalle.haber === "0" || detalle.haber === 0 || !detalle.haber ? "" : String(detalle.haber)
         })));
         setDrawerGuardadosAbierto(false);
         setMensaje(`Esqueleto "${plantilla.concepto}" cargado. Puedes editar las cuentas y montos o registrarlo con la fecha actual.`);
@@ -713,16 +774,40 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
             let notaGuardado = "";
             if (guardarComoPlantilla) {
                 try {
+                    // Para guardar el esqueleto contable, guardamos las líneas que el usuario configuró en el formulario
+                    // (con sus cuentas y montos capturados/brutos), NO las líneas con IVA desglosado.
+                    // Si el usuario dejó una línea vacía para autocompletar con cuadre, guardamos el importe que calculó el cuadre.
+                    const detallesParaPlantilla = detalles
+                        .filter(d => Boolean(d.cuenta_id))
+                        .map(d => {
+                            let debe = normalizarNumero(d.debe);
+                            let haber = normalizarNumero(d.haber);
+
+                            // Si quedó vacía para autocompletar por cuadre:
+                            if (debe === 0 && haber === 0) {
+                                const lineaCuadre = calculo.lineas.find(
+                                    l => l.origen === "cuadre" && String(l.cuenta.id) === String(d.cuenta_id)
+                                );
+                                if (lineaCuadre) {
+                                    if (lineaCuadre.lado === "debe") debe = lineaCuadre.centavos / 100;
+                                    if (lineaCuadre.lado === "haber") haber = lineaCuadre.centavos / 100;
+                                }
+                            }
+
+                            const cuentaObj = cuentasPorId.get(String(d.cuenta_id));
+                            return {
+                                cuenta_id: String(d.cuenta_id),
+                                cuenta_codigo: cuentaObj?.codigo || "",
+                                cuenta_nombre: cuentaObj?.nombre || "",
+                                debe: debe > 0 ? debe : 0,
+                                haber: haber > 0 ? haber : 0
+                            };
+                        });
+
                     await guardarPlantillaAsiento({
                         concepto: quitarPrefijoConcepto(concepto),
                         modo_iva: modoIva,
-                        detalles: lineasParaAsiento.map(l => ({
-                            cuenta_id: l.cuenta_id,
-                            cuenta_codigo: cuentasPorId.get(String(l.cuenta_id))?.codigo || "",
-                            cuenta_nombre: cuentasPorId.get(String(l.cuenta_id))?.nombre || "",
-                            debe: l.debe,
-                            haber: l.haber
-                        }))
+                        detalles: detallesParaPlantilla
                     });
                     const actualizados = await obtenerAsientosGuardados();
                     setAsientosGuardados(actualizados);
@@ -1061,11 +1146,12 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                                 </div>
                             ) : (
                                 plantillasFiltradas.map(plantilla => {
-                                    const totalDebePlantilla = (plantilla.detalles || []).reduce(
+                                    const detallesParaMostrar = normalizarPlantillaDetalles(plantilla, cuentasPorId);
+                                    const totalDebePlantilla = detallesParaMostrar.reduce(
                                         (sum, d) => sum + (Number(d.debe) || 0),
                                         0
                                     );
-                                    const totalHaberPlantilla = (plantilla.detalles || []).reduce(
+                                    const totalHaberPlantilla = detallesParaMostrar.reduce(
                                         (sum, d) => sum + (Number(d.haber) || 0),
                                         0
                                     );
@@ -1106,7 +1192,7 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                                                         : "Sin IVA"}
                                                 </span>
                                                 <span className="plantilla-tag-lineas">
-                                                    {(plantilla.detalles || []).length} cuentas
+                                                    {detallesParaMostrar.length} cuentas
                                                 </span>
                                                 {montoMaximo > 0 && (
                                                     <span className="plantilla-tag-monto">
@@ -1116,9 +1202,9 @@ function NuevoAsiento({ usuario, empresaNombre = "Empresa", onCreated }){
                                             </div>
 
                                             {/* Preview de cuentas y montos */}
-                                            {Array.isArray(plantilla.detalles) && plantilla.detalles.length > 0 && (
+                                            {Array.isArray(detallesParaMostrar) && detallesParaMostrar.length > 0 && (
                                                 <div className="plantilla-detalles-preview">
-                                                    {plantilla.detalles.map((det, idx) => {
+                                                    {detallesParaMostrar.map((det, idx) => {
                                                         const cuentaObj = cuentasPorId.get(String(det.cuenta_id));
                                                         const cod = cuentaObj?.codigo || det.cuenta_codigo || "";
                                                         const nom = cuentaObj?.nombre || det.cuenta_nombre || `Cuenta #${det.cuenta_id}`;

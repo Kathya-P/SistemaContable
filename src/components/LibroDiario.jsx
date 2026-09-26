@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { obtenerLibroDiario } from "../services/libroDiarioService";
-import { rectificarAsiento } from "../services/asientosService";
+import { rectificarAsiento, eliminarAsiento } from "../services/asientosService";
 import { obtenerCuentas } from "../services/cuentasService";
 import { exportarLibroDiarioPDF, exportarLibroDiarioExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
@@ -35,6 +35,28 @@ function IconoLapiz({ size = 14, className = "" }) {
         >
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+        </svg>
+    );
+}
+
+function IconoBasura({ size = 14, className = "" }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+            aria-hidden="true"
+        >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
         </svg>
     );
 }
@@ -218,9 +240,10 @@ function interpretarCambiosAsiento(asientoOriginal, lineasActuales, catalogoMap)
 }
 
 // ==========================================================
-// Modal de Rectificación del Asiento Más Reciente
+// Modal de Modificación y Rectificación del Asiento Contable
 // ==========================================================
 function ModalRectificarAsiento({ asiento, cuentas, onCerrar, onGuardado }) {
+    const [fecha, setFecha] = useState(asiento.fecha || "");
     const [concepto, setConcepto] = useState(() => {
         return String(asiento.concepto || "").replace(/\s*\[Rectificado[^\]]*\]/gi, "").trim();
     });
@@ -306,7 +329,7 @@ function ModalRectificarAsiento({ asiento, cuentas, onCerrar, onGuardado }) {
             return;
         }
         if (!motivo.trim()) {
-            setError("Debe especificar el motivo de la rectificación para cumplir con la auditoría del Código de Comercio.");
+            setError("Debe especificar el motivo del ajuste para la auditoría contable.");
             return;
         }
         if (lineas.some(l => !l.cuenta_id)) {
@@ -323,6 +346,7 @@ function ModalRectificarAsiento({ asiento, cuentas, onCerrar, onGuardado }) {
             const respuesta = await rectificarAsiento(asiento.id, {
                 concepto: concepto.trim(),
                 motivo: motivo.trim(),
+                fecha: fecha || asiento.fecha,
                 detalles: lineas.map(l => ({
                     cuenta_id: l.cuenta_id,
                     descripcion: l.descripcion,
@@ -333,7 +357,8 @@ function ModalRectificarAsiento({ asiento, cuentas, onCerrar, onGuardado }) {
 
             onGuardado(respuesta.asiento || {
                 ...asiento,
-                concepto: `${concepto.trim()} [Rectificado el ${new Date().toLocaleDateString("es-SV")}: ${motivo.trim()}]`,
+                fecha: fecha || asiento.fecha,
+                concepto: concepto.trim(),
                 rectificado: true
             });
         } catch (err) {
@@ -352,14 +377,14 @@ function ModalRectificarAsiento({ asiento, cuentas, onCerrar, onGuardado }) {
                     <div>
                         <div className="modal-rect-badge-row">
                             <span className="modal-rect-badge-recent">
-                                Partida #{asiento.numero_partida} · Asiento Más Reciente
+                                Partida #{asiento.numero_partida}
                             </span>
                             <span className="modal-rect-date">
-                                Fecha original: {fechaCorta(asiento.fecha)}
+                                Fecha: {fechaCorta(fecha || asiento.fecha)}
                             </span>
                         </div>
                         <h2 className="modal-rect-title">
-                            Rectificar Asiento #{asiento.numero_partida}
+                            Modificar Asiento #{asiento.numero_partida}
                         </h2>
                     </div>
                     <button
@@ -372,9 +397,9 @@ function ModalRectificarAsiento({ asiento, cuentas, onCerrar, onGuardado }) {
                     </button>
                 </div>
 
-                {/* Banner de Fundamento Legal */}
-                <div className="modal-rect-banner">
-                    <strong>Código de Comercio El Salvador:</strong> Solo se permite rectificar el asiento más reciente para mantener la correlatividad sin huecos y salvaguardar los saldos acumulados ya auditados.
+                {/* Banner Informativo */}
+                <div className="modal-rect-banner" style={{ background: "#ecfdf5", border: "1.5px solid #a7f3d0", color: "#065f46" }}>
+                    <strong>Modificación en período abierto:</strong> Se puede modificar cualquier asiento del período sin afectar la continuidad del ejercicio contable. La fecha de modificación queda registrada en la auditoría.
                 </div>
 
                 {error && (
@@ -384,8 +409,24 @@ function ModalRectificarAsiento({ asiento, cuentas, onCerrar, onGuardado }) {
                 )}
 
                 <form onSubmit={manejarGuardar}>
-                    {/* Concepto y Motivo */}
-                    <div className="modal-rect-fields-grid">
+                    {/* Fecha, Concepto y Motivo */}
+                    <div className="modal-rect-fields-grid" style={{ gridTemplateColumns: "190px 1.2fr 1fr", gap: "12px" }}>
+                        <div>
+                            <label className="modal-rect-label">
+                                Fecha Contable <span style={{ color: "#ef4444" }}>*</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={fecha}
+                                onChange={e => setFecha(e.target.value)}
+                                className="modal-rect-input"
+                                required
+                            />
+                            <span style={{ fontSize: "11px", color: "#6b7280", marginTop: "3px", display: "block" }}>
+                                Puede ser la misma fecha
+                            </span>
+                        </div>
+
                         <div>
                             <label className="modal-rect-label">
                                 Concepto del Asiento <span style={{ color: "#ef4444" }}>*</span>
@@ -403,14 +444,14 @@ function ModalRectificarAsiento({ asiento, cuentas, onCerrar, onGuardado }) {
                         <div>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
                                 <label className="modal-rect-label" style={{ margin: 0 }}>
-                                    Motivo de la Rectificación <span style={{ color: "#ef4444" }}>*</span>
+                                    Motivo del Ajuste <span style={{ color: "#ef4444" }}>*</span>
                                 </label>
                             </div>
                             <input
                                 type="text"
                                 value={motivo}
                                 onChange={e => setMotivo(e.target.value)}
-                                placeholder="Ej. Error al insertar compras: ajuste de monto..."
+                                placeholder="Ej. Ajuste de cuenta o corrección de monto..."
                                 className="modal-rect-input"
                                 required
                             />
@@ -870,10 +911,31 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
     const [fechaDesde, setFechaDesde] = useState(propDesde || "");
     const [fechaHasta, setFechaHasta] = useState(propHasta || "");
 
-    // Modales de rectificación
+    // Modales de rectificación y eliminación
     const [modalRectificar, setModalRectificar] = useState(null);
     const [modalHistorial, setModalHistorial] = useState(null);
+    const [modalEliminar, setModalEliminar] = useState(null);
+    const [motivoEliminar, setMotivoEliminar] = useState("");
+    const [eliminando, setEliminando] = useState(false);
     const [notificacion, setNotificacion] = useState("");
+
+    const confirmarEliminacion = async () => {
+        if (!modalEliminar) return;
+        setEliminando(true);
+        try {
+            await eliminarAsiento(modalEliminar.id, motivoEliminar || "Eliminación de asiento contable del período");
+            setAsientos(prev => prev.filter(a => String(a.id) !== String(modalEliminar.id)));
+            setNotificacion(`Partida #${modalEliminar.numero_partida} eliminada exitosamente. La acción fue registrada en la auditoría.`);
+            setTimeout(() => setNotificacion(""), 6000);
+            setModalEliminar(null);
+            setMotivoEliminar("");
+        } catch (err) {
+            console.error("Error al eliminar asiento:", err);
+            alert(err.message || "No se pudo eliminar el asiento contable.");
+        } finally {
+            setEliminando(false);
+        }
+    };
 
     const cargarDatos = async () => {
         try {
@@ -988,9 +1050,9 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
     };
 
     const manejarAsientoGuardado = (asientoActualizado) => {
-        setAsientos(prev => prev.map(a => a.id === asientoActualizado.id ? asientoActualizado : a));
+        setAsientos(prev => prev.map(a => String(a.id) === String(asientoActualizado.id) ? asientoActualizado : a));
         setModalRectificar(null);
-        setNotificacion(`Partida #${asientoActualizado.numero_partida} rectificada exitosamente sin romper la correlatividad.`);
+        setNotificacion(`Partida #${asientoActualizado.numero_partida} modificada exitosamente. Registrado en auditoría.`);
         setTimeout(() => setNotificacion(""), 6000);
         setModalHistorial(asientoActualizado);
     };
@@ -1028,6 +1090,26 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                     background: #047857;
                     transform: translateY(-1px);
                     box-shadow: 0 4px 6px rgba(5, 150, 105, 0.35);
+                }
+                .btn-eliminar-asiento {
+                    background: #ffffff;
+                    color: #dc2626;
+                    border: 1px solid #fca5a5;
+                    padding: 5px 10px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    transition: all 0.15s ease;
+                }
+                .btn-eliminar-asiento:hover {
+                    background: #fee2e2;
+                    border-color: #ef4444;
+                    color: #b91c1c;
+                    transform: translateY(-1px);
                 }
                 .badge-mas-reciente {
                     background: #ecfdf5;
@@ -1700,6 +1782,15 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                     border-color: #059669;
                     color: #6ee7b7;
                 }
+                .app-shell.tema-oscuro .btn-eliminar-asiento {
+                    background: rgba(220, 38, 38, 0.15);
+                    border-color: #ef4444;
+                    color: #fca5a5;
+                }
+                .app-shell.tema-oscuro .btn-eliminar-asiento:hover {
+                    background: rgba(220, 38, 38, 0.3);
+                    color: #ffffff;
+                }
                 .app-shell.tema-oscuro .pill-rectificado {
                     background: rgba(146, 64, 14, 0.3);
                     border-color: #b45309;
@@ -1848,11 +1939,6 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                                                     {grupoIndice === 0 && (
                                                         <div style={{ display: "inline-flex", alignItems: "center" }}>
                                                             <span>{asiento.numero_partida}</span>
-                                                            {esElMasReciente && (
-                                                                <span className="badge-mas-reciente" title="Asiento más reciente (único rectificable)">
-                                                                    Último
-                                                                </span>
-                                                            )}
                                                         </div>
                                                     )}
                                                 </td>
@@ -1904,20 +1990,31 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                                     {/* Fila de Totales de la Partida */}
                                     <tr className="diario-total-row">
                                         <td colSpan="4">
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
                                                 <span>Total partida {asiento.numero_partida}</span>
-                                                {/* EL BOTÓN DE EDITAR SOLO SE COLOCA EN EL ÚLTIMO ASIENTO CON ICONO DE LÁPIZ */}
-                                                {esElMasReciente && (
+                                                <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
                                                     <button
                                                         type="button"
                                                         className="btn-rectificar-asiento"
                                                         onClick={() => setModalRectificar(asiento)}
-                                                        title="Rectificar asiento más reciente (Código de Comercio El Salvador)"
+                                                        title="Modificar cuentas, montos o fecha de este asiento"
                                                     >
                                                         <IconoLapiz size={14} />
-                                                        <span>Rectificar Asiento</span>
+                                                        <span>Modificar</span>
                                                     </button>
-                                                )}
+                                                    <button
+                                                        type="button"
+                                                        className="btn-eliminar-asiento"
+                                                        onClick={() => {
+                                                            setModalEliminar(asiento);
+                                                            setMotivoEliminar("");
+                                                        }}
+                                                        title="Eliminar este asiento contable"
+                                                    >
+                                                        <IconoBasura size={14} />
+                                                        <span>Eliminar</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </td>
                                         <td>$ {moneda(totalDebe)}</td>
@@ -1954,6 +2051,92 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                     cuentas={cuentas}
                     onCerrar={() => setModalHistorial(null)}
                 />
+            )}
+
+            {/* Modal de Confirmación para Eliminar Asiento */}
+            {modalEliminar && (
+                <div className="modal-rect-overlay" style={{ zIndex: 10000 }}>
+                    <div className="modal-rect-container" style={{ maxWidth: "480px" }}>
+                        <div className="modal-rect-header">
+                            <div>
+                                <span style={{ fontSize: "12px", color: "#dc2626", fontWeight: "700" }}>
+                                    Confirmar Eliminación
+                                </span>
+                                <h2 className="modal-rect-title" style={{ color: "#991b1b" }}>
+                                    Eliminar Partida #{modalEliminar.numero_partida}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setModalEliminar(null)}
+                                className="modal-rect-close-btn"
+                                aria-label="Cerrar modal"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div style={{ padding: "16px 0", color: "#374151", fontSize: "14px", lineHeight: "1.5" }}>
+                            <p style={{ margin: "0 0 10px 0" }}>
+                                ¿Está seguro de eliminar el asiento <strong>Partida #{modalEliminar.numero_partida}</strong> ({fechaCorta(modalEliminar.fecha)})?
+                            </p>
+                            <p style={{ margin: "0 0 14px 0", color: "#6b7280", fontSize: "13px" }}>
+                                Concepto: <em>"{modalEliminar.concepto}"</em>
+                            </p>
+                            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", padding: "10px 12px", borderRadius: "8px", fontSize: "12px", color: "#991b1b", marginBottom: "14px" }}>
+                                Esta acción eliminará el asiento del Libro Diario y quedará registrada en el módulo de <strong>Auditoría</strong> con el respaldo de sus movimientos.
+                            </div>
+                            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#374151", marginBottom: "6px" }}>
+                                Motivo de la eliminación:
+                            </label>
+                            <input
+                                type="text"
+                                value={motivoEliminar}
+                                onChange={e => setMotivoEliminar(e.target.value)}
+                                placeholder="Ej. Corrección por partida duplicada o error..."
+                                className="modal-rect-input"
+                                style={{ width: "100%" }}
+                            />
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                            <button
+                                type="button"
+                                onClick={() => setModalEliminar(null)}
+                                style={{
+                                    padding: "8px 16px",
+                                    borderRadius: "6px",
+                                    border: "1px solid #d1d5db",
+                                    background: "#ffffff",
+                                    color: "#374151",
+                                    fontSize: "13px",
+                                    fontWeight: "600",
+                                    cursor: "pointer"
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmarEliminacion}
+                                disabled={eliminando}
+                                style={{
+                                    padding: "8px 16px",
+                                    borderRadius: "6px",
+                                    border: "none",
+                                    background: "#dc2626",
+                                    color: "#ffffff",
+                                    fontSize: "13px",
+                                    fontWeight: "600",
+                                    cursor: "pointer",
+                                    opacity: eliminando ? 0.7 : 1
+                                }}
+                            >
+                                {eliminando ? "Eliminando..." : "Eliminar Asiento"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </section>
     );

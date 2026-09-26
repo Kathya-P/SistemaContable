@@ -1643,6 +1643,58 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                     border-top-color: #059669 !important;
                     color: #e2e8f0 !important;
                 }
+                /* Selector de Subcuentas en Modo Claro (garantiza fondo blanco y texto oscuro) */
+                .selector-subcuenta-input {
+                    background: #ffffff !important;
+                    color: #1f2937 !important;
+                    border: 1.5px solid #d1d5db !important;
+                }
+                .selector-subcuenta-input:focus {
+                    border-color: #059669 !important;
+                }
+                .selector-subcuenta-menu {
+                    background: #ffffff !important;
+                    border: 1.5px solid #a7f3d0 !important;
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+                }
+                .selector-subcuenta-item {
+                    color: #1f2937 !important;
+                }
+                .selector-subcuenta-item.is-highlighted {
+                    background-color: #ecfdf5 !important;
+                    color: #065f46 !important;
+                }
+                .selector-subcuenta-item.is-selected {
+                    background-color: #f0fdf4 !important;
+                    color: #065f46 !important;
+                }
+
+                /* Selector de Subcuentas en Modo Oscuro */
+                .app-shell.tema-oscuro .selector-subcuenta-input {
+                    background: #0f172a !important;
+                    border-color: #475569 !important;
+                    color: #f8fafc !important;
+                }
+                .app-shell.tema-oscuro .selector-subcuenta-input:focus {
+                    border-color: #10b981 !important;
+                }
+                .app-shell.tema-oscuro .selector-subcuenta-menu {
+                    background: #1e293b !important;
+                    border-color: #059669 !important;
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+                }
+                .app-shell.tema-oscuro .selector-subcuenta-item {
+                    color: #e2e8f0 !important;
+                }
+                .app-shell.tema-oscuro .selector-subcuenta-item.is-highlighted {
+                    background-color: rgba(16, 185, 129, 0.2) !important;
+                    color: #6ee7b7 !important;
+                }
+                .app-shell.tema-oscuro .selector-subcuenta-item.is-selected {
+                    background-color: rgba(5, 150, 105, 0.25) !important;
+                    color: #34d399 !important;
+                }
+
                 .app-shell.tema-oscuro .badge-mas-reciente {
                     background: rgba(6, 78, 59, 0.45);
                     border-color: #059669;

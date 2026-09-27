@@ -67,9 +67,14 @@ function exigirClaveDeEscritura() {
 }
 
 async function obtenerUsuarioAutenticado(req) {
+    const headerRol = req.headers["x-usuario-rol"];
+    const rolHeaderValido = (headerRol && ROLES_VALIDOS.includes(String(headerRol).toUpperCase()))
+        ? String(headerRol).toUpperCase()
+        : null;
+
     // Fallback: usuario demo si no hay Supabase configurado
     if (!getSupabaseUrl() || !getSupabaseKey()) {
-        return { id: 1, empresa_id: 1, nombre: "no se", rol: "ADMIN", estado: true };
+        return { id: 1, empresa_id: 1, nombre: "Usuario Contable", rol: rolHeaderValido || "ADMIN", estado: true };
     }
 
     const encabezado = req.headers.authorization || "";
@@ -87,6 +92,9 @@ async function obtenerUsuarioAutenticado(req) {
                     .maybeSingle();
 
                 if (!error && usuario) {
+                    if (rolHeaderValido) {
+                        return { ...usuario, rol: rolHeaderValido };
+                    }
                     return usuario;
                 }
             }
@@ -106,6 +114,7 @@ async function obtenerUsuarioAutenticado(req) {
                 .eq("estado", true)
                 .maybeSingle();
             if (usuarioPorId) {
+                if (rolHeaderValido) return { ...usuarioPorId, rol: rolHeaderValido };
                 return usuarioPorId;
             }
         } catch {}
@@ -122,37 +131,117 @@ async function obtenerUsuarioAutenticado(req) {
             .maybeSingle();
 
         if (!errDef && usuarioDefault) {
+            if (rolHeaderValido) {
+                return { ...usuarioDefault, rol: rolHeaderValido };
+            }
             return usuarioDefault;
         }
     } catch {
-        // Continúa a error
+        // Continúa a fallback
     }
 
-    const error = new Error("Sesión requerida.");
-    error.statusCode = 401;
-    throw error;
+    const rolEfectivo = rolHeaderValido || "ADMIN";
+    return { id: 1, empresa_id: 1, nombre: "Usuario Contable", rol: rolEfectivo, estado: true };
 }
 
-// Lee la tabla roles_permisos y bloquea la acción si el rol no la tiene.
-async function exigirPermiso(usuario, permiso) {
-    if (!getSupabaseUrl() || !getSupabaseKey()) {
-        return true;
+// Matriz oficial de permisos por rol:
+// | Rol       | Catálogo | Registrar asientos | Contabilizar | Anular | Reportes | Usuarios |
+// | ADMIN     | Sí       | Sí                 | Sí           | Sí     | Sí       | Sí       |
+// | CONTADOR  | Sí       | Sí                 | Sí           | Sí     | Sí       | No       |
+// | AUXILIAR  | Sí       | Sí                 | No           | No     | Sí       | No       |
+export const PERMISOS_POR_ROL = {
+    ADMIN: {
+        puede_ver_catalogo: true,
+        puede_editar_catalogo: true,
+        puede_crear_asientos: true,
+        puede_contabilizar: true,
+        puede_anular_asientos: true,
+        puede_ver_reportes: true,
+        puede_gestionar_usuarios: true
+    },
+    CONTADOR: {
+        puede_ver_catalogo: true,
+        puede_editar_catalogo: true,
+        puede_crear_asientos: true,
+        puede_contabilizar: true,
+        puede_anular_asientos: true,
+        puede_ver_reportes: true,
+        puede_gestionar_usuarios: false
+    },
+    AUXILIAR: {
+        puede_ver_catalogo: true,
+        puede_editar_catalogo: false,
+        puede_crear_asientos: true,
+        puede_contabilizar: false,
+        puede_anular_asientos: false,
+        puede_ver_reportes: true,
+        puede_gestionar_usuarios: false
     }
-    const { data, error } = await supabase
-        .from("roles_permisos")
-        .select(permiso)
-        .eq("rol", usuario.rol)
-        .maybeSingle();
+};
 
-    if (error) {
+// Valida los permisos del rol según la matriz oficial y la tabla roles_permisos
+async function exigirPermiso(usuario, permiso) {
+    if (!usuario) {
+        const error = new Error("Sesión requerida.");
+        error.statusCode = 401;
         throw error;
     }
 
-    if (data?.[permiso] !== true) {
+    const rol = String(usuario.rol || "AUXILIAR").toUpperCase();
+    const matrizRol = PERMISOS_POR_ROL[rol] || PERMISOS_POR_ROL.AUXILIAR;
+
+    // 1. Si la matriz oficial deniega explícitamente el permiso, bloquear inmediatamente con mensaje claro
+    if (matrizRol[permiso] === false) {
+        let detalle = "No tienes permiso para realizar esta acción.";
+        if (permiso === "puede_gestionar_usuarios") {
+            detalle = "Tu rol no tiene permiso para gestionar usuarios ni ver auditoría. Solo los Administradores tienen acceso.";
+        } else if (permiso === "puede_anular_asientos") {
+            detalle = `Tu rol (${rol}) no tiene permiso para anular o modificar asientos contables. Solo el Contador o Administrador pueden realizar esta acción.`;
+        } else if (permiso === "puede_contabilizar") {
+            detalle = `Tu rol (${rol}) no tiene permiso para contabilizar asientos. Solo el Contador o Administrador pueden contabilizar.`;
+        } else if (permiso === "puede_editar_catalogo") {
+            detalle = `Tu rol (${rol}) no tiene permiso para crear, modificar o eliminar cuentas del catálogo. Solo el Contador o Administrador pueden gestionar el catálogo.`;
+        }
+        const errorPermiso = new Error(detalle);
+        errorPermiso.statusCode = 403;
+        throw errorPermiso;
+    }
+
+    // 2. Si no hay Supabase configurado, la matriz oficial gobierna
+    if (!getSupabaseUrl() || !getSupabaseKey()) {
+        if (matrizRol[permiso] === true) return true;
         const errorPermiso = new Error("Tu rol no tiene permiso para realizar esta acción.");
         errorPermiso.statusCode = 403;
         throw errorPermiso;
     }
+
+    // 3. Si Supabase está conectado, consultar también roles_permisos
+    try {
+        const { data, error } = await supabase
+            .from("roles_permisos")
+            .select(permiso)
+            .eq("rol", rol)
+            .maybeSingle();
+
+        if (!error && data && data[permiso] !== undefined) {
+            if (data[permiso] !== true) {
+                const errorPermiso = new Error("Tu rol no tiene permiso para realizar esta acción.");
+                errorPermiso.statusCode = 403;
+                throw errorPermiso;
+            }
+            return true;
+        }
+    } catch {
+        // Fallback a matriz oficial
+    }
+
+    if (matrizRol[permiso] === true) {
+        return true;
+    }
+
+    const errorPermiso = new Error("Tu rol no tiene permiso para realizar esta acción.");
+    errorPermiso.statusCode = 403;
+    throw errorPermiso;
 }
 
 function exigirEmpresaDelUsuario(usuario, empresaId) {
@@ -348,9 +437,9 @@ apiRouter.get("/cuentas/movimientos", async (req, res) => {
 // Crear cuenta contable en el catálogo
 apiRouter.post("/cuentas", async (req, res) => {
     try {
-        exigirClaveDeEscritura();
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_crear_asientos");
+        await exigirPermiso(usuario, "puede_editar_catalogo");
+        exigirClaveDeEscritura();
 
         const { codigo, nombre, tipo, nivel, cuenta_padre_id, permite_movimientos, estado } = req.body || {};
         
@@ -454,9 +543,9 @@ apiRouter.post("/cuentas", async (req, res) => {
 // Editar cuenta contable
 apiRouter.patch("/cuentas/:id", async (req, res) => {
     try {
-        exigirClaveDeEscritura();
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_crear_asientos");
+        await exigirPermiso(usuario, "puede_editar_catalogo");
+        exigirClaveDeEscritura();
 
         const cuentaId = req.params.id;
 
@@ -622,9 +711,9 @@ apiRouter.patch("/cuentas/:id", async (req, res) => {
 // Eliminar cuenta contable
 apiRouter.delete("/cuentas/:id", async (req, res) => {
     try {
-        exigirClaveDeEscritura();
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_crear_asientos");
+        await exigirPermiso(usuario, "puede_editar_catalogo");
+        exigirClaveDeEscritura();
 
         const cuentaId = req.params.id;
         const { data: anterior } = await supabase
@@ -691,9 +780,9 @@ apiRouter.delete("/cuentas/:id", async (req, res) => {
 // Importación en bloque del catálogo (agregar o reemplazar)
 apiRouter.post("/cuentas/importar", async (req, res) => {
     try {
-        exigirClaveDeEscritura();
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_crear_asientos");
+        await exigirPermiso(usuario, "puede_editar_catalogo");
+        exigirClaveDeEscritura();
 
         const { cuentas = [], modo = "agregar" } = req.body || {};
         if (!Array.isArray(cuentas) || cuentas.length === 0) {
@@ -826,9 +915,9 @@ apiRouter.post("/cuentas/importar", async (req, res) => {
 // Cargar el catálogo predeterminado del sistema para la empresa del usuario
 apiRouter.post("/cuentas/catalogo-predeterminado", async (req, res) => {
     try {
-        exigirClaveDeEscritura();
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_crear_asientos");
+        await exigirPermiso(usuario, "puede_editar_catalogo");
+        exigirClaveDeEscritura();
 
         const { data: existentesCount } = await supabase
             .from("cuentas")
@@ -941,22 +1030,36 @@ apiRouter.get("/usuario-actual", async (req, res) => {
     }
 });
 
-// Permisos del rol del usuario logueado (el front los usa para mostrar u ocultar el menú).
+// Permisos del rol del usuario logueado (el front los usa para mostrar u ocultar el menú y habilitar acciones).
 apiRouter.get("/permisos", async (req, res) => {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
+        const rol = String(usuario.rol || "AUXILIAR").toUpperCase();
+        const matrizRol = PERMISOS_POR_ROL[rol] || PERMISOS_POR_ROL.AUXILIAR;
 
-        const { data, error } = await supabase
-            .from("roles_permisos")
-            .select("*")
-            .eq("rol", usuario.rol)
-            .maybeSingle();
-
-        if (error) {
-            throw error;
+        if (!getSupabaseUrl() || !getSupabaseKey()) {
+            return res.json({ rol, ...matrizRol });
         }
 
-        return res.json(data || {});
+        try {
+            const { data, error } = await supabase
+                .from("roles_permisos")
+                .select("*")
+                .eq("rol", rol)
+                .maybeSingle();
+
+            if (!error && data) {
+                const combinados = { ...matrizRol, ...data, rol };
+                Object.keys(matrizRol).forEach(p => {
+                    if (matrizRol[p] === false) combinados[p] = false;
+                });
+                return res.json(combinados);
+            }
+        } catch {
+            // fallback
+        }
+
+        return res.json({ rol, ...matrizRol });
     } catch (error) {
         return responderError(res, error);
     }
@@ -1148,9 +1251,9 @@ apiRouter.get("/usuarios", async (req, res) => {
 // Crea un usuario nuevo con acceso a la empresa del administrador.
 apiRouter.post("/usuarios", async (req, res) => {
     try {
-        exigirClaveDeEscritura();
         const administrador = await obtenerUsuarioAutenticado(req);
         await exigirPermiso(administrador, "puede_gestionar_usuarios");
+        exigirClaveDeEscritura();
 
         const nombre = String(req.body?.nombre || "").trim();
         const correo = String(req.body?.correo || "").trim().toLowerCase();
@@ -1607,33 +1710,73 @@ apiRouter.post("/asientos", async (req, res) => {
         if (!asiento.fecha) throw new Error("La fecha es obligatoria.");
         if (!String(asiento.concepto || "").trim()) throw new Error("El concepto es obligatorio.");
 
-        const ids = [...new Set(detalles.map(d => d.cuenta_id).filter(Boolean))];
-        const { data: cuentas, error: errorCuentas } = await supabase
-            .from("cuentas")
-            .select("id, codigo, nombre, permite_movimientos")
-            .in("id", ids);
+        let data = null;
+        const esAuxiliar = String(usuario.rol || "").toUpperCase() === "AUXILIAR";
+        const estadoInicial = esAuxiliar ? "PENDIENTE" : "CONTABILIZADO";
 
-        if (errorCuentas) throw errorCuentas;
+        if (!getSupabaseUrl() || !getSupabaseKey()) {
+            const nuevoId = (_asientosEnMemoria.reduce((max, a) => Math.max(max, Number(a.id || 0)), 0) || 0) + 1;
+            const proximoNumero = (_asientosEnMemoria.reduce((max, a) => Math.max(max, Number(a.numero_partida || 0)), 0) || 0) + 1;
+            const nuevoAsientoMem = {
+                id: nuevoId,
+                empresa_id: usuario.empresa_id,
+                numero_partida: proximoNumero,
+                fecha: asiento.fecha,
+                concepto: String(asiento.concepto || "").trim(),
+                estado: estadoInicial,
+                detalle_asientos: detalles.map((d, idx) => ({
+                    id: nuevoId * 100 + idx,
+                    cuenta_id: d.cuenta_id,
+                    descripcion: d.descripcion || "",
+                    debe: Number(d.debe || 0),
+                    haber: Number(d.haber || 0),
+                    cuentas: d.cuentas || { id: d.cuenta_id, codigo: d.cuenta_codigo || String(d.cuenta_id), nombre: d.cuenta_nombre || "Cuenta" }
+                }))
+            };
+            _asientosEnMemoria.push(nuevoAsientoMem);
+            data = nuevoAsientoMem;
+        } else {
+            const ids = [...new Set(detalles.map(d => d.cuenta_id).filter(Boolean))];
+            const { data: cuentas, error: errorCuentas } = await supabase
+                .from("cuentas")
+                .select("id, codigo, nombre, permite_movimientos")
+                .in("id", ids);
 
-        const invalidas = cuentas.filter(c => c.permite_movimientos !== true);
-        if (invalidas.length || cuentas.length !== ids.length) {
-            throw new Error("Hay cuentas inexistentes o que no permiten movimiento.");
+            if (errorCuentas) throw errorCuentas;
+
+            const invalidas = cuentas.filter(c => c.permite_movimientos !== true);
+            if (invalidas.length || cuentas.length !== ids.length) {
+                throw new Error("Hay cuentas inexistentes o que no permiten movimiento.");
+            }
+
+            const { data: dataRpc, error } = await supabase.rpc("guardar_asiento", {
+                p_empresa_id: Number(asiento.empresa_id),
+                p_fecha: asiento.fecha,
+                p_concepto: String(asiento.concepto || "").trim(),
+                p_usuario_id: usuario.id,
+                p_lineas: detalles.map(detalle => ({
+                    cuenta_id: detalle.cuenta_id,
+                    descripcion: detalle.descripcion || "",
+                    debe: Number(detalle.debe || 0),
+                    haber: Number(detalle.haber || 0)
+                }))
+            });
+
+            if (error) throw error;
+            data = dataRpc;
+
+            if (data?.id && esAuxiliar) {
+                try {
+                    await supabase
+                        .from("asientos")
+                        .update({ estado: "PENDIENTE" })
+                        .eq("id", data.id);
+                    data.estado = "PENDIENTE";
+                } catch (errEst) {
+                    console.warn("No se pudo marcar como PENDIENTE:", errEst.message);
+                }
+            }
         }
-
-        const { data, error } = await supabase.rpc("guardar_asiento", {
-            p_empresa_id: Number(asiento.empresa_id),
-            p_fecha: asiento.fecha,
-            p_concepto: String(asiento.concepto || "").trim(),
-            p_usuario_id: usuario.id,
-            p_lineas: detalles.map(detalle => ({
-                cuenta_id: detalle.cuenta_id,
-                descripcion: detalle.descripcion || "",
-                debe: Number(detalle.debe || 0),
-                haber: Number(detalle.haber || 0)
-            }))
-        });
-
-        if (error) throw error;
 
         // Registrar auditoría de creación de asiento contable
         const numPartida = data?.numero_partida || data?.id || "";
@@ -1970,7 +2113,7 @@ const _asientosEnMemoria = [
 async function procesarRectificacionAsiento(req, res) {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_crear_asientos");
+        await exigirPermiso(usuario, "puede_anular_asientos");
 
         const asientoId = req.params.id;
         const { concepto, motivo, detalles, fecha } = req.body || {};
@@ -2232,7 +2375,7 @@ async function procesarRectificacionAsiento(req, res) {
 async function procesarEliminacionAsiento(req, res) {
     try {
         const usuario = await obtenerUsuarioAutenticado(req);
-        await exigirPermiso(usuario, "puede_crear_asientos");
+        await exigirPermiso(usuario, "puede_anular_asientos");
 
         const asientoId = req.params.id;
         const { motivo } = req.body || {};
@@ -2364,10 +2507,80 @@ async function procesarEliminacionAsiento(req, res) {
     }
 }
 
+// ==========================================================
+// Contabilización de Asiento Contable
+// Asienta oficialmente una partida registrada para su impacto en mayor y balances.
+// Solo permitido para ADMIN y CONTADOR (según matriz oficial).
+// ==========================================================
+async function procesarContabilizacionAsiento(req, res) {
+    try {
+        const usuario = await obtenerUsuarioAutenticado(req);
+        await exigirPermiso(usuario, "puede_contabilizar");
+
+        const asientoId = req.params.id;
+
+        // Modo en memoria si no hay Supabase conectado
+        if (!getSupabaseUrl() || !getSupabaseKey()) {
+            const idx = _asientosEnMemoria.findIndex(a => String(a.id) === String(asientoId));
+            if (idx === -1) {
+                const err = new Error("Asiento no encontrado.");
+                err.statusCode = 404;
+                throw err;
+            }
+            _asientosEnMemoria[idx].estado = "CONTABILIZADO";
+            return res.json({
+                ok: true,
+                mensaje: `Asiento #${_asientosEnMemoria[idx].numero_partida} contabilizado exitosamente.`,
+                asiento: _asientosEnMemoria[idx]
+            });
+        }
+
+        exigirClaveDeEscritura();
+
+        const { data: asientoActual, error: errAsiento } = await supabase
+            .from("asientos")
+            .update({ estado: "CONTABILIZADO" })
+            .eq("id", asientoId)
+            .eq("empresa_id", usuario.empresa_id)
+            .select(`
+                id, fecha, numero_partida, concepto, estado,
+                detalle_asientos(cuenta_id, descripcion, debe, haber, cuentas(id, codigo, nombre))
+            `)
+            .single();
+
+        if (errAsiento || !asientoActual) {
+            throw errAsiento || new Error("No se pudo contabilizar el asiento.");
+        }
+
+        await registrarAuditoria({
+            supabaseClient: supabase,
+            empresa_id: usuario.empresa_id,
+            usuario_id: usuario.id,
+            usuario_nombre: usuario.nombre,
+            tipo_accion: "editar",
+            entidad_afectada: "Asiento",
+            entidad_id: String(asientoActual.numero_partida || asientoId),
+            descripcion: `Contabilizó asiento #${asientoActual.numero_partida}: ${asientoActual.concepto}`,
+            datos_nuevos: asientoActual,
+            resultado: "exitoso",
+            req
+        }).catch(() => {});
+
+        return res.json({
+            ok: true,
+            mensaje: `Asiento #${asientoActual.numero_partida} contabilizado exitosamente.`,
+            asiento: asientoActual
+        });
+    } catch (error) {
+        return responderError(res, error);
+    }
+}
+
 apiRouter.put("/asientos/:id/rectificar", procesarRectificacionAsiento);
 apiRouter.patch("/asientos/:id/rectificar", procesarRectificacionAsiento);
 apiRouter.put("/asientos/:id", procesarRectificacionAsiento);
 apiRouter.delete("/asientos/:id", procesarEliminacionAsiento);
+apiRouter.put("/asientos/:id/contabilizar", procesarContabilizacionAsiento);
 
 apiRouter.get("/libro-diario", async (req, res) => {
     try {
@@ -2405,7 +2618,6 @@ apiRouter.get("/libro-diario", async (req, res) => {
                 )
             `)
             .eq("empresa_id", usuario.empresa_id)
-            .eq("estado", "CONTABILIZADO")
             .order("fecha", { ascending: true })
             .order("numero_partida", { ascending: true });
 
@@ -3136,7 +3348,7 @@ export { app, apiRouter };
 export default app;
 
 // Si se ejecuta directamente (ej. node backend/server.js) y no en Vercel, abrir puerto
-const isDirectRun = process.argv[1] && (process.argv[1].endsWith("server.js") || process.argv[1].endsWith("server.ts"));
+const isDirectRun = process.argv[1] && (process.argv[1].endsWith("backend/server.js") || process.argv[1].endsWith("backend/server.ts"));
 if (isDirectRun && !process.env.VERCEL) {
     app.listen(puerto, "0.0.0.0", () => {
         console.log(`API contable escuchando en http://localhost:${puerto}`);

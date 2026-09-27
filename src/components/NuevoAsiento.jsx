@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
     crearAsiento,
     obtenerAsientosGuardados,
@@ -86,14 +87,19 @@ function quitarPrefijoConcepto(texto) {
     return String(texto || "").trim().replace(/^C\/\s*/i, "");
 }
 
-// Selector dinámico y autocompletable de subcuentas contables
+// Selector dinámico y autocompletable de subcuentas contables.
+// El menú se dibuja con un portal en document.body para que nunca quede
+// cortado por el overflow-x:auto de la tabla que lo contiene.
 export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
     const [abierto, setAbierto] = useState(false);
     const [busqueda, setBusqueda] = useState("");
     const [indiceResaltado, setIndiceResaltado] = useState(0);
+    const [posicionMenu, setPosicionMenu] = useState(null);
+    const [esOscuro, setEsOscuro] = useState(false);
     const contenedorRef = useRef(null);
     const inputRef = useRef(null);
     const listaRef = useRef(null);
+    const menuRef = useRef(null);
 
     const cuentaSeleccionada = useMemo(
         () => cuentas.find(c => String(c.id) === String(value)),
@@ -106,6 +112,33 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
             setBusqueda(cuentaSeleccionada ? `${cuentaSeleccionada.codigo} - ${cuentaSeleccionada.nombre}` : "");
         }
     }, [cuentaSeleccionada, abierto]);
+
+    // Calcular la posición del menú (relativa al viewport) cada vez que se abre,
+    // y recalcularla si la ventana cambia de tamaño.
+    useEffect(() => {
+        if (!abierto || !contenedorRef.current) {
+            setPosicionMenu(null);
+            return;
+        }
+
+        function actualizarPosicion() {
+            const rect = contenedorRef.current.getBoundingClientRect();
+            setPosicionMenu({
+                top: rect.bottom + 4,
+                left: rect.left,
+                width: rect.width
+            });
+        }
+
+        // El menú se dibuja en un portal fuera de .app-shell.tema-oscuro, así que
+        // el CSS de tema oscuro no lo alcanza por descendencia: hay que detectarlo
+        // manualmente y aplicarlo como clase directa sobre el propio menú.
+        setEsOscuro(Boolean(document.querySelector(".app-shell.tema-oscuro")));
+
+        actualizarPosicion();
+        window.addEventListener("resize", actualizarPosicion);
+        return () => window.removeEventListener("resize", actualizarPosicion);
+    }, [abierto]);
 
     // Filtrar y ordenar cuentas dinámicamente según lo escrito (priorizando coincidencias por inicio de nombre/palabra/código)
     const cuentasFiltradas = useMemo(() => {
@@ -169,10 +202,12 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
         return resultados.map(r => r.cuenta);
     }, [cuentas, busqueda]);
 
-    // Cerrar al hacer clic fuera del componente
+    // Cerrar al hacer clic fuera del componente (incluyendo el menú, que ahora vive en un portal)
     useEffect(() => {
         const manejarClicFuera = (e) => {
-            if (contenedorRef.current && !contenedorRef.current.contains(e.target)) {
+            const dentroDelInput = contenedorRef.current && contenedorRef.current.contains(e.target);
+            const dentroDelMenu = menuRef.current && menuRef.current.contains(e.target);
+            if (!dentroDelInput && !dentroDelMenu) {
                 setAbierto(false);
                 setBusqueda(cuentaSeleccionada ? `${cuentaSeleccionada.codigo} - ${cuentaSeleccionada.nombre}` : "");
             }
@@ -180,6 +215,18 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
         document.addEventListener("mousedown", manejarClicFuera);
         return () => document.removeEventListener("mousedown", manejarClicFuera);
     }, [cuentaSeleccionada]);
+
+    // Cerrar el menú si se hace scroll en cualquier parte de la página (evita que quede
+    // flotando en un lugar que ya no corresponde, ya que su posición es "fixed").
+    useEffect(() => {
+        if (!abierto) return;
+        function manejarScroll(e) {
+            if (menuRef.current && menuRef.current.contains(e.target)) return;
+            setAbierto(false);
+        }
+        window.addEventListener("scroll", manejarScroll, true);
+        return () => window.removeEventListener("scroll", manejarScroll, true);
+    }, [abierto]);
 
     // Scroll automático al item resaltado con flechas de teclado
     useEffect(() => {
@@ -222,8 +269,93 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
         }
     };
 
+    const menu = abierto && posicionMenu ? createPortal(
+        <div
+            ref={menuRef}
+            className={`selector-subcuenta-menu ${esOscuro ? "tema-oscuro" : ""}`}
+            style={{
+                position: "fixed",
+                top: `${posicionMenu.top}px`,
+                left: `${posicionMenu.left}px`,
+                width: `${posicionMenu.width}px`,
+                minWidth: "290px",
+                maxHeight: "230px",
+                overflowY: "auto",
+                background: "#ffffff",
+                border: "1.5px solid #a7f3d0",
+                borderRadius: "8px",
+                boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0,0,0,0.05)",
+                zIndex: 9999,
+                padding: "5px"
+            }}
+        >
+            {cuentasFiltradas.length === 0 ? (
+                <div style={{ padding: "12px 14px", fontSize: "12px", color: "#6b7280", textAlign: "center" }}>
+                    No se encontraron subcuentas con "{busqueda}"
+                </div>
+            ) : (
+                <div ref={listaRef}>
+                    {cuentasFiltradas.map((cuenta, idx) => {
+                        const esSeleccionada = String(cuenta.id) === String(value);
+                        const esResaltada = idx === indiceResaltado;
+
+                        return (
+                            <div
+                                key={cuenta.id}
+                                className={`selector-subcuenta-item ${esResaltada ? "is-highlighted" : ""} ${esSeleccionada ? "is-selected" : ""}`}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    seleccionar(cuenta);
+                                }}
+                                onMouseEnter={() => setIndiceResaltado(idx)}
+                                style={{
+                                    padding: "7px 10px",
+                                    borderRadius: "5px",
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: "8px",
+                                    background: esResaltada ? "#ecfdf5" : esSeleccionada ? "#f0fdf4" : "transparent",
+                                    color: esResaltada || esSeleccionada ? "#065f46" : "#1f2937",
+                                    fontWeight: esSeleccionada ? "600" : "normal",
+                                    transition: "background-color 0.1s"
+                                }}
+                            >
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
+                                    <span style={{
+                                        fontFamily: "monospace",
+                                        fontWeight: "700",
+                                        color: "#047857",
+                                        background: "rgba(16, 185, 129, 0.2)",
+                                        padding: "2px 6px",
+                                        borderRadius: "4px",
+                                        fontSize: "11px",
+                                        whiteSpace: "nowrap"
+                                    }}>
+                                        {cuenta.codigo}
+                                    </span>
+                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {cuenta.nombre}
+                                    </span>
+                                </div>
+                                {esSeleccionada && (
+                                    <span style={{ color: "#059669", fontWeight: "700", fontSize: "14px" }}>
+                                        ✓
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>,
+        document.body
+    ) : null;
+
     return (
-        <div ref={contenedorRef} className="selector-subcuenta-wrapper" style={{ position: "relative", width: "100%", zIndex: abierto ? 100 : "auto" }}>
+        <div ref={contenedorRef} className="selector-subcuenta-wrapper" style={{ position: "relative", width: "100%" }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <input
                     ref={inputRef}
@@ -309,88 +441,7 @@ export function SelectorSubcuenta({ value, cuentas = [], onChange }) {
                 </div>
             </div>
 
-            {/* Menú desplegable dinámico flotante */}
-            {abierto && (
-                <div
-                    ref={listaRef}
-                    className="selector-subcuenta-menu"
-                    style={{
-                        position: "absolute",
-                        top: "calc(100% + 4px)",
-                        left: 0,
-                        right: 0,
-                        minWidth: "290px",
-                        maxHeight: "230px",
-                        overflowY: "auto",
-                        background: "#ffffff",
-                        border: "1.5px solid #a7f3d0",
-                        borderRadius: "8px",
-                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0,0,0,0.05)",
-                        zIndex: 9999,
-                        padding: "5px"
-                    }}
-                >
-                    {cuentasFiltradas.length === 0 ? (
-                        <div style={{ padding: "12px 14px", fontSize: "12px", color: "#6b7280", textAlign: "center" }}>
-                            No se encontraron subcuentas con "{busqueda}"
-                        </div>
-                    ) : (
-                        cuentasFiltradas.map((cuenta, idx) => {
-                            const esSeleccionada = String(cuenta.id) === String(value);
-                            const esResaltada = idx === indiceResaltado;
-
-                            return (
-                                <div
-                                    key={cuenta.id}
-                                    className={`selector-subcuenta-item ${esResaltada ? "is-highlighted" : ""} ${esSeleccionada ? "is-selected" : ""}`}
-                                    onMouseDown={(e) => {
-                                        e.preventDefault();
-                                        seleccionar(cuenta);
-                                    }}
-                                    onMouseEnter={() => setIndiceResaltado(idx)}
-                                    style={{
-                                        padding: "7px 10px",
-                                        borderRadius: "5px",
-                                        cursor: "pointer",
-                                        fontSize: "12px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        gap: "8px",
-                                        background: esResaltada ? "#ecfdf5" : esSeleccionada ? "#f0fdf4" : "transparent",
-                                        color: esResaltada || esSeleccionada ? "#065f46" : "#1f2937",
-                                        fontWeight: esSeleccionada ? "600" : "normal",
-                                        transition: "background-color 0.1s"
-                                    }}
-                                >
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
-                                        <span style={{
-                                            fontFamily: "monospace",
-                                            fontWeight: "700",
-                                            color: "#047857",
-                                            background: "rgba(16, 185, 129, 0.2)",
-                                            padding: "2px 6px",
-                                            borderRadius: "4px",
-                                            fontSize: "11px",
-                                            whiteSpace: "nowrap"
-                                        }}>
-                                            {cuenta.codigo}
-                                        </span>
-                                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                            {cuenta.nombre}
-                                        </span>
-                                    </div>
-                                    {esSeleccionada && (
-                                        <span style={{ color: "#059669", fontWeight: "700", fontSize: "14px" }}>
-                                            ✓
-                                        </span>
-                                    )}
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            )}
+            {menu}
         </div>
     );
 }
@@ -941,7 +992,7 @@ function normalizarPlantillaDetalles(plantilla, cuentasPorId) {
                         )}
                     </p>
 
-                    <div className="detail-table-shell" style={{ minHeight: "300px" }}>
+                    <div className="detail-table-shell">
                         <table className="entry-detail-table">
                         <thead>
                             <tr>

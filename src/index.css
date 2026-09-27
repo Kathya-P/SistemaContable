@@ -6903,4 +6903,103 @@ select {
 .app-shell.tema-oscuro .modal-contenido.modal-catalogo textarea {
   background: var(--dark-bg) !important;
   color: var(--dark-text) !important;
+}/* =========================================
+   SELECTOR DE SUBCUENTAS
+   ========================================= */
+
+/* MODO OSCURO */
+.app-shell.tema-oscuro .selector-subcuenta-menu,
+body:has(.app-shell.tema-oscuro) .selector-subcuenta-menu {
+  background: #1f2937 !important;
+  border: 1px solid #2d3748 !important;
+  border-radius: 8px !important;
+
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.5),
+    0 4px 6px -2px rgba(0, 0, 0, 0.3) !important;
+
+  opacity: 1 !important;
+}
+
+/* Opciones en oscuro */
+.app-shell.tema-oscuro .selector-subcuenta-menu .selector-subcuenta-item,
+body:has(.app-shell.tema-oscuro) .selector-subcuenta-menu .selector-subcuenta-item {
+  background: #1f2937 !important;
+  color: #f8fafc !important;
+
+  border: none !important;
+  border-radius: 6px !important;
+}
+
+/* Hover oscuro */
+.app-shell.tema-oscuro .selector-subcuenta-menu .selector-subcuenta-item:hover,
+body:has(.app-shell.tema-oscuro) .selector-subcuenta-menu .selector-subcuenta-item:hover {
+  background: #273449 !important;
+  color: #ffffff !important;
+}
+
+/* Seleccionada / resaltada oscuro */
+.app-shell.tema-oscuro
+.selector-subcuenta-menu
+.selector-subcuenta-item.is-highlighted,
+
+.app-shell.tema-oscuro
+.selector-subcuenta-menu
+.selector-subcuenta-item.is-selected,
+
+body:has(.app-shell.tema-oscuro)
+.selector-subcuenta-menu
+.selector-subcuenta-item.is-highlighted,
+
+body:has(.app-shell.tema-oscuro)
+.selector-subcuenta-menu
+.selector-subcuenta-item.is-selected {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #7ee787 !important;
+}
+
+/* Código de cuenta oscuro */
+.app-shell.tema-oscuro
+.selector-subcuenta-menu
+.selector-subcuenta-item .codigo,
+
+body:has(.app-shell.tema-oscuro)
+.selector-subcuenta-menu
+.selector-subcuenta-item .codigo {
+  color: #7ee787 !important;
+}
+
+
+/* =========================================
+   MODO CLARO
+   ========================================= */
+
+.selector-subcuenta-menu {
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.15),
+    0 4px 6px -2px rgba(0, 0, 0, 0.08) !important;
+
+  opacity: 1 !important;
+}
+
+.selector-subcuenta-menu .selector-subcuenta-item {
+  background: #ffffff !important;
+  color: #1f2937 !important;
+
+  border: none !important;
+  border-radius: 6px !important;
+}
+
+.selector-subcuenta-menu .selector-subcuenta-item:hover {
+  background: #f3f4f6 !important;
+}
+
+.selector-subcuenta-menu .selector-subcuenta-item.is-highlighted,
+.selector-subcuenta-menu .selector-subcuenta-item.is-selected {
+  background: #e6f7ef !important;
+  color: #087443 !important;
 }

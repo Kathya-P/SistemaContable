@@ -5,43 +5,259 @@ import ExcelJS from "exceljs";
 
 const COLOR_PRIMARIO = [27, 67, 50];
 const COLOR_ENCABEZADO = [226, 239, 231];
+const PALETA_EXCEL = {
+    verdeOscuro: "FF174F3A",
+    verdeMedio: "FF1F6B4F",
+    verdeClaro: "FFE8F5EC",
+    verdeMuyClaro: "FFF3FAF5",
+    grisFila: "FFF5F7F6",
+    blanco: "FFFFFFFF",
+    texto: "FF1F2933",
+    textoSecundario: "FF5F6B66",
+    rojo: "FFC62828",
+    rojoSuave: "FFFDECEC",
+    amarilloSuave: "FFFFF3CD",
+    azulOscuro: "FF14263D",
+    azulSuave: "FFEAF2FF",
+    borde: "FFD9E2E8",
+    verdeExito: "FFDCFCE7"
+};
+
+function formatoMonedaExcel() {
+    return '"$"#,##0.00;[Red]-"$"#,##0.00';
+}
+
+function aplicarEstiloBaseCelda(celda, opciones = {}) {
+    const { horizontal = "left", vertical = "center", bold = false, color = PALETA_EXCEL.texto, fill = null, fontSize = 10 } = opciones;
+    celda.font = {
+        name: "Calibri",
+        family: 2,
+        size: fontSize,
+        bold,
+        color: { argb: color }
+    };
+    celda.alignment = {
+        vertical,
+        horizontal,
+        wrapText: true,
+        shrinkToFit: true
+    };
+    celda.border = {
+        top: { style: "thin", color: { argb: PALETA_EXCEL.borde } },
+        left: { style: "thin", color: { argb: PALETA_EXCEL.borde } },
+        bottom: { style: "thin", color: { argb: PALETA_EXCEL.borde } },
+        right: { style: "thin", color: { argb: PALETA_EXCEL.borde } }
+    };
+    if (fill) {
+        celda.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: fill }
+        };
+    }
+    return celda;
+}
+
+function esFilaEncabezado(fila = []) {
+    if (!Array.isArray(fila) || fila.length <= 1) return false;
+    const valores = fila.filter(valor => valor !== null && valor !== undefined && String(valor).trim() !== "");
+    if (!valores.length) return false;
+    const texto = valores.map(valor => String(valor).trim().toLowerCase());
+    const encabezados = new Set([
+        "nombre", "correo", "rol", "estado",
+        "codigo", "cuenta", "concepto", "monto",
+        "fecha", "partida", "debe", "haber",
+        "saldo", "seccion", "cantidad", "tipo",
+        "valor", "estado", "rango saludable", "interpretacion",
+        "ratio financiero", "ratio", "marca"
+    ]);
+    return texto.some(valor => encabezados.has(valor) || texto.some(item => item.includes("codigo") || item.includes("cuenta") || item.includes("debe") || item.includes("haber") || item.includes("monto") || item.includes("estado") || item.includes("nombre") || item.includes("correo") || item.includes("saldo")));
+}
+
+function obtenerYSplit(filas = []) {
+    const filasDatos = Array.isArray(filas) ? filas : [];
+    if (!filasDatos.length) return 0;
+
+    const indiceCabecera = filasDatos.findIndex((fila, indice) => indice > 0 && esFilaEncabezado(fila));
+    if (indiceCabecera > 0) {
+        return Math.min(Math.max(1, indiceCabecera + 1), filasDatos.length);
+    }
+
+    if (filasDatos.length >= 5) return 5;
+    if (filasDatos.length >= 2) return 2;
+    return 1;
+}
 
 function crearLibro(nombre, hojas) {
-    const libro = XLSX.utils.book_new();
-    hojas.forEach(({ nombreHoja, filas, anchos, columnasMoneda = [], merges = [] }) => {
-        const filasConEmpresa = filas;
-        const hoja = XLSX.utils.aoa_to_sheet(filasConEmpresa);
-        const formatoMoneda = '"$"#,##0.00;[Red]-"$"#,##0.00';
-        columnasMoneda.forEach(columna => {
-            for (let fila = 0; fila < filasConEmpresa.length; fila += 1) {
-                const referencia = XLSX.utils.encode_cell({ r: fila, c: columna });
-                const celda = hoja[referencia];
-                if (celda && typeof celda.v === "number") {
-                    celda.t = "n";
-                    celda.z = formatoMoneda;
-                    celda.s = { numFmt: formatoMoneda };
-                }
-            }
-        });
-        if (anchos) hoja["!cols"] = anchos.map(ancho => ({ wch: ancho }));
-        if (merges.length) hoja["!merges"] = merges.map(merge => ({
-            s: { r: merge.s.r + 1, c: merge.s.c },
-            e: { r: merge.e.r + 1, c: merge.e.c }
-        }));
-        XLSX.utils.book_append_sheet(libro, hoja, nombreHoja.slice(0, 31));
+    const libro = new ExcelJS.Workbook();
+    libro.creator = "ContaCabal";
+    libro.created = new Date();
+
+    hojas.forEach(({ nombreHoja, filas = [], anchos = [], columnasMoneda = [], columnasFecha = [], columnasTexto = [], columnasNumero = [], merges = [], freezeRows = null }) => {
+        const hoja = libro.addWorksheet(nombreHoja.slice(0, 31));
+        const filasDatos = Array.isArray(filas) ? filas : [];
+
+        if (filasDatos.length) {
+            filasDatos.forEach((fila, filaIndex) => {
+                const filaExcel = hoja.getRow(filaIndex + 1);
+                filaExcel.values = fila.map(valor => valor ?? "");
+                filaExcel.eachCell({ includeEmpty: true }, (celda, columnaIndex) => {
+                    const valor = celda.value;
+                    const numeroColumna = columnaIndex - 1;
+                    const esNumeroMoneda = columnasMoneda.includes(numeroColumna);
+                    const esFecha = columnasFecha.includes(numeroColumna);
+                    const esTexto = columnasTexto.includes(numeroColumna);
+                    const esNumeroSimple = columnasNumero.includes(numeroColumna);
+
+                    celda.border = {
+                        top: { style: "thin", color: { argb: PALETA_EXCEL.borde } },
+                        left: { style: "thin", color: { argb: PALETA_EXCEL.borde } },
+                        bottom: { style: "thin", color: { argb: PALETA_EXCEL.borde } },
+                        right: { style: "thin", color: { argb: PALETA_EXCEL.borde } }
+                    };
+
+                    if (filaIndex === 0) {
+                        aplicarEstiloBaseCelda(celda, {
+                            horizontal: "center",
+                            vertical: "center",
+                            bold: true,
+                            color: PALETA_EXCEL.blanco,
+                            fill: PALETA_EXCEL.verdeOscuro,
+                            fontSize: 14
+                        });
+                        return;
+                    }
+
+                    if (filaIndex === 1) {
+                        aplicarEstiloBaseCelda(celda, {
+                            horizontal: "center",
+                            vertical: "center",
+                            bold: true,
+                            color: PALETA_EXCEL.verdeOscuro,
+                            fill: PALETA_EXCEL.verdeMuyClaro,
+                            fontSize: 13
+                        });
+                        return;
+                    }
+
+                    if (filaIndex === 2) {
+                        aplicarEstiloBaseCelda(celda, {
+                            horizontal: "center",
+                            vertical: "center",
+                            color: PALETA_EXCEL.textoSecundario,
+                            fill: PALETA_EXCEL.blanco,
+                            fontSize: 10
+                        });
+                        return;
+                    }
+
+                    if (filaIndex === 3) {
+                        celda.value = "";
+                        celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: PALETA_EXCEL.blanco } };
+                        return;
+                    }
+
+                    if (filaIndex === 4) {
+                        aplicarEstiloBaseCelda(celda, {
+                            horizontal: "center",
+                            vertical: "center",
+                            bold: true,
+                            color: PALETA_EXCEL.blanco,
+                            fill: PALETA_EXCEL.verdeOscuro,
+                            fontSize: 10
+                        });
+                        return;
+                    }
+
+                    aplicarEstiloBaseCelda(celda, {
+                        horizontal: esFecha ? "center" : esNumeroSimple || esNumeroMoneda ? "right" : "left",
+                        vertical: "center",
+                        color: PALETA_EXCEL.texto,
+                        fill: (filaIndex % 2 === 0) ? PALETA_EXCEL.blanco : PALETA_EXCEL.grisFila,
+                        fontSize: 9
+                    });
+
+                    if (typeof valor === "number") {
+                        celda.numFmt = esNumeroMoneda ? formatoMonedaExcel() : "0.00";
+                        if (Number(valor) < 0) {
+                            celda.font = { ...celda.font, color: { argb: PALETA_EXCEL.rojo } };
+                        }
+                    }
+
+                    if (esNumeroMoneda || esNumeroSimple) {
+                        celda.alignment = { ...celda.alignment, horizontal: "right" };
+                    }
+
+                    const texto = typeof valor === "string" ? valor.toLowerCase() : "";
+                    if (texto.includes("total") || texto.includes("comprobaci") || texto.includes("subtotal") || texto.includes("sumatoria")) {
+                        celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: PALETA_EXCEL.verdeClaro } };
+                        celda.font = { ...celda.font, bold: true, color: { argb: PALETA_EXCEL.verdeOscuro } };
+                    }
+
+                    if (texto.includes("partida doble cuadrada") || texto.includes("saldo final") || texto.includes("comprobación de la ecuación") || texto.includes("comprobacion de la ecuacion")) {
+                        celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: PALETA_EXCEL.verdeExito } };
+                        celda.font = { ...celda.font, bold: true, color: { argb: PALETA_EXCEL.verdeOscuro } };
+                    }
+                });
+            });
+        }
+
+        if (merges.length) {
+            merges.forEach(({ s, e }) => {
+                hoja.mergeCells(hoja.getCell(s.r + 1, s.c + 1).address + ":" + hoja.getCell(e.r + 1, e.c + 1).address);
+            });
+        }
+
+        if (anchos.length) {
+            hoja.columns = anchos.map((ancho, indice) => ({ key: `col${indice + 1}`, width: ancho }));
+        } else {
+            const lastCol = Math.max(...(filasDatos.map(fila => fila.length)), 1);
+            hoja.columns = Array.from({ length: lastCol }, (_, indice) => ({ width: Math.max(12, Math.min(32, 18 + (indice * 0.6))) }));
+        }
+
+        const ySplit = typeof freezeRows === "number" ? freezeRows : obtenerYSplit(filasDatos);
+        if (ySplit > 0) {
+            hoja.views = [{ state: "frozen", xSplit: 0, ySplit }];
+        }
+
+        if (filasDatos.length > 5) {
+            const ultimaFila = Math.max(...filasDatos.map(fila => fila.length > 0 ? fila.length : 0));
+            hoja.autoFilter = {
+                from: { row: Math.min(1 + ySplit, filasDatos.length), column: 1 },
+                to: { row: filasDatos.length, column: ultimaFila }
+            };
+        }
     });
-    XLSX.writeFile(libro, nombre, { cellStyles: true });
+
+    return libro;
+}
+
+function descargarLibroExcel(libro, nombre) {
+    libro.xlsx.writeBuffer().then(buffer => {
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const url = URL.createObjectURL(blob);
+        const enlace = document.createElement("a");
+        enlace.href = url;
+        enlace.download = nombre;
+        document.body.appendChild(enlace);
+        enlace.click();
+        document.body.removeChild(enlace);
+        URL.revokeObjectURL(url);
+    }).catch(error => {
+        console.error("Error al generar el archivo Excel:", error);
+    });
+}
+
+function exportarLibroExcel(nombre, hojas, empresa = "Empresa") {
+    const libro = crearLibro(`${limpiarNombreArchivo(nombre)}.xlsx`, hojas.map(hoja => ({
+        ...hoja,
+        filas: [[empresa], ...hoja.filas]
+    })));
+    descargarLibroExcel(libro, `${limpiarNombreArchivo(nombre)}.xlsx`);
 }
 
 function celdaMoneda(valor) {
     return Number(valor || 0);
-}
-
-function exportarLibroExcel(nombre, hojas, empresa = "Empresa") {
-    crearLibro(`${limpiarNombreArchivo(nombre)}.xlsx`, hojas.map(hoja => ({
-        ...hoja,
-        filas: [[empresa], ...hoja.filas]
-    })));
 }
 
 function descargarArchivoExcel(buffer, nombre) {
@@ -661,11 +877,22 @@ function obtenerNombrePeriodo(opcion) {
 
 export function exportarRatiosPDF({ secciones = {}, desde, hasta, opcionRapida, empresa = "Empresa" } = {}) {
     const documento = crearDocumento("Ratios Financieros", `${obtenerNombrePeriodo(opcionRapida)} | ${formatearFecha(desde)} al ${formatearFecha(hasta)}`, empresa);
+    const categorias = [
+        { key: "liquidez", titulo: "Liquidez", cabecera: "Ratio de liquidez" },
+        { key: "rentabilidad", titulo: "Rentabilidad", cabecera: "Ratio de rentabilidad" },
+        { key: "solvencia", titulo: "Solvencia", cabecera: "Ratio de solvencia" },
+        { key: "eficiencia", titulo: "Eficiencia", cabecera: "Ratio de eficiencia" }
+    ];
     const filas = [];
-    const seccionLiquidez = secciones.liquidez;
-    if (seccionLiquidez?.ratios?.length) {
-        filas.push([{ content: seccionLiquidez.titulo || "Liquidez", colSpan: 5, styles: { fontStyle: "bold", fillColor: COLOR_ENCABEZADO, textColor: COLOR_PRIMARIO } }]);
-        seccionLiquidez.ratios.forEach(ratio => {
+
+    categorias.forEach(({ key, titulo, cabecera }) => {
+        const seccion = secciones?.[key];
+        const ratios = Array.isArray(seccion?.ratios) ? seccion.ratios : [];
+
+        if (!ratios.length) return;
+
+        filas.push([{ content: titulo || key, colSpan: 5, styles: { fontStyle: "bold", fillColor: COLOR_ENCABEZADO, textColor: COLOR_PRIMARIO } }]);
+        ratios.forEach(ratio => {
             filas.push([
                 ratio.nombre || "",
                 ratio.formato || "",
@@ -674,10 +901,15 @@ export function exportarRatiosPDF({ secciones = {}, desde, hasta, opcionRapida, 
                 ratio.interpretacion || ""
             ]);
         });
+    });
+
+    if (!filas.length) {
+        filas.push(["No hay datos de ratios para exportar"]);
     }
+
     agregarTabla(documento, {
         startY: 28,
-        head: [["Ratio de liquidez", "Valor", "Estado", "Rango saludable", "Interpretacion"]],
+        head: [["Ratio financiero", "Valor", "Estado", "Rango saludable", "Interpretación"]],
         body: filas,
         styles: { fontSize: 7 },
         columnStyles: { 0: { cellWidth: 48 }, 1: { cellWidth: 25 }, 2: { cellWidth: 25 }, 3: { cellWidth: 35 }, 4: { cellWidth: 130 } }
@@ -738,8 +970,90 @@ function filasDiarioExcel(asientos = []) {
     return filas;
 }
 
+function construirResumenExcel({ titulo, periodo, columnas, filas, nombreHoja, anchos = [] }) {
+    return {
+        nombreHoja,
+        filas: [
+            [titulo],
+            [periodo],
+            [],
+            columnas,
+            ...filas
+        ],
+        anchos,
+        columnasMoneda: columnas
+            .map((_, index) => index)
+            .filter(index => index >= 0)
+    };
+}
+
+function crearFilasBalanceNivel(nivel, data) {
+    const filas = [
+        ["Nivel de detalle", "Concepto", "Monto"],
+    ];
+
+    const agregarSeccion = (titulo, items = []) => {
+        filas.push([titulo, "", ""]);
+        items.forEach(item => {
+            const nombre = item?.concepto || item?.nombre || "";
+            const monto = Number(item?.monto ?? item?.total ?? 0);
+            filas.push(["", nombre, monto]);
+            if (item?.subcuentas?.length) {
+                item.subcuentas.forEach(sub => {
+                    filas.push(["", `${sub.codigo || ""} - ${sub.concepto || sub.nombre || "Subcuenta"}`.trim(), Number(sub.monto ?? 0)]);
+                });
+            }
+        });
+    };
+
+    if (nivel === 0 && data) {
+        agregarSeccion("ACTIVO", [{ concepto: data.activo?.concepto || "TOTAL DEL ACTIVO", monto: data.activo?.total || 0 }]);
+        agregarSeccion("PASIVO", [{ concepto: data.pasivo?.concepto || "TOTAL DE PASIVOS", monto: data.pasivo?.total || 0 }]);
+        agregarSeccion("PATRIMONIO", [{ concepto: data.patrimonio?.concepto || "TOTAL PATRIMONIO NETO", monto: data.patrimonio?.total || 0 }]);
+        filas.push(["", "TOTAL PASIVO Y PATRIMONIO", Number(data.totalPasivoPatrimonio ?? 0)]);
+    }
+
+    if (nivel === 1 && data) {
+        agregarSeccion("ACTIVO CORRIENTE", [{ concepto: "Activo Corriente", monto: data.activo?.corriente?.total || 0 }]);
+        agregarSeccion("ACTIVO NO CORRIENTE", [{ concepto: "Activo No Corriente", monto: data.activo?.noCorriente?.total || 0 }]);
+        agregarSeccion("PASIVO CORRIENTE", [{ concepto: "Pasivo Corriente", monto: data.pasivo?.corriente?.total || 0 }]);
+        agregarSeccion("PASIVO NO CORRIENTE", [{ concepto: "Pasivo No Corriente", monto: data.pasivo?.noCorriente?.total || 0 }]);
+        agregarSeccion("PATRIMONIO NETO", [{ concepto: "Patrimonio Neto", monto: data.patrimonio?.total || 0 }]);
+    }
+
+    if (nivel === 2 && data) {
+        agregarSeccion("ACTIVO CORRIENTE", data.activoCorriente || []);
+        agregarSeccion("ACTIVO NO CORRIENTE", data.activoNoCorriente || []);
+        agregarSeccion("PASIVO CORRIENTE", data.pasivoCorriente || []);
+        agregarSeccion("PASIVO NO CORRIENTE", data.pasivoNoCorriente || []);
+        agregarSeccion("PATRIMONIO NETO", data.patrimonio || []);
+    }
+
+    if (nivel === 3 && data) {
+        const agregarDetalle = (titulo, items = []) => {
+            filas.push([titulo, "", ""]);
+            (items || []).forEach(item => {
+                filas.push(["", `${item.codigo || ""} - ${item.concepto || item.nombre || "Cuenta"}`.trim(), Number(item.monto ?? 0)]);
+                (item.subcuentas || []).forEach(sub => {
+                    filas.push(["", `${sub.codigo || ""} - ${sub.concepto || sub.nombre || "Subcuenta"}`.trim(), Number(sub.monto ?? 0)]);
+                });
+            });
+        };
+        agregarDetalle("ACTIVO CORRIENTE", data.activoCorriente || []);
+        agregarDetalle("ACTIVO NO CORRIENTE", data.activoNoCorriente || []);
+        agregarDetalle("PASIVO CORRIENTE", data.pasivoCorriente || []);
+        agregarDetalle("PASIVO NO CORRIENTE", data.pasivoNoCorriente || []);
+        agregarDetalle("PATRIMONIO NETO", data.patrimonio || []);
+    }
+
+    return filas;
+}
+
 export function exportarLibroDiarioExcel({ asientos = [], desde, hasta, empresa = "Empresa" } = {}) {
-    exportarLibroExcel(`Libro_Diario_${desde || "periodo"}`, [{ nombreHoja: "Libro Diario", filas: [["LIBRO DIARIO"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ...filasDiarioExcel(asientos)], anchos: [16, 14, 14, 42, 15, 15, 15], columnasMoneda: [4, 5, 6] }], empresa);
+    const totalDebe = asientos.reduce((total, asiento) => total + (asiento.detalle_asientos || []).reduce((subTotal, detalle) => subTotal + Number(detalle.debe || 0), 0), 0);
+    const totalHaber = asientos.reduce((total, asiento) => total + (asiento.detalle_asientos || []).reduce((subTotal, detalle) => subTotal + Number(detalle.haber || 0), 0), 0);
+    const filas = [["LIBRO DIARIO"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ...filasDiarioExcel(asientos), ["", "", "", "Total Debe", "", totalDebe, totalHaber]];
+    exportarLibroExcel(`Libro_Diario_${desde || "periodo"}`, [{ nombreHoja: "Libro Diario", filas, anchos: [16, 14, 14, 42, 15, 15, 15], columnasMoneda: [4, 5, 6] }], empresa);
 }
 
 export function exportarLibroMayorExcel({ filas = [], totalesComprobacion = {}, movimientosPorCuenta, desde, hasta, empresa = "Empresa" } = {}) {
@@ -753,23 +1067,102 @@ export function exportarLibroMayorExcel({ filas = [], totalesComprobacion = {}, 
 }
 
 export function exportarBalanceGeneralExcel({ balance, desde, hasta, empresa = "Empresa" } = {}) {
-    const activo = balance?.activo || {};
-    const pasivo = balance?.pasivo || {};
-    const capital = balance?.capital || {};
-    const izquierda = [...filasBalanceExcel("ACTIVO CORRIENTE", activo.corriente), ...filasBalanceExcel("ACTIVO NO CORRIENTE", activo.noCorriente)];
-    izquierda.push({ nombre: "TOTAL DEL ACTIVO", monto: Number(activo.total || 0), tipo: "total" });
-    const derecha = [...filasBalanceExcel("PASIVO CORRIENTE", pasivo.corriente), ...filasBalanceExcel("PASIVO NO CORRIENTE", pasivo.noCorriente)];
-    derecha.push({ nombre: "TOTAL PASIVOS", monto: Number(pasivo.total || 0), tipo: "total" }, ...filasBalanceExcel("PATRIMONIO NETO", capital), { nombre: "TOTAL PASIVO Y PATRIMONIO", monto: Number(balance?.totalPasivoCapital ?? Number(pasivo.total || 0) + Number(capital.total || 0)), tipo: "total" });
-    const filas = [["BALANCE GENERAL"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ["ACTIVOS", "Monto", "PASIVOS Y CAPITAL", "Monto"]];
-    for (let i = 0; i < Math.max(izquierda.length, derecha.length); i += 1) filas.push([izquierda[i]?.nombre || "", izquierda[i]?.monto ?? "", derecha[i]?.nombre || "", derecha[i]?.monto ?? ""]);
-    const iva = balance?.liquidacionIva;
-    if (iva) filas.push([], ["LIQUIDACIÓN DE IVA"], ["Concepto", "Monto"], ["IVA crédito fiscal", celdaMoneda(iva.ivaCreditoFiscal)], ["IVA débito fiscal", celdaMoneda(iva.ivaDebitoFiscal)], [Number(iva.impuestoAPagar || 0) > 0 ? "Impuesto a pagar" : "Remanente a favor", celdaMoneda(Number(iva.impuestoAPagar || 0) > 0 ? iva.impuestoAPagar : iva.remanenteAFavor)]);
-    filas.push([], ["FIRMAS"], ["Representante Legal", "Gerencia General", "Contador General", "Reg. Profesional N° 45892", "Auditor Externo", "Dictamen e Informe Fiscal"]);
-    exportarLibroExcel(`Balance_General_${hasta || "periodo"}`, [{ nombreHoja: "Balance General", filas, anchos: [34, 18, 36, 18, 25, 28], columnasMoneda: [1, 3] }], empresa);
+    const nivel0 = balance?.niveles?.nivel0 || {};
+    const nivel1 = balance?.niveles?.nivel1 || {};
+    const nivel2 = balance?.niveles?.nivel2 || {};
+    const nivel3 = balance?.niveles?.nivel3 || {};
+    const periodo = `Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`;
+    const baseHojas = [
+        {
+            nombreHoja: "Nivel 0 - General",
+            filas: [
+                ["BALANCE GENERAL"],
+                [periodo],
+                [],
+                ["Sección", "Concepto", "Monto"],
+                ["ACTIVO", "TOTAL DEL ACTIVO", Number(balance?.activo?.total || nivel0.activo?.total || 0)],
+                ["PASIVO", "TOTAL DE PASIVOS", Number(balance?.pasivo?.total || nivel0.pasivo?.total || 0)],
+                ["PATRIMONIO", "TOTAL PATRIMONIO NETO", Number(balance?.capital?.total || nivel0.patrimonio?.total || 0)],
+                ["", "TOTAL PASIVO Y PATRIMONIO", Number(balance?.totalPasivoCapital || nivel0.totalPasivoPatrimonio || 0)]
+            ],
+            anchos: [24, 40, 18],
+            columnasMoneda: [2]
+        },
+        {
+            nombreHoja: "Nivel 1 - Clasificación",
+            filas: [
+                ["BALANCE GENERAL"],
+                [periodo],
+                [],
+                ["Sección", "Concepto", "Monto"],
+                ["ACTIVO", "Activo Corriente", Number(balance?.activo?.corriente?.total || nivel1.activo?.corriente?.total || 0)],
+                ["ACTIVO", "Activo No Corriente", Number(balance?.activo?.noCorriente?.total || nivel1.activo?.noCorriente?.total || 0)],
+                ["PASIVO", "Pasivo Corriente", Number(balance?.pasivo?.corriente?.total || nivel1.pasivo?.corriente?.total || 0)],
+                ["PASIVO", "Pasivo No Corriente", Number(balance?.pasivo?.noCorriente?.total || nivel1.pasivo?.noCorriente?.total || 0)],
+                ["PATRIMONIO", "Patrimonio Neto", Number(balance?.capital?.total || nivel1.patrimonio?.total || 0)],
+                ["", "TOTAL PASIVO Y PATRIMONIO", Number(balance?.totalPasivoCapital || nivel1.totalPasivoPatrimonio || 0)]
+            ],
+            anchos: [24, 42, 18],
+            columnasMoneda: [2]
+        },
+        {
+            nombreHoja: "Nivel 2 - Cuentas Mayor",
+            filas: [
+                ["BALANCE GENERAL"],
+                [periodo],
+                [],
+                ["Sección", "Código", "Cuenta", "Monto"],
+                ...[
+                    ...((nivel2.activoCorriente || []).map(item => ["ACTIVO", item.codigo || "", item.concepto || "", Number(item.monto || 0)])),
+                    ...((nivel2.activoNoCorriente || []).map(item => ["ACTIVO", item.codigo || "", item.concepto || "", Number(item.monto || 0)])),
+                    ...((nivel2.pasivoCorriente || []).map(item => ["PASIVO", item.codigo || "", item.concepto || "", Number(item.monto || 0)])),
+                    ...((nivel2.pasivoNoCorriente || []).map(item => ["PASIVO", item.codigo || "", item.concepto || "", Number(item.monto || 0)])),
+                    ...((nivel2.patrimonio || []).map(item => ["PATRIMONIO", item.codigo || "", item.concepto || "", Number(item.monto || 0)]))
+                ]
+            ],
+            anchos: [18, 16, 48, 18],
+            columnasMoneda: [3]
+        },
+        {
+            nombreHoja: "Nivel 3 - Subcuentas",
+            filas: [
+                ["BALANCE GENERAL"],
+                [periodo],
+                [],
+                ["Sección", "Código", "Cuenta", "Monto"],
+                ...[
+                    ...((nivel3.activoCorriente || []).flatMap(item => [
+                        ["ACTIVO", item.codigo || "", item.concepto || "", Number(item.monto || 0)],
+                        ...(item.subcuentas || []).map(sub => ["ACTIVO", sub.codigo || "", sub.concepto || "", Number(sub.monto || 0)])
+                    ])),
+                    ...((nivel3.activoNoCorriente || []).flatMap(item => [
+                        ["ACTIVO", item.codigo || "", item.concepto || "", Number(item.monto || 0)],
+                        ...(item.subcuentas || []).map(sub => ["ACTIVO", sub.codigo || "", sub.concepto || "", Number(sub.monto || 0)])
+                    ])),
+                    ...((nivel3.pasivoCorriente || []).flatMap(item => [
+                        ["PASIVO", item.codigo || "", item.concepto || "", Number(item.monto || 0)],
+                        ...(item.subcuentas || []).map(sub => ["PASIVO", sub.codigo || "", sub.concepto || "", Number(sub.monto || 0)])
+                    ])),
+                    ...((nivel3.pasivoNoCorriente || []).flatMap(item => [
+                        ["PASIVO", item.codigo || "", item.concepto || "", Number(item.monto || 0)],
+                        ...(item.subcuentas || []).map(sub => ["PASIVO", sub.codigo || "", sub.concepto || "", Number(sub.monto || 0)])
+                    ])),
+                    ...((nivel3.patrimonio || []).flatMap(item => [
+                        ["PATRIMONIO", item.codigo || "", item.concepto || "", Number(item.monto || 0)],
+                        ...(item.subcuentas || []).map(sub => ["PATRIMONIO", sub.codigo || "", sub.concepto || "", Number(sub.monto || 0)])
+                    ]))
+                ]
+            ],
+            anchos: [18, 16, 58, 18],
+            columnasMoneda: [3]
+        }
+    ];
+
+    exportarLibroExcel(`Balance_General_${hasta || "periodo"}`, baseHojas.map(hoja => ({ ...hoja, columnasMoneda: hoja.columnasMoneda || [] })), empresa);
 }
 
 export function exportarEstadoResultadosExcel({ filas = [], empresa = "Empresa", desde, hasta } = {}) {
-    exportarLibroExcel(`Estado_Resultados_${hasta || "periodo"}`, [{ nombreHoja: "Estado Resultados", filas: [["ESTADO DE RESULTADOS"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ["Marca", "Concepto", "Monto"], ...filas.map(fila => fila.encabezado ? [fila.encabezado, "", ""] : [fila.marca || "", fila.concepto || "", celdaMoneda(fila.monto)])], anchos: [12, 55, 18], columnasMoneda: [2] }], empresa);
+    exportarLibroExcel(`Estado_Resultados_${hasta || "periodo"}`, [{ nombreHoja: "Estado de Resultados", filas: [["ESTADO DE RESULTADOS"], [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ["Marca", "Concepto", "Monto"], ...filas.map(fila => fila.encabezado ? [fila.encabezado, "", ""] : [fila.marca || "", fila.concepto || "", celdaMoneda(fila.monto)])], anchos: [12, 55, 18], columnasMoneda: [2] }], empresa);
 }
 
 export function exportarCatalogoCuentasExcel({ cuentas = [], empresa = "Empresa" } = {}) {
@@ -796,7 +1189,31 @@ export function exportarKardexExcel({ filas = [], totales = {}, desde, hasta, em
 }
 
 export function exportarUsuariosExcel({ usuarios = [], empresa = "Empresa" } = {}) {
-    exportarLibroExcel("Usuarios_de_la_Empresa", [{ nombreHoja: "Usuarios", filas: [["Nombre", "Correo", "Rol", "Estado"], ...usuarios.map(usuario => [usuario.nombre, usuario.correo, usuario.rol, usuario.estado ? "Activo" : "Inactivo"])], anchos: [30, 38, 16, 16] }], empresa);
+    const listaUsuarios = Array.isArray(usuarios)
+        ? usuarios
+        : Array.isArray(usuarios?.usuarios)
+            ? usuarios.usuarios
+            : [];
+
+    if (!listaUsuarios.length) {
+        return;
+    }
+
+    const usuariosParaExportar = listaUsuarios;
+    const filas = [
+        ["USUARIOS DE LA EMPRESA"],
+        [""],
+        [],
+        ["Nombre", "Correo", "Rol", "Estado"],
+        ...usuariosParaExportar.map(usuario => [
+            usuario?.nombre || "",
+            usuario?.correo || "",
+            usuario?.rol || "",
+            usuario?.estado ? "Activo" : "Inactivo"
+        ])
+    ];
+
+    exportarLibroExcel("Usuarios_de_la_Empresa", [{ nombreHoja: "Usuarios", filas, anchos: [30, 38, 16, 16] }], empresa);
 }
 
 export function exportarAuditoriaExcel({ logs = [], empresa = "Empresa" } = {}) {
@@ -814,6 +1231,7 @@ export async function exportarTablaComparativaExcel({ vistaIzquierda, vistaDerec
 
     const crearHoja = (nombre, vista, rango, tablas) => {
         const hoja = libro.addWorksheet(nombre);
+        hoja.views = [{ state: "frozen", ySplit: 4 }];
         hoja.getCell("A1").value = empresa;
         hoja.getCell("A1").font = { bold: true, size: 15, color: { argb: "FF1B4332" } };
         hoja.getCell("A2").value = vista || "No seleccionada";
@@ -858,6 +1276,7 @@ export async function exportarDashboardExcel({ activos = 0, pasivos = 0, ingreso
     libro.creator = "ContaCabal";
     libro.created = new Date();
     const hoja = libro.addWorksheet("Dashboard");
+    hoja.views = [{ state: "frozen", ySplit: 5 }];
     const formatoMonedaExcel = '"$"#,##0.00;[Red]-"$"#,##0.00';
 
     hoja.getCell("A1").value = empresa;
@@ -894,7 +1313,33 @@ export async function exportarDashboardExcel({ activos = 0, pasivos = 0, ingreso
 }
 
 export function exportarRatiosExcel({ secciones = {}, desde, hasta, opcionRapida, empresa = "Empresa" } = {}) {
-    const seccion = secciones.liquidez;
-    const filas = [["RATIOS FINANCIEROS - LIQUIDEZ"], [`Filtro: ${obtenerNombrePeriodo(opcionRapida)} | ${formatearFecha(desde)} al ${formatearFecha(hasta)}`], [], ["Ratio financiero", "Valor", "Estado", "Rango saludable", "Interpretación"], ...(seccion?.ratios || []).map(ratio => [ratio.nombre, ratio.formato, ratio.estado, ratio.rangoSaludable, ratio.interpretacion])];
-    exportarLibroExcel(`Ratios_Financieros_${hasta || "periodo"}`, [{ nombreHoja: "Liquidez", filas, anchos: [34, 18, 18, 24, 65] }], empresa);
+    const categorias = [
+        { key: "liquidez", titulo: "Liquidez" },
+        { key: "rentabilidad", titulo: "Rentabilidad" },
+        { key: "solvencia", titulo: "Solvencia" },
+        { key: "eficiencia", titulo: "Eficiencia" }
+    ];
+
+    const hojas = categorias.map(({ key, titulo }) => {
+        const datos = Array.isArray(secciones?.[key]?.ratios) ? secciones[key].ratios : [];
+        const filas = [
+            [empresa],
+            [`RATIOS FINANCIEROS - ${titulo.toUpperCase()}`],
+            [`Filtro: ${obtenerNombrePeriodo(opcionRapida)} | ${formatearFecha(desde)} al ${formatearFecha(hasta)}`],
+            [],
+            ["Ratio financiero", "Valor", "Estado", "Rango saludable", "Interpretación"],
+            ...datos.map(ratio => [ratio.nombre || "", ratio.formato || "", ratio.estado || "", ratio.rangoSaludable || "", ratio.interpretacion || ""])
+        ];
+
+        return {
+            nombreHoja: titulo.slice(0, 31),
+            filas,
+            anchos: [36, 18, 18, 28, 65],
+            columnasMoneda: [],
+            freezeRows: 5
+        };
+    });
+
+    const libro = crearLibro(`Ratios_Financieros_${hasta || "periodo"}.xlsx`, hojas);
+    descargarLibroExcel(libro, `Ratios_Financieros_${hasta || "periodo"}.xlsx`);
 }

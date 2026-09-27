@@ -3136,7 +3136,7 @@ export { app, apiRouter };
 export default app;
 
 // Si se ejecuta directamente (ej. node backend/server.js) y no en Vercel, abrir puerto
-const isDirectRun = process.argv[1] && (process.argv[1].endsWith("backend/server.js") || process.argv[1].endsWith("backend/server.ts"));
+const isDirectRun = process.argv[1] && (process.argv[1].endsWith("server.js") || process.argv[1].endsWith("server.ts"));
 if (isDirectRun && !process.env.VERCEL) {
     app.listen(puerto, "0.0.0.0", () => {
         console.log(`API contable escuchando en http://localhost:${puerto}`);

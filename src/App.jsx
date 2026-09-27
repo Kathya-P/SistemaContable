@@ -266,17 +266,6 @@ function App(){
         }
     }, [usuario]);
 
-    function cambiarRol(nuevoRol) {
-        const rolNorm = String(nuevoRol || "").toUpperCase();
-        if (!["ADMIN", "CONTADOR", "AUXILIAR"].includes(rolNorm)) return;
-        localStorage.setItem("conta_user_rol", rolNorm);
-        setUsuario(prev => prev ? ({ ...prev, rol: rolNorm }) : null);
-        setPermisos(PERMISOS_DEFAULT_POR_ROL[rolNorm] || {});
-        if (rolNorm !== "ADMIN" && (vista === "usuarios" || vista === "auditoria")) {
-            setVista("dashboard");
-        }
-    }
-
     if(cargandoSesion){
         return <main className="login-page"><p>Cargando sesión...</p></main>;
     }
@@ -381,7 +370,6 @@ function App(){
                 temaOscuro={temaOscuro}
                 cambiarTema={cambiarTema}
                 usuario={usuario}
-                onCambiarRol={cambiarRol}
                 cerrarSesion={cerrarSesion}
             />
             <div className="app-main">

@@ -13,9 +13,14 @@ export async function solicitarApi(ruta, opciones = {}) {
             // Ignorar error al obtener sesión
         }
     }
+    const rolGuardado = localStorage.getItem("conta_user_rol");
+    const idGuardado = localStorage.getItem("conta_user_id");
+
     const headers = {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(rolGuardado ? { "x-usuario-rol": rolGuardado } : {}),
+        ...(idGuardado ? { "x-usuario-id": idGuardado } : {}),
         ...(opciones.headers || {})
     };
     const respuesta = await fetch(`${API_URL}${ruta}`, { ...opciones, headers });

@@ -101,7 +101,7 @@ function IconoSvg({ nombre }){
     }
 }
 
-export default function Sidebar({ vista, cambiarVista, grupos, colapsado, alternarColapso, temaOscuro, cambiarTema, usuario, onCambiarRol, cerrarSesion }){
+export default function Sidebar({ vista, cambiarVista, grupos, colapsado, alternarColapso, temaOscuro, cambiarTema, usuario, cerrarSesion }){
     // arranca con abierta la sección que contiene la vista activa
     const [abiertas, setAbiertas] = useState(() => {
         const inicial = {};
@@ -195,29 +195,7 @@ export default function Sidebar({ vista, cambiarVista, grupos, colapsado, altern
                 <div className="sidebar-user">
                     <div className="sidebar-user-info">
                         <strong title={usuario?.nombre || "Usuario"}>{usuario?.nombre || "Usuario"}</strong>
-                        <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "3px" }}>
-                            <span style={{ fontSize: "10px", opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.5px" }}>Rol:</span>
-                            <select
-                                value={usuario?.rol || "ADMIN"}
-                                onChange={e => onCambiarRol && onCambiarRol(e.target.value)}
-                                style={{
-                                    fontSize: "11px",
-                                    fontWeight: "700",
-                                    padding: "2px 6px",
-                                    borderRadius: "4px",
-                                    border: "1px solid rgba(255, 255, 255, 0.25)",
-                                    background: "rgba(0, 0, 0, 0.3)",
-                                    color: "#ffffff",
-                                    cursor: "pointer",
-                                    outline: "none"
-                                }}
-                                title="Cambiar rol activo para probar y verificar los permisos de la tabla"
-                            >
-                                <option value="ADMIN" style={{ color: "#000" }}>ADMIN</option>
-                                <option value="CONTADOR" style={{ color: "#000" }}>CONTADOR</option>
-                                <option value="AUXILIAR" style={{ color: "#000" }}>AUXILIAR</option>
-                            </select>
-                        </div>
+                        <span>{usuario?.rol || "ADMIN"}</span>
                     </div>
                 </div>
 

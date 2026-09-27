@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { obtenerLibroDiario } from "../services/libroDiarioService";
-import { rectificarAsiento, eliminarAsiento } from "../services/asientosService";
+import { rectificarAsiento, eliminarAsiento, contabilizarAsiento } from "../services/asientosService";
 import { obtenerCuentas } from "../services/cuentasService";
 import { exportarLibroDiarioPDF, exportarLibroDiarioExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
@@ -882,11 +882,16 @@ function ModalHistorialRectificacion({ asiento, cuentas = [], onCerrar }) {
 // ==========================================================
 // Componente Principal: Libro Diario
 // ==========================================================
-function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNombre = "Empresa" } = {}) {
+function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNombre = "Empresa", usuario = null } = {}) {
     const [asientos, setAsientos] = useState([]);
     const [cuentas, setCuentas] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState("");
+
+    // Permisos según el rol del usuario (ADMIN y CONTADOR pueden anular/modificar y contabilizar; AUXILIAR no)
+    const rolUsuario = String(usuario?.rol || "").toUpperCase();
+    const puedeAnular = rolUsuario === "ADMIN" || rolUsuario === "CONTADOR" || !usuario;
+    const puedeContabilizar = rolUsuario === "ADMIN" || rolUsuario === "CONTADOR" || !usuario;
 
     // Estados de Búsqueda y Filtros Integrados
     const [busquedaTexto, setBusquedaTexto] = useState("");
@@ -916,6 +921,18 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
             alert(err.message || "No se pudo eliminar el asiento contable.");
         } finally {
             setEliminando(false);
+        }
+    };
+
+    const manejarContabilizar = async (asientoId) => {
+        try {
+            await contabilizarAsiento(asientoId);
+            setNotificacion("Asiento contable contabilizado exitosamente. Los saldos se han asentado en el Libro Mayor.");
+            setTimeout(() => setNotificacion(""), 6000);
+            cargarDatos();
+        } catch (err) {
+            console.error("Error al contabilizar asiento:", err);
+            alert(err.message || "No se pudo contabilizar el asiento contable.");
         }
     };
 
@@ -1115,6 +1132,48 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                     display: inline-flex;
                     align-items: center;
                     gap: 4px;
+                }
+                .badge-estado-contabilizado {
+                    background: #ecfdf5;
+                    border: 1px solid #a7f3d0;
+                    color: #065f46;
+                    font-size: 11px;
+                    font-weight: 700;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .badge-estado-pendiente {
+                    background: #fef3c7;
+                    border: 1px solid #fde68a;
+                    color: #92400e;
+                    font-size: 11px;
+                    font-weight: 700;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .btn-contabilizar-asiento {
+                    background: #1b4332;
+                    color: #ffffff;
+                    border: none;
+                    padding: 4px 10px;
+                    border-radius: 6px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    transition: all 0.15s ease;
+                }
+                .btn-contabilizar-asiento:hover {
+                    background: #2d6a4f;
+                    transform: translateY(-1px);
                 }
                 .btn-ver-cambios-rect {
                     background: #f0fdf4;
@@ -1778,6 +1837,23 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                     border-color: #b45309;
                     color: #fde68a;
                 }
+                .app-shell.tema-oscuro .badge-estado-contabilizado {
+                    background: rgba(6, 78, 59, 0.45);
+                    border-color: #059669;
+                    color: #6ee7b7;
+                }
+                .app-shell.tema-oscuro .badge-estado-pendiente {
+                    background: rgba(146, 64, 14, 0.3);
+                    border-color: #b45309;
+                    color: #fde68a;
+                }
+                .app-shell.tema-oscuro .btn-contabilizar-asiento {
+                    background: #059669;
+                    color: #ffffff;
+                }
+                .app-shell.tema-oscuro .btn-contabilizar-asiento:hover {
+                    background: #10b981;
+                }
                 .app-shell.tema-oscuro .btn-ver-cambios-rect {
                     background: rgba(6, 78, 59, 0.35);
                     border-color: #059669;
@@ -1973,29 +2049,54 @@ function LibroDiario({ filtroDesde: propDesde, filtroHasta: propHasta, empresaNo
                                     <tr className="diario-total-row">
                                         <td colSpan="4">
                                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                                                <span>Total partida {asiento.numero_partida}</span>
+                                                <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                                                    <span>Total partida {asiento.numero_partida}</span>
+                                                    {asiento.estado === "PENDIENTE" ? (
+                                                        <span className="badge-estado-pendiente" title="Partida registrada por auxiliar, pendiente de contabilización">
+                                                            ⏳ Pendiente de contabilizar
+                                                        </span>
+                                                    ) : (
+                                                        <span className="badge-estado-contabilizado" title="Asentado oficialmente en el ejercicio contable">
+                                                            ✓ Contabilizado
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
-                                                    <button
-                                                        type="button"
-                                                        className="btn-rectificar-asiento"
-                                                        onClick={() => setModalRectificar(asiento)}
-                                                        title="Modificar cuentas, montos o fecha de este asiento"
-                                                    >
-                                                        <IconoLapiz size={14} />
-                                                        <span>Modificar</span>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="btn-eliminar-asiento"
-                                                        onClick={() => {
-                                                            setModalEliminar(asiento);
-                                                            setMotivoEliminar("");
-                                                        }}
-                                                        title="Eliminar este asiento contable"
-                                                    >
-                                                        <IconoBasura size={14} />
-                                                        <span>Eliminar</span>
-                                                    </button>
+                                                    {asiento.estado === "PENDIENTE" && puedeContabilizar && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn-contabilizar-asiento"
+                                                            onClick={() => manejarContabilizar(asiento.id)}
+                                                            title="Contabilizar oficialmente esta partida para asentar en el Libro Mayor"
+                                                        >
+                                                            ✓ Contabilizar
+                                                        </button>
+                                                    )}
+                                                    {puedeAnular && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                className="btn-rectificar-asiento"
+                                                                onClick={() => setModalRectificar(asiento)}
+                                                                title="Modificar cuentas, montos o fecha de este asiento"
+                                                            >
+                                                                <IconoLapiz size={14} />
+                                                                <span>Modificar</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn-eliminar-asiento"
+                                                                onClick={() => {
+                                                                    setModalEliminar(asiento);
+                                                                    setMotivoEliminar("");
+                                                                }}
+                                                                title="Eliminar o anular este asiento contable"
+                                                            >
+                                                                <IconoBasura size={14} />
+                                                                <span>Eliminar</span>
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>

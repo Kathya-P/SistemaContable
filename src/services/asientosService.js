@@ -52,6 +52,15 @@ export async function eliminarAsiento(id, motivo = "Eliminación de asiento cont
 }
 
 // ==========================================
+// Contabilizar asiento contable
+// ==========================================
+export async function contabilizarAsiento(id) {
+    return solicitarApi(`/asientos/${id}/contabilizar`, {
+        method: "PUT"
+    });
+}
+
+// ==========================================
 // Asientos Guardados (Esqueletos / Plantillas)
 // ==========================================
 const LOCAL_STORAGE_KEY_GUARDADOS = "contacabal_asientos_guardados";

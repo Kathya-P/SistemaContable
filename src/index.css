@@ -7116,3 +7116,54 @@ body:has(.app-shell.tema-oscuro)
     position: static;
   }
 }
+/* Estado de Resultados: tabla + Cuenta T lateral sin scroll */
+.er-split-view {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.er-split-view .er-tabla-contenedor {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: visible;          /* quita el scroll del contenedor */
+}
+
+/* La tabla se adapta al espacio disponible en vez de forzar 820px */
+.er-split-view .er-table.entry-detail-table {
+  min-width: 0;
+  width: 100%;
+  table-layout: auto;
+}
+
+.er-table td:nth-child(2) {
+  white-space: normal;        /* el concepto puede saltar de línea */
+}
+
+.er-panel-lateral {
+  flex: 0 0 360px;
+  position: sticky;
+  top: 20px;
+}
+
+.er-panel-lateral .t-account-panel {
+  margin-top: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.er-panel-lateral .t-account {
+  max-width: none;
+}
+
+@media (max-width: 960px) {
+  .er-split-view {
+    flex-direction: column;
+  }
+
+  .er-panel-lateral {
+    flex: 1 1 auto;
+    width: 100%;
+    position: static;
+  }
+}

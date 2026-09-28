@@ -296,5 +296,9 @@ Por el límite de espacio de la entrega, el video no pudo adjuntarse como archiv
 ---
 
 ## 👨‍💻 Equipo
-
+- Kathya Perez
+- Daniela Monge
+- Justin Ramirez
+- Brandon Valdez
+  
 Proyecto académico **ContaCabal** · UNICAES · React + Supabase · 2026

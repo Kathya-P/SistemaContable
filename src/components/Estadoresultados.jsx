@@ -517,28 +517,6 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
                                 <strong>{listo.datos.empresa}</strong>
                                 <span>Estado de Resultados</span>
                                 <span>Del {fechaCorta(listo.datos.desde)} al {fechaCorta(listo.datos.hasta)}</span>
-
-                                {/* Banner explicativo cuando hay una fila calculada activa */}
-                                {filaCalculada && (
-                                    <div className="er-formula-banner">
-                                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                                            <span className="er-formula-badge">Fórmula</span>
-                                            <span>
-                                                Origen de <strong>{filaCalculada}</strong>:{" "}
-                                                <code style={{ background: "transparent", fontWeight: 600 }}>
-                                                    {METADATOS_ESTADO[filaCalculada]?.formula}
-                                                </code>
-                                            </span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFilaCalculada(null)}
-                                            className="er-btn-desmarcar"
-                                        >
-                                            ✕ Quitar sombreado
-                                        </button>
-                                    </div>
-                                )}
                             </div>
 
                             <table className="entry-detail-table er-table">
@@ -556,7 +534,11 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
                                         const meta = METADATOS_ESTADO[fila.concepto];
                                         const esCuenta = meta?.tipo === "CUENTA";
                                         const esCalculado = meta?.tipo === "CALCULADO";
-                                        const esOrigenVerde = dependenciasActivas.includes(fila.concepto);
+                                        const indiceOrigen = dependenciasActivas.indexOf(fila.concepto);
+                                        const esOrigenVerde = indiceOrigen !== -1;
+                                        const claseTonoOrigen = esOrigenVerde
+                                            ? (indiceOrigen === 0 ? "er-fila-origen-1" : indiceOrigen === 1 ? "er-fila-origen-2" : "er-fila-origen-3")
+                                            : "";
                                         const esCalculadaActiva = filaCalculada === fila.concepto;
                                         const esCuentaTActiva = cuentaTSeleccionada && meta && cuentaTSeleccionada.codigo === meta.codigo;
 
@@ -566,6 +548,7 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
                                             fila.final ? "er-final" : "",
                                             (esCuenta || esCalculado) ? "er-clickable" : "",
                                             esOrigenVerde ? "er-fila-origen" : "",
+                                            claseTonoOrigen,
                                             esCalculadaActiva ? "er-fila-calculada-activa" : "",
                                             esCuentaTActiva ? "er-fila-cuenta-activa" : ""
                                         ].filter(Boolean).join(" ").trim();
@@ -573,7 +556,7 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
                                         const tooltip = esCuenta
                                             ? `Toca para ver el desglose en Cuenta T de ${fila.concepto}`
                                             : esCalculado
-                                            ? `Toca para sombrear el origen de ${fila.concepto} (${meta.formula})`
+                                            ? `Toca para ver las filas que originan ${fila.concepto}`
                                             : undefined;
 
                                         return (
@@ -584,24 +567,7 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
                                                 title={tooltip}
                                             >
                                                 <td className="er-mark">{fila.marca}</td>
-                                                <td>
-                                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-                                                        <span>{fila.concepto}</span>
-
-                                                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                                            {esOrigenVerde && (
-                                                                <span className="er-chip-origen">
-                                                                    ✔ Fila de origen
-                                                                </span>
-                                                            )}
-                                                            {esCuenta && (
-                                                                <span className={`er-chip-cuenta ${esCuentaTActiva ? "is-active" : ""}`}>
-                                                                    {esCuentaTActiva ? "Viendo Cuenta T ▶" : "Cuenta T"}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </td>
+                                                <td>{fila.concepto}</td>
                                                 <td className="er-amount">{moneda(fila.monto)}</td>
                                             </tr>
                                         );

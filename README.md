@@ -1,334 +1,230 @@
 # 📘 ContaCabal
 
-Sistema web contable desarrollado para la gestión de procesos contables básicos, permitiendo administrar cuentas contables, registrar movimientos financieros y consultar información mediante un Libro Diario.
+Sistema web contable para la gestión de procesos contables básicos: administración de catálogo de cuentas, registro de asientos (partidas), Libro Diario, Libro Mayor, Cuentas T y Estado de Resultados.
 
-El proyecto está construido utilizando **React** para el frontend y **Supabase (PostgreSQL)** como backend y base de datos.
-
----
-
-# 🚀 Tecnologías utilizadas
-
-## Frontend
-
-- React 19
-- Vite
-- JavaScript
-- CSS
-
-## Backend / Base de datos
-
-- Supabase
-- PostgreSQL
-- Row Level Security (RLS)
-
-## Librerías principales
-
-- @supabase/supabase-js
+**Demo en producción:** https://contacabal.vercel.app
 
 ---
 
-# 📂 Estructura del proyecto
+## 📑 Contenido
+
+1. [Tecnologías](#-tecnologías)
+2. [Estructura del proyecto](#-estructura-del-proyecto)
+3. [Manual de instalación](#-manual-de-instalación)
+4. [Base de datos (scripts SQL)](#-base-de-datos-scripts-sql)
+5. [Accesos](#-accesos)
+6. [Tabla de roles](#-tabla-de-roles)
+7. [Funcionalidades](#-funcionalidades)
+8. [Seguridad](#-seguridad)
+9. [Historial Git](#-historial-git)
+10. [Equipo](#-equipo)
+
+---
+
+## 🚀 Tecnologías
+
+| Capa | Tecnología |
+| --- | --- |
+| Frontend | React 19, Vite, JavaScript, CSS |
+| Backend | Node.js + Express (`backend/server.js`) |
+| Base de datos | Supabase (PostgreSQL) con Row Level Security |
+| Autenticación | Supabase Auth |
+| Despliegue | Vercel (`vercel.json`) |
+| Librería principal | `@supabase/supabase-js` |
+
+---
+
+## 📂 Estructura del proyecto
+
+```
 SistemaContable
-│
+├── .github/workflows     # Integración continua
+├── api                   # Funciones serverless (Vercel)
+├── backend               # Servidor Express
+├── database              # Scripts SQL: schema.sql y data.sql
 ├── public
-│
 ├── src
-│   │
 │   ├── assets
-│   │
-│   ├── components
-│   │   │
-│   │   └── LibroDiario.jsx
-│   │
-│   ├── lib
-│   │   │
-│   │   └── supabase.js
-│   │
-│   ├── services
-│   │   │
-│   │   ├── asientosService.js
-│   │   ├── cuentasService.js
-│   │   ├── empresasService.js
-│   │   └── libroDiarioService.js
-│   │
+│   ├── components        # LibroDiario.jsx, etc.
+│   ├── lib               # supabase.js
+│   ├── services          # asientos, cuentas, empresas, libroDiario
 │   ├── App.jsx
-│   ├── App.css
-│   ├── index.css
 │   └── main.jsx
-│
-├── .env
+├── supabase/migrations   # Migraciones SQL
+├── .env.example
 ├── package.json
-├── README.md
+├── vercel.json
 └── vite.config.js
+```
 
 ---
 
-# 🗄️ Arquitectura de Base de Datos
+## ⚙️ Manual de instalación
 
-La base de datos fue diseñada utilizando una estructura contable tradicional.
+### Requisitos previos
 
-## Tablas principales
+- Node.js (versión indicada en `.nvmrc`)
+- npm
+- Git
+- Una cuenta de [Supabase](https://supabase.com) con un proyecto creado
 
----
+### Paso 1. Clonar el repositorio
 
-# 🏢 empresas
+```bash
+git clone https://github.com/Kathya-P/SistemaContable.git
+cd SistemaContable
+```
 
-Almacena la información de las empresas registradas en el sistema.
+### Paso 2. Instalar dependencias
 
-Campos principales:
-
-- id
-- nombre
-- datos generales
-
----
-
-# 📚 cuentas
-
-Contiene el catálogo contable utilizado para registrar movimientos.
-
-La estructura permite manejar niveles jerárquicos:
-GRUPO
- |
- └── SUBGRUPO
-       |
-       └── CUENTA
-             |
-             └── SUBCUENTA
-
-
-Ejemplo:
-1  ACTIVO
-11 ACTIVO CORRIENTE
-1101 Efectivo y equivalentes de efectivo
-110102 Bancos
-
-Las cuentas finales permiten realizar movimientos contables.
-
----
-
-# 📝 asientos
-
-Contiene la cabecera de cada partida contable.
-
-Ejemplo:
-
-Número de partida:
-1
-Fecha:
-2026-09-18
-Concepto:
-Aporte inicial de capital
-
-Campos principales:
-
-- id
-- empresa_id
-- numero_partida
-- fecha
-- concepto
-- usuario_id
-- estado
-
----
-
-# 📑 detalle_asientos
-
-Contiene el detalle de cada movimiento contable.
-
-Relaciona:
-
-Asiento
-   |
-   |
-Detalle
-   |
-   |
-Cuenta contable
-
-Campos principales:
-
-- asiento_id
-- cuenta_id
-- descripcion
-- debe
-- haber
-
-Ejemplo:
-
-| Cuenta | Debe | Haber |
-|---|---:|---:|
-| Bancos | 50,000 | 0 |
-| Capital Social | 0 | 50,000 |
-
----
-
-# 🔐 Seguridad
-
-La base de datos utiliza Row Level Security (RLS) de Supabase.
-
-Las políticas permiten controlar el acceso a la información desde el frontend.
-
-Actualmente se configuraron permisos de lectura para:
-
-- asientos
-- detalle_asientos
-- cuentas
-- empresas
-
----
-
-# ⚙️ Configuración del proyecto
-
-## 1. Clonar repositorio
-
-git clone URL_DEL_REPOSITORIO
-
----
-
-## 2. Instalar dependencias
-
-Dentro del proyecto ejecutar:
-
+```bash
 npm install
+```
 
----
+### Paso 3. Crear la base de datos
 
-## 3. Variables de entorno
+En el **SQL Editor** de Supabase ejecutar, en este orden:
 
-Copiar `.env.example` como `.env` y completar los valores desde Supabase:
+1. `database/schema.sql` (esquema: tablas, relaciones, funciones y políticas RLS)
+2. `database/data.sql` (catálogo de cuentas y datos iniciales)
 
-```env
+Detalle en la sección [Base de datos](#-base-de-datos-scripts-sql).
+
+### Paso 4. Variables de entorno
+
+Copiar `.env.example` como `.env` y completar los valores desde **Project Settings > API** en Supabase:
+
+```
 VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
 VITE_SUPABASE_ANON_KEY=tu-clave-anon-publica
 SUPABASE_SERVICE_ROLE_KEY=tu-clave-service-role-privada
 ```
 
-La URL y las claves se encuentran en **Project Settings > API** dentro de tu proyecto Supabase. `SUPABASE_SERVICE_ROLE_KEY` solo la usa Node para crear empresas y asientos; nunca debe tener prefijo `VITE_` ni publicarse en el frontend.
+> ⚠️ `SUPABASE_SERVICE_ROLE_KEY` solo la usa el backend Node. Nunca debe llevar prefijo `VITE_` ni publicarse en el frontend ni en Git.
 
----
+### Paso 5. Ejecutar la aplicación
 
-## 4. Ejecutar aplicación
+Frontend:
 
+```bash
 npm run dev
+```
 
-La aplicación estará disponible en:
+Disponible en http://localhost:5173/ (si el puerto está ocupado, Vite usará otro, por ejemplo 5174).
 
-http://localhost:5173/
+Backend (en otra terminal):
 
-Si ese puerto está ocupado, Vite utilizará automáticamente otro, por ejemplo `http://localhost:5174/`.
+```bash
+node backend/server.js
+```
+
+### Paso 6. Compilar para producción
+
+```bash
+npm run build
+```
+
+### Solución de problemas
+
+| Problema | Solución |
+| --- | --- |
+| Pantalla en blanco o error de conexión | Revisar que las variables de `.env` estén completas y reiniciar `npm run dev` |
+| Error de permisos al consultar tablas | Verificar que `schema.sql` se ejecutó completo (incluye políticas RLS) |
+| Puerto 5173 ocupado | Vite asigna otro puerto automáticamente; usar el que muestre la consola |
 
 ---
 
-# 🔌 Conexión con Supabase
+## 🗄️ Base de datos (scripts SQL)
 
-La conexión se realiza mediante:
+| Script | Contenido |
+| --- | --- |
+| `database/schema.sql` | Esquema completo: tablas, llaves foráneas, funciones (por ejemplo `libro_mayor`) y políticas RLS |
+| `database/data.sql` | Catálogo de cuentas y datos iniciales |
 
-src/lib/supabase.js
+### Tablas principales
 
-Ejemplo:
+- **empresas**: empresas registradas en el sistema.
+- **cuentas**: catálogo contable jerárquico (Grupo > Subgrupo > Cuenta > Subcuenta). Solo las cuentas finales admiten movimientos.
+- **asientos**: cabecera de cada partida (`empresa_id`, `numero_partida`, `fecha`, `concepto`, `usuario_id`, `estado`).
+- **detalle_asientos**: movimientos de cada partida (`asiento_id`, `cuenta_id`, `descripcion`, `debe`, `haber`).
 
-```javascript
-import { createClient } from '@supabase/supabase-js'
+Ejemplo de jerarquía del catálogo:
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+```
+1       ACTIVO
+11      ACTIVO CORRIENTE
+1101    Efectivo y equivalentes de efectivo
+110102  Bancos
+```
 
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+Ejemplo de partida:
 
+| Cuenta | Debe | Haber |
+| --- | --- | --- |
+| Bancos | 50,000 | 0 |
+| Capital Social | 0 | 50,000 |
 
-export const supabase = createClient(
-    supabaseUrl,
-    supabaseAnonKey
-)
-🛠️ Servicios creados
-Los servicios separan la lógica de conexión con la base de datos.
-asientosService.js
-Funciones principales:
-- Obtener asientos
-- Obtener asiento por ID
-- Crear asiento contable
-cuentasService.js
-Funciones relacionadas al catálogo contable.
-Permite consultar:
-- Código
-- Nombre
-- Nivel
-- Jerarquía contable
-empresasService.js
-Manejo de información de empresas.
-libroDiarioService.js
-Consulta la información necesaria para construir el Libro Diario.
-Realiza la relación:
-asientos
+---
 
-+
+## 🔑 Accesos
 
-detalle_asientos
+| Recurso | URL / dato |
+| --- | --- |
+| Aplicación en producción | https://contacabal.vercel.app |
+| Aplicación local | http://localhost:5173/ |
+| Repositorio | https://github.com/Kathya-P/SistemaContable |
+| Base de datos | Panel de Supabase del proyecto (Project Settings > API) |
 
-+
+## 👥 Tabla de roles
 
-cuentas
-📖 Libro Diario
-Actualmente el sistema permite visualizar los movimientos contables registrados.
-Información mostrada:
-- Fecha
-- Número de partida
-- Código contable
-- Cuenta
-- Descripción
-- Debe
-- Haber
-Ejemplo:
-Fecha: 18/09/2026
+| Módulo / Acción | Administrador | Contador | Consulta |
+| --- | :---: | :---: | :---: |
+| Iniciar sesión / registro | ✅ | ✅ | ✅ |
+| Gestión de usuarios y roles | ✅ | ❌ | ❌ |
+| Catálogo de cuentas (crear / editar) | ✅ | ✅ | ❌ |
+| Catálogo de cuentas (consultar) | ✅ | ✅ | ✅ |
+| Registrar asientos (Nuevo asiento) | ✅ | ✅ | ❌ |
+| Libro Diario | ✅ | ✅ | ✅ |
+| Libro Mayor y Cuentas T | ✅ | ✅ | ✅ |
+| Estado de Resultados | ✅ | ✅ | ✅ |
 
-Partida: 1
+> Ajustar la tabla a los roles y permisos que realmente maneja el módulo de usuarios.
 
-Concepto:
-Aporte inicial de capital
+---
 
+## ✅ Funcionalidades
 
-110102 Bancos
+- Login y registro de usuarios
+- Gestión de usuarios y roles
+- Catálogo de cuentas jerárquico
+- Nuevo asiento con IVA automático (13%)
+- Validación de partidas cuadradas (Debe = Haber)
+- Libro Diario
+- Libro Mayor (función SQL `libro_mayor`)
+- Cuentas T
+- Estado de Resultados
+- Balance General
+- Kardex
+- Ratios Financieros
+- Auditoria
+- Modulo Administrador
 
-Debe:
-50,000
+## 🔐 Seguridad
 
+- Row Level Security (RLS) de Supabase para controlar el acceso a `asientos`, `detalle_asientos`, `cuentas` y `empresas`.
+- La clave `service_role` se usa únicamente en el backend.
+- El archivo `.env` está en `.gitignore`.
 
-3101 Capital Social
+---
 
-Haber:
-50,000
-✅ Funcionalidades actuales
-- Proyecto React configurado
-- Conexión con Supabase
-- Variables de entorno configuradas
-- Base de datos PostgreSQL creada
-- Catálogo contable creado
-- Relaciones entre tablas funcionando
-- Registro de asientos contables
-- Validación de partidas cuadradas
-- Consulta de Libro Diario
-- Integración frontend - base de datos
-📌 Próximas mejoras
-Módulo de cuentas
-- Crear cuentas
-- Editar cuentas
-- Eliminar cuentas
-- Visualizar árbol contable
-Módulo de asientos
-- Formulario para crear partidas
-- Selección dinámica de cuentas
-- Validación automática Debe/Haber
-- Numeración automática de partidas
-Reportes contables
-- Mayor general
-- Balance de comprobación
-- Estado de resultados
-- Balance general
-👨‍💻 Equipo de desarrollo
-Proyecto académico:
-ContaCabal
-Tecnologías:
-React + Supabase
-Año:
-2026
-     
+## 🕓 Historial Git
+
+El historial completo del proyecto (más de 200 commits) está disponible en:
+
+https://github.com/Kathya-P/SistemaContable/commits/main
+
+---
+
+## 👨‍💻 Equipo
+
+Proyecto académico **ContaCabal** · UNICAES · React + Supabase · 2026

@@ -47,7 +47,7 @@ export const CATALOGO_PREDETERMINADO = [
     { codigo: "5101", nombre: "Ventas", tipo: "INGRESO", nivel: "CUENTA", padre: "51" },
     { codigo: "5102", nombre: "Devolución sobre ventas", tipo: "INGRESO", nivel: "CUENTA", padre: "51" }
 ];
-export const TIPOS_VALIDOS = ["ACTIVO", "PASIVO", "PATRIMONIO", "INGRESO", "GASTO", "ORDEN", "CONTINGENTE", "COSTO"];
+export const TIPOS_VALIDOS = ["ACTIVO", "PASIVO", "PATRIMONIO", "INGRESO", "GASTO", "COSTO"];
 export const NIVELES_VALIDOS = ["GRUPO", "SUBGRUPO", "CUENTA", "SUBCUENTA"];
 
 /**
@@ -70,7 +70,6 @@ export function normalizarTipo(tipo, codigo = "", nombre = "") {
         if (nom.includes("GASTO") || nom.includes("COSTO")) return "GASTO";
         return "INGRESO";
     }
-    if (t === "6" || t === "06" || t === "7" || t === "07") return "ORDEN";
 
     // 2. Textos y sinónimos
     if (t.includes("ACTIVO")) return "ACTIVO";
@@ -79,7 +78,6 @@ export function normalizarTipo(tipo, codigo = "", nombre = "") {
     if (t.includes("INGRESO") || t.includes("VENTA")) return "INGRESO";
     if (t.includes("GASTO")) return "GASTO";
     if (t.includes("COSTO")) return "COSTO";
-    if (t.includes("ORDEN") || t.includes("CONTINGENTE")) return "ORDEN";
 
     // 3. Inferencia por código si falta el tipo
     if (cod) {
@@ -95,7 +93,6 @@ export function normalizarTipo(tipo, codigo = "", nombre = "") {
             if (nom.includes("GASTO") || nom.includes("COSTO")) return "GASTO";
             return "INGRESO";
         }
-        if (primerChar === "6" || primerChar === "7") return "ORDEN";
     }
 
     return "ACTIVO";
@@ -139,10 +136,6 @@ export function obtenerNaturaleza(tipo, operacion = "", codigo = "") {
     }
     if (t === "PASIVO" || t === "PATRIMONIO" || t === "INGRESO") {
         return "ACREEDORA";
-    }
-    if (t === "ORDEN" || t === "CONTINGENTE") {
-        if (String(codigo).trim().startsWith("7")) return "ACREEDORA";
-        return "DEUDORA";
     }
     return "DEUDORA";
 }
@@ -820,7 +813,7 @@ export function parsearTextoPegadoWordPDF(texto) {
         // 1. Formato oficial salvadoreño (Gobierno / SSF / BCR / Hacienda)
         // Ejemplo: "11000000 CAJA GENERAL 1 5 Subcuenta +"
         // Ejemplo: "11040199 AJUSTES A INVERSIONES EN ACTIVOS FINANCIEROS A COSTO AMORTIZADO (CR) 1 5 Subcuenta -"
-        const matchGob = linea.match(/^([0-9A-Za-z._-]+)\s+(.+?)\s+([1-7])\s+([1-6])\s+([A-Za-zÁÉÍÓÚáéíóúñÑ]+)(?:\s+([+-]))?$/);
+        const matchGob = linea.match(/^([0-9A-Za-z._-]+)\s+(.+?)\s+([1-5])\s+([1-6])\s+([A-Za-zÁÉÍÓÚáéíóúñÑ]+)(?:\s+([+-]))?$/);
         if (matchGob) {
             filasBrutas.push({
                 codigo: matchGob[1].trim(),
@@ -839,7 +832,7 @@ export function parsearTextoPegadoWordPDF(texto) {
             if (cols.length >= 2) {
                 // Si viene en 5 o 6 columnas de catálogo oficial:
                 // [0] id_cuenta, [1] nombre_cuenta, [2] categoria, [3] nivel, [4] descripcion_nivel, [5] operacion
-                if (cols.length >= 4 && (String(cols[2]).match(/^[1-7]$/) || String(cols[3]).match(/^[1-6]$/))) {
+                if (cols.length >= 4 && (String(cols[2]).match(/^[1-5]$/) || String(cols[3]).match(/^[1-6]$/))) {
                     filasBrutas.push({
                         codigo: cols[0],
                         nombre: cols[1],
@@ -866,7 +859,7 @@ export function parsearTextoPegadoWordPDF(texto) {
             const sep = linea.includes(";") ? ";" : ",";
             const cols = linea.split(sep).map(c => c.replace(/^["']|["']$/g, "").trim());
             if (cols.length >= 2 && cols[0]) {
-                if (cols.length >= 4 && (String(cols[2]).match(/^[1-7]$/) || String(cols[3]).match(/^[1-6]$/))) {
+                if (cols.length >= 4 && (String(cols[2]).match(/^[1-5]$/) || String(cols[3]).match(/^[1-6]$/))) {
                     filasBrutas.push({
                         codigo: cols[0],
                         nombre: cols[1],

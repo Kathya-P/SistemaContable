@@ -360,7 +360,6 @@ function derivarNaturaleza(tipo) {
     const t = String(tipo || "").toUpperCase();
     if (t === "ACTIVO" || t === "GASTO" || t === "COSTO") return "DEUDORA";
     if (t === "PASIVO" || t === "PATRIMONIO" || t === "INGRESO") return "ACREEDORA";
-    if (t === "ORDEN" || t === "CONTINGENTE") return "DEUDORA";
     return "DEUDORA";
 }
 

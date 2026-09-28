@@ -103,7 +103,7 @@ useEffect(() => {
             </div>
 
             <form onSubmit={crearUsuario} className="entry-form" style={{ marginTop: "18px" }}>
-                <h2 style={{ marginTop: 0 }}>Nuevo usuario</h2>
+                <h2 className="section-title" style={{ marginTop: 0 }}>Nuevo usuario</h2>
                 <p className="form-help">El usuario tendrá acceso únicamente a tu empresa.</p>
 
                 <div className="form-grid">
@@ -135,7 +135,7 @@ useEffect(() => {
                 </button>
             </form>
 
-            <h2 style={{ marginTop: "28px" }}>Equipo</h2>
+            <h2 className="section-title" style={{ marginTop: "28px" }}>Equipo</h2>
             <div className="detail-table-shell" style={{ overflowX: "auto" }}>
                 <table className="entry-detail-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
                     <colgroup>
@@ -193,7 +193,7 @@ useEffect(() => {
                 </table>
             </div>
 
-            <h2 style={{ marginTop: "28px" }}>Qué puede hacer cada rol</h2>
+            <h2 className="section-title" style={{ marginTop: "28px" }}>Qué puede hacer cada rol</h2>
             <div className="detail-table-shell" style={{ overflowX: "auto" }}>
                 <table className="entry-detail-table" style={{ width: "100%", tableLayout: "fixed", borderCollapse: "collapse" }}>
                     <colgroup>

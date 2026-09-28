@@ -544,13 +544,13 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
 
                                         let estiloFondoTd = undefined;
                                         if (esCalculadaActiva) {
-                                            estiloFondoTd = { backgroundColor: "var(--er-bg-calculada, #A7F3D0)" };
+                                            estiloFondoTd = { backgroundColor: "var(--er-bg-calculada, #C4E2D3)" };
                                         } else if (esCuentaTActiva) {
-                                            estiloFondoTd = { backgroundColor: "var(--er-bg-cuenta, #C8E6C9)" };
+                                            estiloFondoTd = { backgroundColor: "var(--er-bg-cuenta, #D1E7DD)" };
                                         } else if (esOrigenVerde) {
                                             const colorFondo = indiceOrigen === 0
-                                                ? "var(--er-bg-origen-1, #B9F6CA)"
-                                                : (indiceOrigen === 1 ? "var(--er-bg-origen-2, #DCEDC8)" : "var(--er-bg-origen-3, #E8F5E9)");
+                                                ? "var(--er-bg-origen-1, #D1E7DD)"
+                                                : (indiceOrigen === 1 ? "var(--er-bg-origen-2, #DCEDE4)" : "var(--er-bg-origen-3, #E6F3EC)");
                                             estiloFondoTd = { backgroundColor: colorFondo };
                                         }
 

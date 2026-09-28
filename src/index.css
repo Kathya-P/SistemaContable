@@ -7048,103 +7048,61 @@ body:has(.app-shell.tema-oscuro)
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* 1. Filas de origen sombreadas de verdecito en diferentes tonos */
-.er-table tr.er-fila-origen-1 {
-  background-color: #D7F3E3 !important;
-  border-left: 4px solid #10B981 !important;
+/* Variables para el sombreado de filas (diferentes tonos de verde) */
+:root {
+  --er-bg-origen-1: #C8E6C9; /* Verde menta suave claro */
+  --er-bg-origen-2: #DCEDC8; /* Verde lima suave */
+  --er-bg-origen-3: #E8F5E9; /* Verde pastel muy claro */
+  --er-bg-calculada: #A7F3D0; /* Verde esmeralda para la fila del cálculo tocada */
+  --er-bg-cuenta: #D1E7DD;    /* Verde suave para la cuenta con T abierta */
 }
 
+.app-shell.tema-oscuro {
+  --er-bg-origen-1: #14532D;
+  --er-bg-origen-2: #166534;
+  --er-bg-origen-3: #064E3B;
+  --er-bg-calculada: #047857;
+  --er-bg-cuenta: #0F5132;
+}
+
+/* 1. Filas de origen sombreadas de verdecito en diferentes tonos (celdas sombreadas, sin tocar color de texto) */
 .er-table tr.er-fila-origen-1 td {
-  color: #064E3B !important;
-  font-weight: 600 !important;
-}
-
-.er-table tr.er-fila-origen-2 {
-  background-color: #E8F8EE !important;
-  border-left: 4px solid #34D399 !important;
+  background-color: var(--er-bg-origen-1, #C8E6C9) !important;
 }
 
 .er-table tr.er-fila-origen-2 td {
-  color: #065F46 !important;
-  font-weight: 600 !important;
-}
-
-.er-table tr.er-fila-origen-3 {
-  background-color: #F0FDF4 !important;
-  border-left: 4px solid #6EE7B7 !important;
+  background-color: var(--er-bg-origen-2, #DCEDC8) !important;
 }
 
 .er-table tr.er-fila-origen-3 td {
-  color: #047857 !important;
-  font-weight: 600 !important;
+  background-color: var(--er-bg-origen-3, #E8F5E9) !important;
 }
 
-/* 2. Fila calculada activa (la que se tocó para ver su origen) */
-.er-table tr.er-fila-calculada-activa {
-  background-color: #BCF0D1 !important;
-  border-left: 4px solid #047857 !important;
-}
-
+/* 2. Fila calculada activa (la fila que se tocó) */
 .er-table tr.er-fila-calculada-activa td {
-  color: #022C22 !important;
-  font-weight: 700 !important;
+  background-color: var(--er-bg-calculada, #A7F3D0) !important;
 }
 
 /* 3. Fila con Cuenta T activa abierta a la derecha */
-.er-table tr.er-fila-cuenta-activa {
-  background-color: #C8EEDB !important;
-  border-left: 4px solid #065F46 !important;
-}
-
 .er-table tr.er-fila-cuenta-activa td {
-  color: #022C22 !important;
-  font-weight: 600 !important;
+  background-color: var(--er-bg-cuenta, #D1E7DD) !important;
 }
 
-/* --- MODO OSCURO (TONOS DE VERDE ADAPTADOS) --- */
-.app-shell.tema-oscuro .er-table tr.er-fila-origen-1 {
-  background-color: rgba(16, 185, 129, 0.28) !important;
+/* Bordes laterales sutiles */
+.er-table tr.er-fila-origen-1 {
   border-left: 4px solid #10B981 !important;
 }
-
-.app-shell.tema-oscuro .er-table tr.er-fila-origen-1 td {
-  color: #ECFDF5 !important;
-}
-
-.app-shell.tema-oscuro .er-table tr.er-fila-origen-2 {
-  background-color: rgba(16, 185, 129, 0.18) !important;
+.er-table tr.er-fila-origen-2 {
   border-left: 4px solid #34D399 !important;
 }
-
-.app-shell.tema-oscuro .er-table tr.er-fila-origen-2 td {
-  color: #D1FAE5 !important;
-}
-
-.app-shell.tema-oscuro .er-table tr.er-fila-origen-3 {
-  background-color: rgba(16, 185, 129, 0.12) !important;
+.er-table tr.er-fila-origen-3 {
   border-left: 4px solid #6EE7B7 !important;
 }
-
-.app-shell.tema-oscuro .er-table tr.er-fila-origen-3 td {
-  color: #A7F3D0 !important;
+.er-table tr.er-fila-calculada-activa {
+  border-left: 4px solid #059669 !important;
 }
-
-.app-shell.tema-oscuro .er-table tr.er-fila-calculada-activa {
-  background-color: rgba(16, 185, 129, 0.38) !important;
-  border-left: 4px solid #34D399 !important;
-}
-
-.app-shell.tema-oscuro .er-table tr.er-fila-calculada-activa td {
-  color: #FFFFFF !important;
-}
-
-.app-shell.tema-oscuro .er-table tr.er-fila-cuenta-activa {
-  background-color: rgba(5, 150, 105, 0.35) !important;
-  border-left: 4px solid #10B981 !important;
-}
-
-.app-shell.tema-oscuro .er-table tr.er-fila-cuenta-activa td {
-  color: #FFFFFF !important;
+.er-table tr.er-fila-cuenta-activa {
+  border-left: 4px solid #047857 !important;
 }
 
 @media (max-width: 1024px) {

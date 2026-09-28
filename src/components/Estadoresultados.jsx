@@ -542,6 +542,18 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
                                         const esCalculadaActiva = filaCalculada === fila.concepto;
                                         const esCuentaTActiva = cuentaTSeleccionada && meta && cuentaTSeleccionada.codigo === meta.codigo;
 
+                                        let estiloFondoTd = undefined;
+                                        if (esCalculadaActiva) {
+                                            estiloFondoTd = { backgroundColor: "var(--er-bg-calculada, #A7F3D0)" };
+                                        } else if (esCuentaTActiva) {
+                                            estiloFondoTd = { backgroundColor: "var(--er-bg-cuenta, #C8E6C9)" };
+                                        } else if (esOrigenVerde) {
+                                            const colorFondo = indiceOrigen === 0
+                                                ? "var(--er-bg-origen-1, #B9F6CA)"
+                                                : (indiceOrigen === 1 ? "var(--er-bg-origen-2, #DCEDC8)" : "var(--er-bg-origen-3, #E8F5E9)");
+                                            estiloFondoTd = { backgroundColor: colorFondo };
+                                        }
+
                                         const clases = [
                                             "er-row",
                                             fila.total ? "er-total" : "",
@@ -566,9 +578,9 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
                                                 onClick={() => manejarClicFila(fila)}
                                                 title={tooltip}
                                             >
-                                                <td className="er-mark">{fila.marca}</td>
-                                                <td>{fila.concepto}</td>
-                                                <td className="er-amount">{moneda(fila.monto)}</td>
+                                                <td className="er-mark" style={estiloFondoTd}>{fila.marca}</td>
+                                                <td style={estiloFondoTd}>{fila.concepto}</td>
+                                                <td className="er-amount" style={estiloFondoTd}>{moneda(fila.monto)}</td>
                                             </tr>
                                         );
                                     })}

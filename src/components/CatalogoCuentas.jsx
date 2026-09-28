@@ -167,14 +167,28 @@ function CatalogoCuentas({ usuario }) {
         return mapa;
     }, [cuentas]);
 
+    // Función para normalizar texto (sin tildes ni acentos, minúsculas, espacios recortados)
+    const normalizarTexto = (texto) =>
+        String(texto || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+
     // Filtrado de cuentas
     const cuentasFiltradas = useMemo(() => {
-        const busq = busqueda.trim().toLowerCase();
+        const busq = normalizarTexto(busqueda);
+        const palabras = busq ? busq.split(/\s+/).filter(Boolean) : [];
+
         return cuentas.filter(c => {
             if (busq) {
-                const coincideCodigo = String(c.codigo).toLowerCase().includes(busq);
-                const coincideNombre = String(c.nombre).toLowerCase().includes(busq);
-                if (!coincideCodigo && !coincideNombre) return false;
+                const codNorm = normalizarTexto(c.codigo);
+                const nomNorm = normalizarTexto(c.nombre);
+                const coincideCodigo = codNorm.includes(busq);
+                const coincideNombre = nomNorm.includes(busq);
+                const coincidePalabras = palabras.length > 0 && palabras.every(p => nomNorm.includes(p) || codNorm.includes(p));
+
+                if (!coincideCodigo && !coincideNombre && !coincidePalabras) return false;
             }
             if (filtroTipo !== "TODOS" && String(c.tipo).toUpperCase() !== filtroTipo) {
                 return false;
@@ -199,6 +213,37 @@ function CatalogoCuentas({ usuario }) {
             return true;
         });
     }, [cuentas, busqueda, filtroTipo, filtroNivel, filtroEstado, filtroIva, configIva, usuario?.empresa_id]);
+
+    // ¿Hay algún filtro activo actualmente?
+    const hayFiltroActivo = Boolean(
+        busqueda.trim() ||
+        filtroTipo !== "TODOS" ||
+        filtroNivel !== "TODOS" ||
+        filtroEstado !== "TODOS" ||
+        filtroIva !== "TODOS"
+    );
+
+    // Set de IDs coincidentes directamente con la búsqueda y filtros
+    const idsCoincidentesDirectos = useMemo(() => {
+        return new Set(cuentasFiltradas.map(c => String(c.id)));
+    }, [cuentasFiltradas]);
+
+    // Set de IDs visibles en el árbol: incluye las cuentas coincidentes + toda su ruta de ancestros (padres, abuelos, etc.)
+    const idsVisiblesEnArbol = useMemo(() => {
+        if (!hayFiltroActivo) return null;
+        const visibles = new Set();
+        cuentasFiltradas.forEach(cuenta => {
+            let actual = cuenta;
+            const visitados = new Set();
+            while (actual && !visitados.has(String(actual.id))) {
+                visibles.add(String(actual.id));
+                visitados.add(String(actual.id));
+                const padreId = actual.cuenta_padre_id ? String(actual.cuenta_padre_id) : null;
+                actual = padreId ? cuentasPorId.get(padreId) : null;
+            }
+        });
+        return visibles;
+    }, [hayFiltroActivo, cuentasFiltradas, cuentasPorId]);
 
     // Contadores estadísticos
     const estadisticas = useMemo(() => {
@@ -308,18 +353,15 @@ function manejarExportacionExcel() {
         const tieneHijos = hijos.length > 0;
         const expandido = nodosExpandidos.has(idStr);
 
-        // Si hay filtros aplicados, verificar si este nodo o algún descendiente coincide
-        const coincideDirecto = cuentasFiltradas.some(c => String(c.id) === idStr);
-        const hayFiltroActivo = busqueda || filtroTipo !== "TODOS" || filtroNivel !== "TODOS" || filtroEstado !== "TODOS";
-
-        if (hayFiltroActivo && !coincideDirecto) {
-            // Verificar si algún descendiente coincide
-            const algunHijoCoincide = tieneHijos && hijos.some(h => cuentasFiltradas.some(cf => String(cf.id) === String(h.id)));
-            if (!algunHijoCoincide) return null;
+        // Si hay filtros aplicados, verificar si este nodo o algún descendiente está en el set visible
+        if (hayFiltroActivo && idsVisiblesEnArbol && !idsVisiblesEnArbol.has(idStr)) {
+            return null;
         }
 
+        const coincideDirecto = idsCoincidentesDirectos.has(idStr);
         const esInactiva = !cuenta.estado;
         const esDeudora = cuenta.naturaleza === "DEUDORA";
+        const estaAbierto = expandido || hayFiltroActivo;
 
         return (
             <div key={cuenta.id} className="nodo-arbol-contenedor" style={{ width: "100%" }}>
@@ -332,7 +374,10 @@ function manejarExportacionExcel() {
                         padding: "8px 12px",
                         paddingLeft: `${14 + nivelProfundidad * 24}px`,
                         borderBottom: "1px solid #EAEFEA",
-                        background: esInactiva ? "#F9FAFB" : (nivelProfundidad === 0 ? "#FCFDFC" : "#FFFFFF"),
+                        borderLeft: (hayFiltroActivo && coincideDirecto) ? "4px solid #1B4332" : "4px solid transparent",
+                        background: (hayFiltroActivo && coincideDirecto) 
+                            ? (esInactiva ? "#F9FAFB" : "#EAF5EE") 
+                            : (esInactiva ? "#F9FAFB" : (nivelProfundidad === 0 ? "#FCFDFC" : "#FFFFFF")),
                         opacity: esInactiva ? 0.75 : 1,
                         transition: "background 150ms ease"
                     }}
@@ -358,9 +403,9 @@ function manejarExportacionExcel() {
                                     justifyContent: "center",
                                     flexShrink: 0
                                 }}
-                                title={expandido ? "Colapsar subcuentas" : "Expandir subcuentas"}
+                                title={estaAbierto ? "Colapsar subcuentas" : "Expandir subcuentas"}
                             >
-                                {expandido ? "▼" : "▶"}
+                                {estaAbierto ? "▼" : "▶"}
                             </button>
                         ) : (
                             <span style={{ width: "22px", display: "inline-block", textAlign: "center", color: "#C5D0C9", fontSize: "14px", flexShrink: 0 }}>
@@ -593,7 +638,7 @@ function manejarExportacionExcel() {
                 </div>
 
                 {/* Subárbol de hijos */}
-                {tieneHijos && (expandido || hayFiltroActivo) && (
+                {tieneHijos && estaAbierto && (
                     <div className="subarbol-hijos">
                         {hijos.map(hijo => renderNodoArbol(hijo, nivelProfundidad + 1))}
                     </div>
@@ -980,11 +1025,38 @@ function manejarExportacionExcel() {
                     <div style={{ minHeight: "200px" }}>
                         {/* Cuentas raíz (sin cuenta padre o cuyo padre no está en el catálogo) */}
                         {(() => {
+                            if (hayFiltroActivo && cuentasFiltradas.length === 0) {
+                                return (
+                                    <div style={{ padding: "48px 20px", textAlign: "center", color: "#5F6B67" }}>
+                                        <p style={{ fontSize: "15px", fontWeight: "600", marginBottom: "6px", color: "#1C2321" }}>
+                                            No se encontraron cuentas contables
+                                        </p>
+                                        <p style={{ fontSize: "13px", color: "#778580", marginBottom: "16px" }}>
+                                            Ninguna cuenta coincide con la búsqueda o filtros seleccionados.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setBusqueda("");
+                                                setFiltroTipo("TODOS");
+                                                setFiltroNivel("TODOS");
+                                                setFiltroEstado("TODOS");
+                                                setFiltroIva("TODOS");
+                                            }}
+                                            className="button-secondary"
+                                            style={{ fontSize: "12.5px", padding: "6px 14px", height: "32px", cursor: "pointer" }}
+                                        >
+                                            Restablecer filtros
+                                        </button>
+                                    </div>
+                                );
+                            }
+
                             const raices = cuentas.filter(c => !c.cuenta_padre_id || !cuentasPorId.has(String(c.cuenta_padre_id)));
                             raices.sort((a, b) => String(a.codigo).localeCompare(String(b.codigo), undefined, { numeric: true }));
 
                             if (raices.length === 0) {
-                                return <p style={{ padding: "24px", textAlign: "center", color: "#667" }}>No se encontraron cuentas con los filtros seleccionados.</p>;
+                                return <p style={{ padding: "24px", textAlign: "center", color: "#667" }}>No hay cuentas registradas en la raíz del catálogo.</p>;
                             }
 
                             return raices.map(raiz => renderNodoArbol(raiz, 0));

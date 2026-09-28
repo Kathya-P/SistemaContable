@@ -7007,3 +7007,216 @@ body:has(.app-shell.tema-oscuro)
   background: #e6f7ef !important;
   color: #087443 !important;
 }
+
+/* ============================================================
+   ESTADO DE RESULTADOS: CUENTA T LATERAL Y SOMBREADO VERDE
+   ============================================================ */
+.er-split-view {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  width: 100%;
+}
+
+.er-tabla-contenedor {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.er-panel-lateral {
+  flex: 0 0 380px;
+  max-width: 420px;
+  position: sticky;
+  top: 20px;
+}
+
+.er-panel-lateral .t-account-panel {
+  margin-top: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.er-table tr.er-clickable {
+  cursor: pointer;
+  transition: background-color 160ms ease, border-left 160ms ease;
+}
+
+.er-table tr.er-clickable:hover {
+  background-color: #F3F8F5;
+}
+
+.app-shell.tema-oscuro .er-table tr.er-clickable:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 1. Filas de origen sombreadas de verdecito (las que componen el cálculo) */
+.er-table tr.er-fila-origen {
+  background-color: #E8F8ED !important;
+  border-left: 4px solid #2E7D4F !important;
+}
+
+.er-table tr.er-fila-origen td {
+  color: #173B35 !important;
+  font-weight: 500;
+}
+
+.app-shell.tema-oscuro .er-table tr.er-fila-origen {
+  background-color: rgba(16, 185, 129, 0.22) !important;
+  border-left: 4px solid #34D399 !important;
+}
+
+.app-shell.tema-oscuro .er-table tr.er-fila-origen td {
+  color: #F1F5F9 !important;
+}
+
+/* 2. Fila calculada activa (la que disparó el sombreado de sus componentes) */
+.er-table tr.er-fila-calculada-activa {
+  background-color: #D6EFE0 !important;
+  border-left: 4px solid #1B4332 !important;
+}
+
+.er-table tr.er-fila-calculada-activa td {
+  color: #123326 !important;
+  font-weight: 700 !important;
+}
+
+.app-shell.tema-oscuro .er-table tr.er-fila-calculada-activa {
+  background-color: rgba(16, 185, 129, 0.35) !important;
+  border-left: 4px solid #10B981 !important;
+}
+
+.app-shell.tema-oscuro .er-table tr.er-fila-calculada-activa td {
+  color: #FFFFFF !important;
+}
+
+/* 3. Fila con Cuenta T activa */
+.er-table tr.er-fila-cuenta-activa {
+  background-color: #E2ECE5 !important;
+  border-left: 4px solid #1B4332 !important;
+}
+
+.app-shell.tema-oscuro .er-table tr.er-fila-cuenta-activa {
+  background-color: rgba(27, 67, 50, 0.45) !important;
+  border-left: 4px solid #10B981 !important;
+}
+
+/* Chips / Etiquetas interactivas en las filas */
+.er-chip-cuenta {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #E3EFE7;
+  color: #1B4332;
+  border: 1px solid #CDE2D5;
+}
+
+.er-chip-cuenta.is-active {
+  background: #1B4332;
+  color: #FFFFFF;
+  border-color: #1B4332;
+}
+
+.app-shell.tema-oscuro .er-chip-cuenta {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6EE7B7;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.app-shell.tema-oscuro .er-chip-cuenta.is-active {
+  background: #10B981;
+  color: #064E3B;
+  border-color: #10B981;
+}
+
+.er-chip-origen {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #2E7D4F;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-shell.tema-oscuro .er-chip-origen {
+  background: #10B981;
+  color: #064E3B;
+  font-weight: 700;
+}
+
+/* Banner de fórmula explicativa */
+.er-formula-banner {
+  margin-top: 12px;
+  padding: 8px 14px;
+  background: #EAF5EE;
+  border: 1px solid #C1E2CE;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  color: #173B35;
+}
+
+.app-shell.tema-oscuro .er-formula-banner {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #E2E8F0;
+}
+
+.er-formula-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #1B4332;
+  color: #FFFFFF;
+}
+
+.app-shell.tema-oscuro .er-formula-badge {
+  background: #10B981;
+  color: #064E3B;
+}
+
+.er-btn-desmarcar {
+  border: none;
+  background: transparent;
+  color: #6E7974;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.er-btn-desmarcar:hover {
+  color: #B3261E;
+  background: rgba(179, 38, 30, 0.08);
+}
+
+.app-shell.tema-oscuro .er-btn-desmarcar {
+  color: #94A3B8;
+}
+
+.app-shell.tema-oscuro .er-btn-desmarcar:hover {
+  color: #F87171;
+  background: rgba(248, 113, 113, 0.15);
+}
+
+@media (max-width: 1024px) {
+  .er-split-view {
+    flex-direction: column;
+  }
+  .er-panel-lateral {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: none;
+    position: static;
+  }
+}

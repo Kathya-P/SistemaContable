@@ -1,4 +1,5 @@
-// Utilidades y cálculos matemáticos para el Módulo de Kardex (Inventario - Promedio Ponderado)
+// Utilidades y cálculos contables del Módulo de Kardex (Inventario - Promedio Ponderado)
+// Fuente única de verdad compartida entre Frontend y Backend.
 
 export const TIPOS_MOVIMIENTO = {
     INVENTARIO_INICIAL: "INVENTARIO_INICIAL",
@@ -9,7 +10,7 @@ export const TIPOS_MOVIMIENTO = {
     OTRO: "OTRO"
 };
 
-// Configuración visual por tipo de operación (colores, badges y estética diferenciada)
+// Configuración visual por tipo de operación
 export const CONFIG_TIPO_MOVIMIENTO = {
     [TIPOS_MOVIMIENTO.INVENTARIO_INICIAL]: {
         label: "Inventario por mercadería",
@@ -35,9 +36,9 @@ export const CONFIG_TIPO_MOVIMIENTO = {
     [TIPOS_MOVIMIENTO.DEVOLUCION_COMPRA]: {
         label: "Devolución sobre compra",
         colorBadge: "badge-kardex-dev-compra",
-        borderRow: "border-l-amber-500",
-        bgLight: "bg-amber-50/60 dark:bg-amber-950/20",
-        dotColor: "#d97706"
+        borderRow: "border-l-teal-600",
+        bgLight: "bg-teal-50/60 dark:bg-teal-950/20",
+        dotColor: "#0d9488"
     },
     [TIPOS_MOVIMIENTO.DEVOLUCION_VENTA]: {
         label: "Devolución sobre venta",
@@ -46,15 +47,6 @@ export const CONFIG_TIPO_MOVIMIENTO = {
         bgLight: "bg-rose-50/60 dark:bg-rose-950/20",
         dotColor: "#e11d48"
     }
-};
-
-export const CANTIDADES_PREDETERMINADAS_POR_ASIENTO = {
-    1: 678,
-    3: 1000,
-    4: 100,
-    5: 600,
-    12: 250,
-    13: 5
 };
 
 const MESES = [
@@ -111,38 +103,49 @@ export function obtenerNombreCuenta(tipo, cuenta = {}) {
     }
 }
 
-export function extraerCantidad(texto, detalle = {}, numeroPartida = null) {
-    if (detalle?.cantidad && Number(detalle.cantidad) > 0) {
-        return Number(detalle.cantidad);
+/**
+ * Deduce las unidades físicas del movimiento contable sin capturarlas ni usar cantidades quemadas.
+ * - Inventario inicial, Compras y Devolución sobre compras: unidades = monto del asiento / costo unitario
+ * - Ventas y Devolución sobre ventas: unidades = monto del asiento / precio de venta unitario
+ * Redondea al entero más cercano (Math.round) porque no existen fracciones de unidad.
+ * Si costo unitario o precio de venta unitario no están definidos (> 0), retorna 0 sin inventar números.
+ */
+export function deducirCantidadMovimiento(tipo, monto, costoUnitario, precioVentaUnitario) {
+    const m = Number(monto || 0);
+    const cUnit = Number(costoUnitario || 0);
+    const pVenta = Number(precioVentaUnitario || 0);
+
+    if (m <= 0) return 0;
+
+    if (
+        tipo === TIPOS_MOVIMIENTO.INVENTARIO_INICIAL ||
+        tipo === TIPOS_MOVIMIENTO.COMPRA ||
+        tipo === TIPOS_MOVIMIENTO.DEVOLUCION_COMPRA
+    ) {
+        if (cUnit <= 0) return 0;
+        return Math.round(m / cUnit);
     }
 
-    const textoAnalizar = `${detalle?.descripcion || ""} ${texto || ""}`.trim();
-    if (textoAnalizar) {
-        const patrones = [
-            /(?:cant(?:idad)?[:\s]*|de\s+|por\s+)?([0-9]+(?:[.,][0-9]+)?)\s*(?:unidades|unidad|unds?|und\b|u\b|piezas|pzs|art[íi]culos|productos|items?|cajas|paquetes)/i,
-            /(?:cantidad|cant\.?|cant:)\s*([0-9]+(?:[.,][0-9]+)?)/i,
-            /\b([0-9]+)\s*(?:u\.|unid\.)/i
-        ];
-
-        for (const regex of patrones) {
-            const match = textoAnalizar.match(regex);
-            if (match && match[1]) {
-                const limpia = match[1].replace(/,/g, "");
-                const val = parseFloat(limpia);
-                if (!isNaN(val) && val > 0) return val;
-            }
-        }
+    if (
+        tipo === TIPOS_MOVIMIENTO.VENTA ||
+        tipo === TIPOS_MOVIMIENTO.DEVOLUCION_VENTA
+    ) {
+        if (pVenta <= 0) return 0;
+        return Math.round(m / pVenta);
     }
 
-    const num = Number(numeroPartida);
-    if (num && CANTIDADES_PREDETERMINADAS_POR_ASIENTO[num] !== undefined) {
-        return CANTIDADES_PREDETERMINADAS_POR_ASIENTO[num];
-    }
-
-    return 1;
+    return 0;
 }
 
-export function clasificarLineaContable(cuenta, detalle, conceptoAsiento = "") {
+/**
+ * Clasifica cada renglón contable por su código o naturaleza según el catálogo contable oficial:
+ * 1103: Inventario de mercadería (inicial o movimientos)
+ * 4101: Compras (Debe)
+ * 4102: Devolución sobre compras (Haber)
+ * 5101: Ventas (Haber)
+ * 5102: Devolución sobre ventas (Debe)
+ */
+export function clasificarLineaContable(cuenta, detalle, conceptoAsiento = "", numPartida = null) {
     const codigo = String(cuenta?.codigo || "").trim();
     const nombre = String(cuenta?.nombre || "").toLowerCase();
     const concepto = String(conceptoAsiento || "").toLowerCase();
@@ -150,7 +153,11 @@ export function clasificarLineaContable(cuenta, detalle, conceptoAsiento = "") {
     const debe = Number(detalle?.debe || 0);
     const haber = Number(detalle?.haber || 0);
 
-    if ((codigo.startsWith("1103") || nombre.includes("inventario")) && debe > 0 && (concepto.includes("inicial") || concepto.includes("apertura") || concepto.includes("inicio") || concepto.includes("aporte"))) {
+    // Asiento 1 o concepto explícito de apertura con cuenta de inventario
+    const esPartidaUno = Number(numPartida) === 1;
+    const esConceptoInicial = concepto.includes("inicial") || concepto.includes("apertura") || concepto.includes("inicio") || concepto.includes("aporte");
+
+    if ((codigo.startsWith("1103") || nombre.includes("inventario")) && debe > 0 && (esPartidaUno || esConceptoInicial)) {
         return {
             tipo: TIPOS_MOVIMIENTO.INVENTARIO_INICIAL,
             esInventario: true,
@@ -209,11 +216,19 @@ export function clasificarLineaContable(cuenta, detalle, conceptoAsiento = "") {
     return { tipo: null, esInventario: false, monto: 0 };
 }
 
-export function procesarKardex(movimientosCrudos) {
+/**
+ * Procesa la serie de movimientos con el método de Promedio Ponderado.
+ * Las unidades se deducen o se toman del movimiento; las ventas salen al costo promedio vigente;
+ * las devoluciones sobre venta entran al costo promedio vigente.
+ * No utiliza la columna PEPS ni fallbacks de 1 unidad.
+ */
+export function procesarKardex(movimientosCrudos, { costoUnitario = 0, precioVentaUnitario = 0 } = {}) {
     let existencias = 0;
     let costoPromedio = 0;
     let saldoTotal = 0;
     let totalCostoVentas = 0;
+    let inventarioInicialMonto = 0;
+    let inventarioInicialUnidades = 0;
 
     const filasKardex = [];
 
@@ -223,39 +238,49 @@ export function procesarKardex(movimientosCrudos) {
         return Number(a.asiento || a.numero_partida || 0) - Number(b.asiento || b.numero_partida || 0);
     });
 
+    const cUnitConfig = Number(costoUnitario || 0);
+    const pVentaConfig = Number(precioVentaUnitario || 0);
+
     for (const mov of movimientosOrdenados) {
         const tipo = mov.tipo;
         const numPartida = mov.asiento || mov.numero_partida || 0;
-        const cantidad = Number(mov.cantidad || 0);
         const montoContable = Number(mov.monto || 0);
+
+        // Deducir unidades según el monto y los parámetros editables (sin inventar cantidades)
+        let cantidad = Number(mov.cantidad || 0);
+        if (cantidad <= 0 && (cUnitConfig > 0 || pVentaConfig > 0)) {
+            cantidad = deducirCantidadMovimiento(tipo, montoContable, cUnitConfig, pVentaConfig);
+        }
 
         let entrada = null;
         let salida = null;
-        let costoUnitario = null;
-        let peps = null;
+        let costoUnitarioFila = null;
         let deudor = null;
         let acreedor = null;
 
         if (tipo === TIPOS_MOVIMIENTO.INVENTARIO_INICIAL) {
-            entrada = cantidad > 0 ? cantidad : 1;
+            entrada = cantidad;
             deudor = montoContable;
-            costoUnitario = entrada > 0 ? Number((deudor / entrada).toFixed(4)) : 0;
+            costoUnitarioFila = entrada > 0 ? Number((deudor / entrada).toFixed(4)) : (cUnitConfig > 0 ? cUnitConfig : 0);
             existencias = existencias + entrada;
-            saldoTotal = saldoTotal + deudor;
-            costoPromedio = existencias > 0 ? (saldoTotal / existencias) : costoUnitario;
+            saldoTotal = Number((saldoTotal + deudor).toFixed(2));
+            costoPromedio = existencias > 0 ? (saldoTotal / existencias) : costoUnitarioFila;
+
+            inventarioInicialMonto += deudor;
+            inventarioInicialUnidades += entrada;
 
         } else if (tipo === TIPOS_MOVIMIENTO.COMPRA) {
-            entrada = cantidad > 0 ? cantidad : 1;
+            entrada = cantidad;
             deudor = montoContable;
-            costoUnitario = entrada > 0 ? Number((deudor / entrada).toFixed(4)) : 0;
+            costoUnitarioFila = entrada > 0 ? Number((deudor / entrada).toFixed(4)) : (cUnitConfig > 0 ? cUnitConfig : 0);
             existencias = existencias + entrada;
-            saldoTotal = saldoTotal + deudor;
-            costoPromedio = existencias > 0 ? (saldoTotal / existencias) : costoUnitario;
+            saldoTotal = Number((saldoTotal + deudor).toFixed(2));
+            costoPromedio = existencias > 0 ? (saldoTotal / existencias) : costoUnitarioFila;
 
         } else if (tipo === TIPOS_MOVIMIENTO.DEVOLUCION_COMPRA) {
-            salida = cantidad > 0 ? cantidad : 1;
+            salida = cantidad;
             acreedor = montoContable > 0 ? montoContable : Number((salida * costoPromedio).toFixed(2));
-            peps = salida > 0 ? Number((acreedor / salida).toFixed(4)) : costoPromedio;
+            costoUnitarioFila = salida > 0 ? Number((acreedor / salida).toFixed(4)) : Number(costoPromedio.toFixed(4));
 
             existencias = Math.max(0, existencias - salida);
             saldoTotal = Math.max(0, Number((saldoTotal - acreedor).toFixed(2)));
@@ -264,9 +289,9 @@ export function procesarKardex(movimientosCrudos) {
             }
 
         } else if (tipo === TIPOS_MOVIMIENTO.VENTA) {
-            salida = cantidad > 0 ? cantidad : 1;
-            costoUnitario = Number(costoPromedio.toFixed(4));
-            peps = montoContable > 0 && salida > 0 ? Number((montoContable / salida).toFixed(4)) : null;
+            salida = cantidad;
+            costoUnitarioFila = Number(costoPromedio.toFixed(4));
+            // Las ventas salen al costo promedio ponderado vigente
             acreedor = Number((salida * costoPromedio).toFixed(2));
             totalCostoVentas += acreedor;
 
@@ -277,9 +302,9 @@ export function procesarKardex(movimientosCrudos) {
             }
 
         } else if (tipo === TIPOS_MOVIMIENTO.DEVOLUCION_VENTA) {
-            entrada = cantidad > 0 ? cantidad : 1;
-            costoUnitario = Number(costoPromedio.toFixed(4));
-            peps = montoContable > 0 && entrada > 0 ? Number((montoContable / entrada).toFixed(4)) : null;
+            entrada = cantidad;
+            costoUnitarioFila = Number(costoPromedio.toFixed(4));
+            // Las devoluciones sobre venta ingresan al costo promedio ponderado vigente
             deudor = Number((entrada * costoPromedio).toFixed(2));
             totalCostoVentas = Math.max(0, totalCostoVentas - deudor);
 
@@ -298,8 +323,12 @@ export function procesarKardex(movimientosCrudos) {
             dotColor: "#64748b"
         };
 
+        // Precio de venta unitario informativo para operaciones de venta / dev. sobre venta
+        const esOperacionVenta = tipo === TIPOS_MOVIMIENTO.VENTA || tipo === TIPOS_MOVIMIENTO.DEVOLUCION_VENTA;
+        const precioUnitVenta = esOperacionVenta && pVentaConfig > 0 ? pVentaConfig : null;
+
         filasKardex.push({
-            id: mov.id || `${numPartida}-${tipo}`,
+            id: mov.id || `${numPartida}-${tipo}-${filasKardex.length}`,
             asiento: numPartida,
             fecha: mov.fecha,
             fechaTexto: formatearFechaKardex(mov.fecha),
@@ -310,8 +339,8 @@ export function procesarKardex(movimientosCrudos) {
             entrada,
             salida,
             existencias,
-            costo_unitario: costoUnitario,
-            peps,
+            costo_unitario: costoUnitarioFila,
+            precio_venta: precioUnitVenta,
             deudor,
             acreedor,
             saldo: saldoTotal
@@ -331,14 +360,85 @@ export function procesarKardex(movimientosCrudos) {
         total_acreedor: 0
     });
 
+    const saldoFinalCalculado = Number(saldoTotal.toFixed(2));
+    const costoPromedioFinalCalculado = existencias > 0 && saldoFinalCalculado > 0
+        ? Number((saldoFinalCalculado / existencias).toFixed(2))
+        : 0;
+
     return {
         filas: filasKardex,
         totales: {
             ...totales,
             existencia_final: existencias,
-            costo_promedio_final: existencias > 0 && saldoTotal > 0 ? Number((saldoTotal / existencias).toFixed(2)) : 0,
-            saldo_final: saldoTotal,
-            total_costo_venta: Number(totalCostoVentas.toFixed(2))
+            costo_promedio_final: costoPromedioFinalCalculado,
+            saldo_final: saldoFinalCalculado,
+            total_costo_venta: Number(totalCostoVentas.toFixed(2)),
+            inventario_inicial_monto: Number(inventarioInicialMonto.toFixed(2)),
+            inventario_inicial_unidades: inventarioInicialUnidades
         }
     };
+}
+
+/**
+ * Función compartida Frontend-Backend que recibe la lista de asientos crudos de la base de datos
+ * y devuelve el Kardex y sus totales exactos utilizando los parámetros de costo y precio de venta.
+ */
+export function calcularKardexDesdeAsientos(
+    asientos = [],
+    costoUnitario = 0,
+    precioVentaUnitario = 0,
+    { desde = null, hasta = null, catalogoCuentas = null } = {}
+) {
+    const cuentasPorId = Array.isArray(catalogoCuentas)
+        ? new Map(catalogoCuentas.map(c => [String(c.id), c]))
+        : null;
+
+    const movimientosCrudos = [];
+
+    for (const asiento of (asientos || [])) {
+        const numPartida = Number(asiento.numero_partida || asiento.id || 0);
+        const fecha = String(asiento.fecha || "").slice(0, 10);
+        const detalles = asiento.detalle_asientos || [];
+
+        for (const det of detalles) {
+            const cuenta = det.cuentas || (cuentasPorId ? cuentasPorId.get(String(det.cuenta_id)) : null) || {};
+            const clasificacion = clasificarLineaContable(cuenta, det, asiento.concepto, numPartida);
+
+            if (clasificacion.esInventario) {
+                const nombreCuenta = obtenerNombreCuenta(clasificacion.tipo, cuenta);
+                const idUnico = `${asiento.id || numPartida}-${det.cuenta_id || clasificacion.tipo}-${movimientosCrudos.length}`;
+
+                // Unidades deducidas matemáticamente según costo unitario o precio de venta unitario
+                const cantidadDeducida = deducirCantidadMovimiento(
+                    clasificacion.tipo,
+                    clasificacion.monto,
+                    costoUnitario,
+                    precioVentaUnitario
+                );
+
+                movimientosCrudos.push({
+                    id: idUnico,
+                    asiento: numPartida,
+                    fecha,
+                    concepto: asiento.concepto || det.descripcion || nombreCuenta,
+                    cuenta_nombre: nombreCuenta,
+                    tipo: clasificacion.tipo,
+                    cantidad: cantidadDeducida,
+                    monto: clasificacion.monto,
+                    cuenta_codigo: cuenta?.codigo || ""
+                });
+            }
+        }
+    }
+
+    // Filtrar por fechas si se especifica
+    let filtrados = movimientosCrudos;
+    if (desde) {
+        filtrados = filtrados.filter(m => m.fecha >= desde);
+    }
+    if (hasta) {
+        filtrados = filtrados.filter(m => m.fecha <= hasta);
+    }
+
+    return procesarKardex(filtrados, { costoUnitario, precioVentaUnitario });
 }

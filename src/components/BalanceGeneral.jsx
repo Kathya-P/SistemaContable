@@ -3,6 +3,7 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 import { exportarBalanceGeneralPDF, exportarBalanceGeneralExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
+import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/configuracionKardex";
 
 // Iconos SVG integrados sin dependencias externas (compatibilidad total para Vercel y despliegues sin lucide-react)
 function Calendar({ size = 18, className = "", style = {} }) {
@@ -185,13 +186,17 @@ export function BalanceGeneral({ empresa, empresaNombre = "Empresa", fechaDesde:
         try {
             // 1. Obtener inventario final de Kardex
             let invFinalKardex = null;
+            const configK = obtenerConfiguracionKardex(empresa?.id);
             if (inventarioManual && Number(inventarioManual) > 0) {
                 invFinalKardex = Number(inventarioManual);
             } else {
                 try {
                     const kardex = await obtenerDatosKardex({
                         fechaInicio: fechasAplicadas.desde,
-                        fechaFin: fechasAplicadas.hasta
+                        fechaFin: fechasAplicadas.hasta,
+                        costoUnitario: configK.costoUnitario,
+                        precioVentaUnitario: configK.precioVentaUnitario,
+                        empresaId: empresa?.id
                     });
                     const saldo = Number(kardex?.totales?.saldo_final ?? 0);
                     if (saldo > 0) {
@@ -207,7 +212,10 @@ export function BalanceGeneral({ empresa, empresaNombre = "Empresa", fechaDesde:
                 desde: fechasAplicadas.desde,
                 hasta: fechasAplicadas.hasta,
                 inventarioFinal: invFinalKardex,
-                inventarioFinalManual: invFinalKardex
+                inventarioFinalManual: invFinalKardex,
+                costoUnitario: configK.costoUnitario,
+                precioVentaUnitario: configK.precioVentaUnitario,
+                empresaId: empresa?.id
             });
 
             if (!data) {
@@ -225,6 +233,11 @@ export function BalanceGeneral({ empresa, empresaNombre = "Empresa", fechaDesde:
 
     useEffect(() => {
         cargarDatos();
+        const handleConfigChange = () => {
+            cargarDatos();
+        };
+        window.addEventListener(EVENTO_CONFIG_KARDEX_ACTUALIZADA, handleConfigChange);
+        return () => window.removeEventListener(EVENTO_CONFIG_KARDEX_ACTUALIZADA, handleConfigChange);
     }, [fechasAplicadas]);
 
     // Aplicar filtros de fecha manuales

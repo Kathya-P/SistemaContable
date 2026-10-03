@@ -4,7 +4,7 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { exportarEstadoResultadosPDF, exportarEstadoResultadosExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 import CuentaT from "./CuentaT";
-import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/configuracionKardex";
+import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/kardexCalculos";
 
 // como en la hoja: cero = "$ -" y negativos = "-$ 1,000.00"
 function moneda(valor) {

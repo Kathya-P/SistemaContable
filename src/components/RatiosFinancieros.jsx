@@ -3,7 +3,7 @@ import { obtenerRatiosFinancieros } from "../services/ratiosService";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { exportarRatiosPDF, exportarRatiosExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
-import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/configuracionKardex";
+import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/kardexCalculos";
 
 // Helper para formatear fechas a YYYY-MM-DD
 function fechaIso(date) {

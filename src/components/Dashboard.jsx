@@ -6,7 +6,7 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { solicitarApi } from "../services/api";
 import ExportarPdfButton from "./ExportarPdfButton";
 import { exportarDashboardPDF, exportarDashboardExcel } from "../services/exportationService";
-import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/configuracionKardex";
+import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/kardexCalculos";
 
 function moneda(valor) {
     return Number(valor || 0).toLocaleString("es-SV", {

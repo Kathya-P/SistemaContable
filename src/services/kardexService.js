@@ -1,23 +1,34 @@
 import { solicitarApi } from "./api";
 import { obtenerLibroDiario } from "./libroDiarioService";
 import { obtenerCuentas } from "./cuentasService";
-import {
-    clasificarLineaContable,
-    extraerCantidad,
-    obtenerNombreCuenta,
-    procesarKardex
-} from "../utils/kardexCalculos";
+import { calcularKardexDesdeAsientos } from "../utils/kardexCalculos";
+import { obtenerConfiguracionKardex } from "../utils/configuracionKardex";
 
 export async function obtenerDatosKardex({
     fechaInicio = "",
     fechaFin = "",
-    cantidadesPersonalizadas = {}
+    costoUnitario = null,
+    precioVentaUnitario = null,
+    empresaId = null
 } = {}) {
-    const movimientosCrudos = [];
+    // Si no se proporcionaron costo o precio, obtener de la configuración guardada por empresa
+    const config = obtenerConfiguracionKardex(empresaId);
+    const cUnit = costoUnitario !== null && costoUnitario !== undefined && Number(costoUnitario) > 0
+        ? Number(costoUnitario)
+        : (config?.costoUnitario ? Number(config.costoUnitario) : 0);
+
+    const pVenta = precioVentaUnitario !== null && precioVentaUnitario !== undefined && Number(precioVentaUnitario) > 0
+        ? Number(precioVentaUnitario)
+        : (config?.precioVentaUnitario ? Number(config.precioVentaUnitario) : 0);
+
+    const tieneConfiguracion = cUnit > 0 && pVenta > 0;
 
     const params = new URLSearchParams();
     if (fechaInicio) params.append("desde", fechaInicio);
     if (fechaFin) params.append("hasta", fechaFin);
+    if (cUnit > 0) params.append("costo_unitario", String(cUnit));
+    if (pVenta > 0) params.append("precio_venta", String(pVenta));
+
     const queryStr = params.toString() ? `?${params.toString()}` : "";
 
     const [asientos, cuentas] = await Promise.all([
@@ -25,59 +36,44 @@ export async function obtenerDatosKardex({
         obtenerCuentas().catch(() => [])
     ]);
 
-    const cuentasPorId = new Map((cuentas || []).map(c => [String(c.id), c]));
-
-    for (const asiento of (asientos || [])) {
-        const detalles = asiento.detalle_asientos || [];
-        const numPartida = asiento.numero_partida || asiento.id;
-
-        for (const detalle of detalles) {
-            const cuenta = detalle.cuentas || cuentasPorId.get(String(detalle.cuenta_id));
-            const clasificacion = clasificarLineaContable(cuenta, detalle, asiento.concepto);
-
-            if (clasificacion.esInventario) {
-                const idUnico = `${asiento.id}-${detalle.cuenta_id || clasificacion.tipo}`;
-                
-                let cantidad = cantidadesPersonalizadas[idUnico] !== undefined
-                    ? Number(cantidadesPersonalizadas[idUnico])
-                    : (cantidadesPersonalizadas[numPartida] !== undefined
-                        ? Number(cantidadesPersonalizadas[numPartida])
-                        : extraerCantidad(asiento.concepto, detalle, numPartida));
-
-                if (!cantidad || cantidad <= 0) {
-                    cantidad = 1;
-                }
-
-                const nombreCuenta = obtenerNombreCuenta(clasificacion.tipo, cuenta);
-
-                movimientosCrudos.push({
-                    id: idUnico,
-                    asiento: numPartida,
-                    fecha: String(asiento.fecha || "").slice(0, 10),
-                    concepto: asiento.concepto || detalle.descripcion || nombreCuenta,
-                    cuenta_nombre: nombreCuenta,
-                    tipo: clasificacion.tipo,
-                    cantidad,
-                    monto: clasificacion.monto,
-                    cuenta_codigo: cuenta?.codigo || ""
-                });
-            }
-        }
+    // Si aún no se han configurado los valores, no inventar números
+    if (!tieneConfiguracion) {
+        return {
+            filas: [],
+            totales: {
+                total_entradas: 0,
+                total_salidas: 0,
+                total_deudor: 0,
+                total_acreedor: 0,
+                existencia_final: 0,
+                costo_promedio_final: 0,
+                saldo_final: 0,
+                total_costo_venta: 0,
+                inventario_inicial_monto: 0,
+                inventario_inicial_unidades: 0
+            },
+            totalMovimientos: 0,
+            tieneDatosReales: Array.isArray(asientos) && asientos.length > 0,
+            requiereConfiguracion: true,
+            costoUnitario: cUnit || null,
+            precioVentaUnitario: pVenta || null
+        };
     }
 
-    let movimientosFiltrados = movimientosCrudos;
-    if (fechaInicio) {
-        movimientosFiltrados = movimientosFiltrados.filter(m => m.fecha >= fechaInicio);
-    }
-    if (fechaFin) {
-        movimientosFiltrados = movimientosFiltrados.filter(m => m.fecha <= fechaFin);
-    }
-
-    const resultado = procesarKardex(movimientosFiltrados);
+    // Usar la función de cálculo compartida
+    const resultado = calcularKardexDesdeAsientos(
+        asientos,
+        cUnit,
+        pVenta,
+        { desde: fechaInicio, hasta: fechaFin, catalogoCuentas: cuentas }
+    );
 
     return {
         ...resultado,
-        totalMovimientos: movimientosFiltrados.length,
-        tieneDatosReales: movimientosCrudos.length > 0
+        totalMovimientos: resultado.filas.length,
+        tieneDatosReales: Array.isArray(asientos) && asientos.length > 0,
+        requiereConfiguracion: false,
+        costoUnitario: cUnit,
+        precioVentaUnitario: pVenta
     };
 }

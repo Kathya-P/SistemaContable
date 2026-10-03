@@ -63,6 +63,8 @@ const OPCIONES_FILTRO = [
 export function TablaKardex({
     filas = [],
     totales = {},
+    precioVentaUnitario = null,
+    parametrosValidos = true,
     filtroCuentaProp,
     onCambiarFiltroCuenta
 }) {
@@ -78,7 +80,7 @@ export function TablaKardex({
         return filtrosLocales;
     }, [filtroCuentaProp, filtrosLocales]);
 
-    // Alternar selección de un filtro (multi-selección y deselección con clic)
+    // Alternar selección de un filtro
     const handleToggleFiltro = (filtroKey) => {
         const nuevos = filtrosActivos.includes(filtroKey)
             ? filtrosActivos.filter(k => k !== filtroKey)
@@ -99,7 +101,7 @@ export function TablaKardex({
         }
     };
 
-    // Filtrar filas: si no hay filtros activos se muestran todas; si hay filtros, coincide con cualquiera de los seleccionados
+    // Filtrar filas
     const filasFiltradas = useMemo(() => {
         if (filtrosActivos.length === 0) return filas;
         return filas.filter(f => filtrosActivos.some(k => coincideCuenta(f, k)));
@@ -199,20 +201,31 @@ export function TablaKardex({
                             <th colSpan={2} className="col-group col-costo">COSTO</th>
                             <th colSpan={3} className="col-group col-saldos">SALDOS</th>
                         </tr>
-                        {/* Fila 2: Subencabezados específicos */}
+                        {/* Fila 2: Subencabezados específicos - Columna PEPS eliminada, renombrada a Precio unit. venta */}
                         <tr className="kardex-header-sub">
                             <th className="sub-col num-col">ENTRADA</th>
                             <th className="sub-col num-col">SALIDA</th>
                             <th className="sub-col num-col">EXISTENCIAS</th>
                             <th className="sub-col num-col">COSTO UNITARIO</th>
-                            <th className="sub-col num-col">PEPS</th>
+                            <th className="sub-col num-col">PRECIO UNIT. VENTA</th>
                             <th className="sub-col num-col">DEUDOR</th>
                             <th className="sub-col num-col">ACREEDOR</th>
                             <th className="sub-col num-col">SALDO</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {filasFiltradas.length === 0 ? (
+                        {!parametrosValidos ? (
+                            <tr>
+                                <td colSpan={12} className="empty-state" style={{ padding: "36px 16px", textAlign: "center" }}>
+                                    <p style={{ margin: "0 0 8px 0", color: "#334155", fontSize: "14px", fontWeight: "600" }}>
+                                        Ingrese el Costo Unitario y el Precio de Venta Unitario en los campos superiores.
+                                    </p>
+                                    <p style={{ margin: "0", color: "#64748b", fontSize: "13px" }}>
+                                        Las unidades del Kardex se deducirán matemáticamente de los montos contables sin inventar cantidades.
+                                    </p>
+                                </td>
+                            </tr>
+                        ) : filasFiltradas.length === 0 ? (
                             <tr>
                                 <td colSpan={12} className="empty-state" style={{ padding: "32px 16px", textAlign: "center" }}>
                                     <p style={{ margin: "0 0 10px 0", color: "#64748B", fontSize: "13.5px" }}>
@@ -230,6 +243,9 @@ export function TablaKardex({
                         ) : (
                             filasFiltradas.map((fila, index) => {
                                 const config = fila.config || {};
+                                const esVenta = fila.tipo === "VENTA" || fila.tipo === "DEVOLUCION_VENTA";
+                                const precioVentaAMostrar = fila.precio_venta || (esVenta && precioVentaUnitario ? precioVentaUnitario : null);
+
                                 return (
                                     <tr
                                         key={fila.id || index}
@@ -276,12 +292,14 @@ export function TablaKardex({
                                                 : ""}
                                         </td>
 
-                                        {/* COSTO */}
+                                        {/* COSTO UNITARIO */}
                                         <td className="num-col cell-money font-medium">
                                             {formatearMoneda(fila.costo_unitario, true)}
                                         </td>
+
+                                        {/* PRECIO UNIT. VENTA (Dato informativo tomado del campo editable, sin PEPS) */}
                                         <td className="num-col cell-money text-muted">
-                                            {formatearMoneda(fila.peps, true)}
+                                            {precioVentaAMostrar ? formatearMoneda(precioVentaAMostrar, true) : "—"}
                                         </td>
 
                                         {/* SALDOS */}
@@ -300,7 +318,7 @@ export function TablaKardex({
                         )}
                     </tbody>
 
-                    {filasFiltradas.length > 0 && (
+                    {parametrosValidos && filasFiltradas.length > 0 && (
                         <tfoot>
                             <tr className="kardex-totals-row-excel">
                                 <th colSpan={4} className="totales-label">

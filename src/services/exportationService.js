@@ -684,7 +684,7 @@ export function exportarCatalogoCuentasPDF({ cuentas = [], empresa = "Empresa" }
     documento.save("Catalogo_de_Cuentas.pdf");
 }
 
-export function exportarKardexPDF({ filas = [], totales = {}, desde, hasta, empresa = "Empresa" } = {}) {
+export function exportarKardexPDF({ filas = [], totales = {}, desde, hasta, empresa = "Empresa", precioVentaUnitario = null } = {}) {
     const documento = crearDocumento("Kardex de Inventario", `Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`, empresa);
     agregarTabla(documento, {
         startY: 28,
@@ -699,14 +699,26 @@ export function exportarKardexPDF({ filas = [], totales = {}, desde, hasta, empr
                 { content: "COSTO", colSpan: 2 },
                 { content: "SALDOS", colSpan: 3 }
             ],
-            ["Entrada", "Salida", "Existencias", "Costo unitario", "PEPS", "Deudor", "Acreedor", "Saldo"]
+            ["Entrada", "Salida", "Existencias", "Costo unitario", "Precio unit. venta", "Deudor", "Acreedor", "Saldo"]
         ],
         body: filas.map(fila => [
-            fila.asiento || "", fila.fechaTexto || formatearFecha(fila.fecha), obtenerEtiquetaMovimiento(fila.tipo), fila.cuenta || "", fila.concepto || "",
-            fila.entrada ?? "", fila.salida ?? "", fila.existencias ?? "", formatearMoneda(fila.costo_unitario), formatearMoneda(fila.peps),
-            formatearMoneda(fila.deudor), formatearMoneda(fila.acreedor), formatearMoneda(fila.saldo)
+            fila.asiento || "",
+            fila.fechaTexto || formatearFecha(fila.fecha),
+            obtenerEtiquetaMovimiento(fila.tipo),
+            fila.cuenta || "",
+            fila.concepto || "",
+            fila.entrada ?? "",
+            fila.salida ?? "",
+            fila.existencias ?? "",
+            formatearMoneda(fila.costo_unitario),
+            (fila.precio_venta || (fila.tipo?.includes("VENTA") && precioVentaUnitario ? precioVentaUnitario : null))
+                ? formatearMoneda(fila.precio_venta || precioVentaUnitario)
+                : "—",
+            formatearMoneda(fila.deudor),
+            formatearMoneda(fila.acreedor),
+            formatearMoneda(fila.saldo)
         ]),
-        foot: [["", "", "", "", "Totales", totales.total_entradas ?? "", totales.total_salidas ?? "", totales.existencia_final ?? "", "", "", formatearMoneda(totales.total_deudor), formatearMoneda(totales.total_acreedor), formatearMoneda(totales.saldo_final)]],
+        foot: [["", "", "", "", "Totales", totales.total_entradas ?? "", totales.total_salidas ?? "", totales.existencia_final ?? "", formatearMoneda(totales.costo_promedio_final), "—", formatearMoneda(totales.total_deudor), formatearMoneda(totales.total_acreedor), formatearMoneda(totales.saldo_final)]],
         footStyles: { fillColor: COLOR_ENCABEZADO, textColor: COLOR_PRIMARIO, fontStyle: "bold" },
         styles: { fontSize: 6.5 },
         columnStyles: { 0: { cellWidth: 17 }, 1: { cellWidth: 21 }, 2: { cellWidth: 29 }, 5: { cellWidth: 16 }, 6: { cellWidth: 16 }, 7: { cellWidth: 20 }, 8: { cellWidth: 23 }, 9: { cellWidth: 23 }, 10: { cellWidth: 22 }, 11: { cellWidth: 22 }, 12: { cellWidth: 23 } }
@@ -1170,16 +1182,32 @@ export function exportarCatalogoCuentasExcel({ cuentas = [], empresa = "Empresa"
     exportarLibroExcel("Catalogo_de_Cuentas", [{ nombreHoja: "Catálogo", filas: [["Código", "Cuenta", "Nivel", "Cuenta padre"], ...cuentas.map(cuenta => [cuenta.codigo, cuenta.nombre, cuenta.nivel ?? "-", cuentasPorId.get(String(cuenta.cuenta_padre_id))?.nombre || "Cuenta principal"])], anchos: [15, 42, 12, 35] }], empresa);
 }
 
-export function exportarKardexExcel({ filas = [], totales = {}, desde, hasta, empresa = "Empresa" } = {}) {
+export function exportarKardexExcel({ filas = [], totales = {}, desde, hasta, empresa = "Empresa", precioVentaUnitario = null } = {}) {
     const datos = [
         ["KARDEX DE INVENTARIO"],
         [`Periodo: ${formatearFecha(desde)} al ${formatearFecha(hasta)}`],
         [],
         ["Asiento", "Fecha", "Tipo de movimiento", "Cuenta", "Concepto", "UNIDADES", "", "", "COSTO", "", "SALDOS", "", ""],
-        ["", "", "", "", "", "Entrada", "Salida", "Existencias", "Costo unitario", "PEPS", "Deudor", "Acreedor", "Saldo"],
-        ...filas.map(fila => [fila.asiento, fila.fechaTexto || formatearFecha(fila.fecha), obtenerEtiquetaMovimiento(fila.tipo), fila.cuenta, fila.concepto, fila.entrada ?? "", fila.salida ?? "", fila.existencias ?? "", celdaMoneda(fila.costo_unitario), celdaMoneda(fila.peps), celdaMoneda(fila.deudor), celdaMoneda(fila.acreedor), celdaMoneda(fila.saldo)]),
+        ["", "", "", "", "", "Entrada", "Salida", "Existencias", "Costo unitario", "Precio unit. venta", "Deudor", "Acreedor", "Saldo"],
+        ...filas.map(fila => [
+            fila.asiento,
+            fila.fechaTexto || formatearFecha(fila.fecha),
+            obtenerEtiquetaMovimiento(fila.tipo),
+            fila.cuenta,
+            fila.concepto,
+            fila.entrada ?? "",
+            fila.salida ?? "",
+            fila.existencias ?? "",
+            celdaMoneda(fila.costo_unitario),
+            (fila.precio_venta || (fila.tipo?.includes("VENTA") && precioVentaUnitario ? precioVentaUnitario : null))
+                ? celdaMoneda(fila.precio_venta || precioVentaUnitario)
+                : "—",
+            celdaMoneda(fila.deudor),
+            celdaMoneda(fila.acreedor),
+            celdaMoneda(fila.saldo)
+        ]),
         [],
-        ["", "", "", "", "Totales", totales.total_entradas ?? "", totales.total_salidas ?? "", totales.existencia_final ?? "", celdaMoneda(totales.costo_promedio_final), "", celdaMoneda(totales.total_deudor), celdaMoneda(totales.total_acreedor), celdaMoneda(totales.saldo_final)]
+        ["", "", "", "", "Totales", totales.total_entradas ?? "", totales.total_salidas ?? "", totales.existencia_final ?? "", celdaMoneda(totales.costo_promedio_final), "—", celdaMoneda(totales.total_deudor), celdaMoneda(totales.total_acreedor), celdaMoneda(totales.saldo_final)]
     ];
     exportarLibroExcel(`Kardex_${desde || "periodo"}`, [{ nombreHoja: "Kardex", filas: datos, anchos: [12, 14, 25, 28, 42, 13, 13, 14, 17, 15, 15, 15, 15], columnasMoneda: [8, 9, 10, 11, 12], merges: [
         { s: { r: 3, c: 5 }, e: { r: 3, c: 7 } },

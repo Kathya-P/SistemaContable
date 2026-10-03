@@ -4,6 +4,7 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { exportarEstadoResultadosPDF, exportarEstadoResultadosExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
 import CuentaT from "./CuentaT";
+import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/configuracionKardex";
 
 // como en la hoja: cero = "$ -" y negativos = "-$ 1,000.00"
 function moneda(valor) {
@@ -285,6 +286,15 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
     // Estados para interactividad de Cuenta T y Sombreado de fórmulas
     const [cuentaTSeleccionada, setCuentaTSeleccionada] = useState(null);
     const [filaCalculada, setFilaCalculada] = useState(null);
+    const [recargaKey, setRecargaKey] = useState(0);
+
+    useEffect(() => {
+        const handleConfigChange = () => {
+            setRecargaKey(k => k + 1);
+        };
+        window.addEventListener(EVENTO_CONFIG_KARDEX_ACTUALIZADA, handleConfigChange);
+        return () => window.removeEventListener(EVENTO_CONFIG_KARDEX_ACTUALIZADA, handleConfigChange);
+    }, []);
 
     useEffect(() => {
         if (filtroDesde) setDesde(filtroDesde);
@@ -312,8 +322,14 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
             .catch(() => {});
 
         // 1) el kardex da el inventario final; 2) el backend arma el estado con el Libro Mayor
+        const configK = obtenerConfiguracionKardex();
         Promise.resolve()
-            .then(() => obtenerDatosKardex({ fechaInicio: desde, fechaFin: hasta }))
+            .then(() => obtenerDatosKardex({
+                fechaInicio: desde,
+                fechaFin: hasta,
+                costoUnitario: configK.costoUnitario,
+                precioVentaUnitario: configK.precioVentaUnitario
+            }))
             .then(kardex => ({ totales: kardex?.totales || null, aviso: "" }))
             .catch(() => ({
                 totales: null,
@@ -321,11 +337,19 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
             }))
             .then(async ({ totales, aviso }) => {
                 const inventarioFinal = Number(totales?.saldo_final || 0);
+                const inventarioInicial = Number(totales?.inventario_inicial_monto || 0);
                 let datos;
                 try {
-                    datos = await solicitarApi(
-                        `/estado-resultados?desde=${desde}&hasta=${hasta}&inventario_final=${inventarioFinal}`
-                    );
+                    const params = new URLSearchParams({
+                        desde,
+                        hasta,
+                        inventario_final: String(inventarioFinal)
+                    });
+                    if (inventarioInicial > 0) params.append("inventario_inicial", String(inventarioInicial));
+                    if (configK.costoUnitario > 0) params.append("costo_unitario", String(configK.costoUnitario));
+                    if (configK.precioVentaUnitario > 0) params.append("precio_venta", String(configK.precioVentaUnitario));
+
+                    datos = await solicitarApi(`/estado-resultados?${params.toString()}`);
                 } catch {
                     // Fallback con datos de demostración si la API no está disponible
                     const demo = obtenerEstadoResultadosDemo(desde, hasta, empresaNombre);
@@ -372,7 +396,7 @@ function EstadoResultados({ filtroDesde, filtroHasta, ocultarFiltros, empresaNom
         return () => {
             cancelado = true;
         };
-    }, [desde, hasta, empresaNombre]);
+    }, [desde, hasta, empresaNombre, recargaKey]);
 
     // Extrae y agrupa movimientos para la cuenta T seleccionada
     function extraerMovimientosCuenta(prefijoCodigo, nombrePorDefecto, montoFila = 0, naturaleza = "acreedora") {

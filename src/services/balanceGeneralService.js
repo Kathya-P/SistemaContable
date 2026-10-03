@@ -1,6 +1,6 @@
 import { solicitarApi } from "./api";
 import { obtenerDatosKardex } from "./kardexService";
-import { obtenerConfiguracionKardex } from "../utils/configuracionKardex";
+import { obtenerConfiguracionKardex } from "../utils/kardexCalculos";
 
 /**
  * Consulta el Balance General desde el backend enviando las fechas,

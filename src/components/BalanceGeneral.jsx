@@ -3,7 +3,7 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { obtenerBalanceGeneral } from "../services/balanceGeneralService";
 import { exportarBalanceGeneralPDF, exportarBalanceGeneralExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
-import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/configuracionKardex";
+import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/kardexCalculos";
 
 // Iconos SVG integrados sin dependencias externas (compatibilidad total para Vercel y despliegues sin lucide-react)
 function Calendar({ size = 18, className = "", style = {} }) {

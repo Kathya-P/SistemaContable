@@ -3,6 +3,7 @@ import { obtenerRatiosFinancieros } from "../services/ratiosService";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { exportarRatiosPDF, exportarRatiosExcel } from "../services/exportationService";
 import ExportarPdfButton from "./ExportarPdfButton";
+import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/configuracionKardex";
 
 // Helper para formatear fechas a YYYY-MM-DD
 function fechaIso(date) {
@@ -161,9 +162,15 @@ export function RatiosFinancieros({ empresaNombre = "Empresa" }) {
         setCargando(true);
         setError(null);
         try {
+            const configK = obtenerConfiguracionKardex();
             let invFinal = null;
             try {
-                const kardex = await obtenerDatosKardex({ fechaFin: fechaFin || "" });
+                const kardex = await obtenerDatosKardex({
+                    fechaInicio: fechaInicio || "",
+                    fechaFin: fechaFin || "",
+                    costoUnitario: configK.costoUnitario,
+                    precioVentaUnitario: configK.precioVentaUnitario
+                });
                 const saldo = Number(kardex?.totales?.saldo_final ?? 0);
                 if (saldo > 0) invFinal = saldo;
             } catch (errKardex) {
@@ -173,7 +180,9 @@ export function RatiosFinancieros({ empresaNombre = "Empresa" }) {
             const data = await obtenerRatiosFinancieros({
                 desde: fechaInicio,
                 hasta: fechaFin,
-                inventarioFinal: invFinal
+                inventarioFinal: invFinal,
+                costoUnitario: configK.costoUnitario,
+                precioVentaUnitario: configK.precioVentaUnitario
             });
 
             setDatosRatios(data);
@@ -187,6 +196,12 @@ export function RatiosFinancieros({ empresaNombre = "Empresa" }) {
 
     useEffect(() => {
         cargarRatios(desde, hasta);
+
+        const handleConfigChange = () => {
+            cargarRatios(desde, hasta);
+        };
+        window.addEventListener(EVENTO_CONFIG_KARDEX_ACTUALIZADA, handleConfigChange);
+        return () => window.removeEventListener(EVENTO_CONFIG_KARDEX_ACTUALIZADA, handleConfigChange);
     }, [desde, hasta]);
 
     const manejarOpcionRapida = (opcion) => {

@@ -1,8 +1,7 @@
 import { solicitarApi } from "./api";
 import { obtenerLibroDiario } from "./libroDiarioService";
 import { obtenerCuentas } from "./cuentasService";
-import { calcularKardexDesdeAsientos } from "../utils/kardexCalculos";
-import { obtenerConfiguracionKardex } from "../utils/configuracionKardex";
+import { calcularKardexDesdeAsientos, obtenerConfiguracionKardex } from "../utils/kardexCalculos";
 
 export async function obtenerDatosKardex({
     fechaInicio = "",

@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { obtenerDatosKardex } from "../services/kardexService";
 import { FiltersPeriodo } from "./FiltersPeriodo";
 import { TablaKardex } from "./TablaKardex";
-import { formatearMoneda } from "../utils/kardexCalculos";
+import { formatearMoneda, obtenerConfiguracionKardex, guardarConfiguracionKardex } from "../utils/kardexCalculos";
 import { exportarKardexPDF, exportarKardexExcel } from "../services/exportationService";
-import { obtenerConfiguracionKardex, guardarConfiguracionKardex } from "../utils/configuracionKardex";
 import ExportarPdfButton from "./ExportarPdfButton";
 
 const anioActual = new Date().getFullYear();

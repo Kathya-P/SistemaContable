@@ -7,6 +7,7 @@ import { calcularEstadoResultados, inventarioDelMayor } from "./Estadoresultados
 import { calcularBalanceGeneral } from "./balanceGeneral.js";
 import { calcularRatios } from "./ratiosFinancieros.js";
 import { registrarAuditoria, consultarLogsAuditoria } from "./auditoria.js";
+import { calcularKardexDesdeAsientos } from "../src/utils/kardexCalculos.js";
 
 const app = express();
 const puerto = Number(process.env.PORT || 3001);
@@ -2686,9 +2687,13 @@ apiRouter.get("/kardex", async (req, res) => {
     }
 });
 
-// Calcula dinámicamente el saldo final valorizado del Kardex hasta una fecha de corte
-async function calcularInventarioKardex(supabaseClient, empresaId, hasta) {
+// Calcula dinámicamente el saldo final e inventario inicial del Kardex hasta una fecha de corte
+// usando la función de cálculo compartida sin cantidades quemadas ni regexes
+async function calcularInventarioKardex(supabaseClient, empresaId, hasta, costoUnitario = 0, precioVenta = 0) {
     try {
+        const cUnit = Number(costoUnitario || 0);
+        const pVenta = Number(precioVenta || 0);
+
         let query = supabaseClient
             .from("asientos")
             .select(`
@@ -2716,87 +2721,41 @@ async function calcularInventarioKardex(supabaseClient, empresaId, hasta) {
             .order("fecha", { ascending: true })
             .order("numero_partida", { ascending: true });
 
-        if (error || !asientos || asientos.length === 0) return 0;
-
-        let existencias = 0;
-        let saldoTotal = 0;
-        let costoPromedio = 0;
-
-        const CANTIDADES_DEFAULT = { 1: 678, 3: 1000, 4: 100, 5: 600, 12: 250, 13: 5 };
-
-        for (const asiento of asientos) {
-            const numPartida = Number(asiento.numero_partida || asiento.id || 0);
-            const detalles = asiento.detalle_asientos || [];
-
-            for (const det of detalles) {
-                const cuenta = det.cuentas || {};
-                const codigo = String(cuenta.codigo || "").trim();
-                const nombre = String(cuenta.nombre || "").toLowerCase();
-                const debe = Number(det.debe || 0);
-                const haber = Number(det.haber || 0);
-
-                let tipo = null;
-                let monto = 0;
-
-                if (numPartida === 1 && (codigo.startsWith("1103") || nombre.includes("inventario")) && debe > 0) {
-                    tipo = "INVENTARIO_INICIAL";
-                    monto = debe;
-                } else if ((codigo.startsWith("4101") || nombre.includes("compra")) && debe > 0) {
-                    tipo = "COMPRA";
-                    monto = debe;
-                } else if ((codigo.startsWith("4102") || (nombre.includes("devoluci") && nombre.includes("compra"))) && haber > 0) {
-                    tipo = "DEVOLUCION_COMPRA";
-                    monto = haber;
-                } else if ((codigo.startsWith("5101") || (nombre.includes("venta") && !nombre.includes("devoluci"))) && haber > 0) {
-                    tipo = "VENTA";
-                    monto = haber;
-                } else if ((codigo.startsWith("5102") || (nombre.includes("devoluci") && nombre.includes("venta"))) && debe > 0) {
-                    tipo = "DEVOLUCION_VENTA";
-                    monto = debe;
-                } else if ((codigo.startsWith("1103") || nombre.includes("inventario")) && numPartida !== 1) {
-                    if (debe > 0) { tipo = "COMPRA"; monto = debe; }
-                    else if (haber > 0) { tipo = "VENTA"; monto = haber; }
-                }
-
-                if (!tipo) continue;
-
-                let cantidad = CANTIDADES_DEFAULT[numPartida] || 0;
-                if (!cantidad) {
-                    const texto = `${asiento.concepto || ""} ${det.descripcion || ""}`;
-                    const match = texto.match(/(\d+[\d,.]*)\s*(unidades|unid|uds|articulos|piezas|pares|cajas|quintales)/i)
-                        || texto.match(/(?:compra|venta|devolución|devolucion|adquisición|saldo|inicio)\s+(?:de\s+)?(\d+[\d,.]*)/i)
-                        || texto.match(/\b(\d{2,6})\b/);
-                    if (match) cantidad = parseFloat(match[1].replace(/,/g, ""));
-                }
-                if (!cantidad || cantidad <= 0) cantidad = 1;
-
-                if (tipo === "INVENTARIO_INICIAL" || tipo === "COMPRA") {
-                    existencias += cantidad;
-                    saldoTotal += monto;
-                    costoPromedio = existencias > 0 ? (saldoTotal / existencias) : (monto / cantidad);
-                } else if (tipo === "DEVOLUCION_COMPRA") {
-                    const costoSalida = monto > 0 ? monto : Number((cantidad * costoPromedio).toFixed(2));
-                    existencias = Math.max(0, existencias - cantidad);
-                    saldoTotal = Math.max(0, Number((saldoTotal - costoSalida).toFixed(2)));
-                    if (existencias > 0) costoPromedio = saldoTotal / existencias;
-                } else if (tipo === "VENTA") {
-                    const costoSalida = Number((cantidad * costoPromedio).toFixed(2));
-                    existencias = Math.max(0, existencias - cantidad);
-                    saldoTotal = Math.max(0, Number((saldoTotal - costoSalida).toFixed(2)));
-                    if (existencias > 0) costoPromedio = saldoTotal / existencias;
-                } else if (tipo === "DEVOLUCION_VENTA") {
-                    const costoEntrada = Number((cantidad * costoPromedio).toFixed(2));
-                    existencias += cantidad;
-                    saldoTotal = Number((saldoTotal + costoEntrada).toFixed(2));
-                    if (existencias > 0) costoPromedio = saldoTotal / existencias;
-                }
-            }
+        if (error || !asientos || asientos.length === 0) {
+            return {
+                saldoFinal: 0,
+                existenciaFinal: 0,
+                inventarioInicial: 0,
+                costoVentas: 0
+            };
         }
 
-        return Number(saldoTotal.toFixed(2));
+        // Si no se proporcionaron costo ni precio, no inventar números
+        if (cUnit <= 0 && pVenta <= 0) {
+            return {
+                saldoFinal: 0,
+                existenciaFinal: 0,
+                inventarioInicial: 0,
+                costoVentas: 0
+            };
+        }
+
+        const kardex = calcularKardexDesdeAsientos(asientos, cUnit, pVenta, { hasta });
+
+        return {
+            saldoFinal: Number(kardex.totales.saldo_final || 0),
+            existenciaFinal: Number(kardex.totales.existencia_final || 0),
+            inventarioInicial: Number(kardex.totales.inventario_inicial_monto || 0),
+            costoVentas: Number(kardex.totales.total_costo_venta || 0)
+        };
     } catch (err) {
         console.warn("Error al calcular inventario Kardex en backend:", err);
-        return 0;
+        return {
+            saldoFinal: 0,
+            existenciaFinal: 0,
+            inventarioInicial: 0,
+            costoVentas: 0
+        };
     }
 }
 
@@ -2901,11 +2860,25 @@ apiRouter.get("/estado-resultados", async (req, res) => {
             return res.status(400).json({ error: "El Estado de Resultados requiere fecha desde y fecha hasta." });
         }
 
-        // el inventario final lo calcula el kardex y lo manda el front
-        const inventarioFinal = Number(req.query.inventario_final || 0);
+        // el inventario final lo calcula el kardex y lo manda el front, o se calcula con costo y precio
+        const costoUnitario = Number(req.query.costo_unitario ?? req.query.costoUnitario ?? 0);
+        const precioVenta = Number(req.query.precio_venta ?? req.query.precioVenta ?? 0);
+
+        let inventarioFinal = Number(req.query.inventario_final || 0);
+        let inventarioInicial = req.query.inventario_inicial !== undefined
+            ? Number(req.query.inventario_inicial)
+            : null;
+
+        if ((!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) && (costoUnitario > 0 || precioVenta > 0)) {
+            const kardexCorte = await calcularInventarioKardex(supabase, usuario.empresa_id, hasta, costoUnitario, precioVenta);
+            inventarioFinal = kardexCorte.saldoFinal;
+            if (inventarioInicial === null || inventarioInicial <= 0) {
+                inventarioInicial = kardexCorte.inventarioInicial;
+            }
+        }
 
         if (!Number.isFinite(inventarioFinal) || inventarioFinal < 0) {
-            throw new Error("El inventario final no es válido.");
+            inventarioFinal = 0;
         }
 
         const { data: mayorPeriodo, error: errorPeriodo } = await supabase.rpc("libro_mayor", {
@@ -2925,12 +2898,8 @@ apiRouter.get("/estado-resultados", async (req, res) => {
 
         if (errorAcumulado) throw errorAcumulado;
 
-        const inventarioInicial = req.query.inventario_inicial === undefined
-            ? inventarioDelMayor(mayorAcumulado || [])
-            : Number(req.query.inventario_inicial);
-
-        if (!Number.isFinite(inventarioInicial) || inventarioInicial < 0) {
-            throw new Error("El inventario inicial no es válido.");
+        if (inventarioInicial === null || !Number.isFinite(inventarioInicial) || inventarioInicial < 0) {
+            inventarioInicial = inventarioDelMayor(mayorAcumulado || []);
         }
 
         const { data: empresa, error: errorEmpresa } = await supabase
@@ -2964,12 +2933,24 @@ apiRouter.get("/balance-general", async (req, res) => {
             return res.status(400).json({ error: "El Balance General requiere fecha desde y fecha hasta (o fecha de corte)." });
         }
 
+        const costoUnitario = Number(req.query.costo_unitario ?? req.query.costoUnitario ?? 0);
+        const precioVenta = Number(req.query.precio_venta ?? req.query.precioVenta ?? 0);
+
         let inventarioFinal = Number(req.query.inventario_final ?? req.query.inventarioFinal ?? 0);
-        if (!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) {
-            inventarioFinal = await calcularInventarioKardex(supabase, usuario.empresa_id, hasta);
-            if (!inventarioFinal || inventarioFinal <= 0) {
-                inventarioFinal = 0;
+        let inventarioInicial = req.query.inventario_inicial !== undefined
+            ? Number(req.query.inventario_inicial)
+            : null;
+
+        if (costoUnitario > 0 || precioVenta > 0) {
+            const kardexCorte = await calcularInventarioKardex(supabase, usuario.empresa_id, hasta, costoUnitario, precioVenta);
+            if (!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) {
+                inventarioFinal = kardexCorte.saldoFinal;
             }
+            if ((inventarioInicial === null || inventarioInicial <= 0) && kardexCorte.inventarioInicial > 0) {
+                inventarioInicial = kardexCorte.inventarioInicial;
+            }
+        } else if (!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) {
+            inventarioFinal = 0;
         }
 
         // Obtener catálogo de cuentas para nombres y niveles oficiales
@@ -3053,9 +3034,9 @@ apiRouter.get("/balance-general", async (req, res) => {
             }
         }
 
-        const inventarioInicial = req.query.inventario_inicial === undefined
-            ? inventarioDelMayor(mayorAcumulado || [])
-            : Number(req.query.inventario_inicial);
+        if (inventarioInicial === null || !Number.isFinite(inventarioInicial) || inventarioInicial < 0) {
+            inventarioInicial = inventarioDelMayor(mayorAcumulado || []);
+        }
 
         const { data: empresa, error: errorEmpresa } = await supabase
             .from("empresas")
@@ -3092,12 +3073,24 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
         const desde = req.query.desde || `${anioActual}-01-01`;
         const hasta = req.query.hasta || `${anioActual}-12-31`;
 
+        const costoUnitario = Number(req.query.costo_unitario ?? req.query.costoUnitario ?? 0);
+        const precioVenta = Number(req.query.precio_venta ?? req.query.precioVenta ?? 0);
+
         let inventarioFinal = Number(req.query.inventario_final ?? req.query.inventarioFinal ?? 0);
-        if (!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) {
-            inventarioFinal = await calcularInventarioKardex(supabase, usuario.empresa_id, hasta);
-            if (!inventarioFinal || inventarioFinal <= 0) {
-                inventarioFinal = 0;
+        let inventarioInicial = req.query.inventario_inicial !== undefined
+            ? Number(req.query.inventario_inicial)
+            : 0;
+
+        if (costoUnitario > 0 || precioVenta > 0) {
+            const kardexCorte = await calcularInventarioKardex(supabase, usuario.empresa_id, hasta, costoUnitario, precioVenta);
+            if (!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) {
+                inventarioFinal = kardexCorte.saldoFinal;
             }
+            if (inventarioInicial <= 0 && kardexCorte.inventarioInicial > 0) {
+                inventarioInicial = kardexCorte.inventarioInicial;
+            }
+        } else if (!Number.isFinite(inventarioFinal) || inventarioFinal <= 0) {
+            inventarioFinal = 0;
         }
 
         // 1. Mayor del período filtrado (para ratios de flujo: ventas, costos, gastos)
@@ -3132,10 +3125,6 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
         }
 
         // Inventario inicial y final calculados dinámicamente
-        let inventarioInicial = req.query.inventario_inicial !== undefined
-            ? Number(req.query.inventario_inicial)
-            : 0;
-
         if (!inventarioInicial || inventarioInicial <= 0) {
             const invMayorInicio = inventarioDelMayor(mayorAcumuladoInicio || []);
             if (invMayorInicio > 0) {
@@ -3195,7 +3184,13 @@ apiRouter.get("/ratios-financieros", async (req, res) => {
                             })
                         ]);
 
-                        const invMes = inventarioDelMayor(mAcum || []);
+                        let invMes = inventarioDelMayor(mAcum || []);
+                        if (costoUnitario > 0 || precioVenta > 0) {
+                            const kMes = await calcularInventarioKardex(supabase, usuario.empresa_id, corteIso, costoUnitario, precioVenta);
+                            if (kMes.saldoFinal > 0) {
+                                invMes = kMes.saldoFinal;
+                            }
+                        }
                         const calc = calcularRatios({
                             mayorPeriodo: mMes || [],
                             mayorAcumuladoFin: mAcum || [],

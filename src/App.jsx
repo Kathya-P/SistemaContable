@@ -334,7 +334,7 @@ function App(){
         if(vista === "asiento") return <NuevoAsiento usuario={usuario} empresaNombre={empresaNombre} onCreated={() => setVista("diario")} />;
         if(vista === "diario") return <LibroDiario empresaNombre={empresaNombre} usuario={usuario} />;
         if(vista === "mayor") return <LibroMayor empresaNombre={empresaNombre} />;
-        if(vista === "kardex") return <KardexPage empresaNombre={empresaNombre} />;
+        if(vista === "kardex") return <KardexPage empresaNombre={empresaNombre} empresaId={usuario?.empresa_id} />;
         if(vista === "estadoResultados") return <Estadoresultados empresaNombre={empresaNombre} />;
         if(vista === "balanceGeneral") return <BalanceGeneral empresa={{ id: usuario.empresa_id }} empresaNombre={empresaNombre} />;
         if(vista === "ratiosFinancieros") return <RatiosFinancieros empresaNombre={empresaNombre} />;

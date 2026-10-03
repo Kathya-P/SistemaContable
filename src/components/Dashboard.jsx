@@ -6,6 +6,7 @@ import { obtenerDatosKardex } from "../services/kardexService";
 import { solicitarApi } from "../services/api";
 import ExportarPdfButton from "./ExportarPdfButton";
 import { exportarDashboardPDF, exportarDashboardExcel } from "../services/exportationService";
+import { obtenerConfiguracionKardex, EVENTO_CONFIG_KARDEX_ACTUALIZADA } from "../utils/configuracionKardex";
 
 function moneda(valor) {
     return Number(valor || 0).toLocaleString("es-SV", {
@@ -174,21 +175,42 @@ function Dashboard({ cambiarVista, usuario, empresaNombre = "Empresa" }) {
                 const anioActual = new Date().getFullYear();
                 const desde = `${anioActual}-01-01`;
                 const hasta = `${anioActual}-12-31`;
+                const configK = obtenerConfiguracionKardex(usuario?.empresa_id);
 
                 const [asientosCargados, cuentasCargadas, balanceCargado, kardex] =
                     await Promise.all([
                         obtenerLibroDiario(),
                         obtenerCuentas(),
-                        obtenerBalanceGeneral({ desde, hasta }),
-                        obtenerDatosKardex({ fechaInicio: desde, fechaFin: hasta })
+                        obtenerBalanceGeneral({
+                            desde,
+                            hasta,
+                            costoUnitario: configK.costoUnitario,
+                            precioVentaUnitario: configK.precioVentaUnitario,
+                            empresaId: usuario?.empresa_id
+                        }),
+                        obtenerDatosKardex({
+                            fechaInicio: desde,
+                            fechaFin: hasta,
+                            costoUnitario: configK.costoUnitario,
+                            precioVentaUnitario: configK.precioVentaUnitario,
+                            empresaId: usuario?.empresa_id
+                        })
                     ]);
 
                 const inventarioFinal = Number(kardex?.totales?.saldo_final || 0);
+                const inventarioInicial = Number(kardex?.totales?.inventario_inicial_monto || 0);
                 let estadoCargado = null;
                 try {
-                    estadoCargado = await solicitarApi(
-                        `/estado-resultados?desde=${desde}&hasta=${hasta}&inventario_final=${inventarioFinal}`
-                    );
+                    const params = new URLSearchParams({
+                        desde,
+                        hasta,
+                        inventario_final: String(inventarioFinal)
+                    });
+                    if (inventarioInicial > 0) params.append("inventario_inicial", String(inventarioInicial));
+                    if (configK.costoUnitario > 0) params.append("costo_unitario", String(configK.costoUnitario));
+                    if (configK.precioVentaUnitario > 0) params.append("precio_venta", String(configK.precioVentaUnitario));
+
+                    estadoCargado = await solicitarApi(`/estado-resultados?${params.toString()}`);
                 } catch (e) {
                     console.warn("Estado de resultados no disponible:", e);
                 }
@@ -206,7 +228,13 @@ function Dashboard({ cambiarVista, usuario, empresaNombre = "Empresa" }) {
         }
 
         cargarDatos();
-    }, []);
+
+        const handleConfigChange = () => {
+            cargarDatos();
+        };
+        window.addEventListener(EVENTO_CONFIG_KARDEX_ACTUALIZADA, handleConfigChange);
+        return () => window.removeEventListener(EVENTO_CONFIG_KARDEX_ACTUALIZADA, handleConfigChange);
+    }, [usuario]);
 
     const resumen = useMemo(() => calcularResumen(asientos, cuentas), [asientos, cuentas]);
 

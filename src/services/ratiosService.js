@@ -1,6 +1,6 @@
 import { solicitarApi } from "./api";
 import { obtenerDatosKardex } from "./kardexService";
-import { obtenerConfiguracionKardex } from "../utils/configuracionKardex";
+import { obtenerConfiguracionKardex } from "../utils/kardexCalculos";
 
 /**
  * Servicio para consultar los Ratios Financieros con datos reales del sistema.
